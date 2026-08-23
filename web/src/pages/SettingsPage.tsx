@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { BRAND, copyrightLine } from "../lib/brand";
 import { PageHeader } from "../ui/PageHeader";
 
@@ -19,6 +20,7 @@ interface Shop {
 }
 
 export function SettingsPage() {
+  const { user, refreshUser } = useAuth();
   const [shop, setShop] = useState<Shop | null>(null);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +58,13 @@ export function SettingsPage() {
       />
       {error && <div className="error">{error}</div>}
       {saved && <div className="muted">Saved.</div>}
+      <VerificationCard
+        email={user?.email}
+        phone={user?.phone}
+        emailVerified={Boolean(user?.emailVerified)}
+        phoneVerified={Boolean(user?.phoneVerified)}
+        onVerified={() => void refreshUser()}
+      />
       <div className="grid-2">
         <Field label="Shop name" value={shop.name} onChange={(name) => setShop({ ...shop, name })} />
         <Field label="Phone" value={shop.phone ?? ""} onChange={(phone) => setShop({ ...shop, phone })} />
@@ -96,6 +105,104 @@ export function SettingsPage() {
           {copyrightLine()}
         </p>
       </div>
+    </div>
+  );
+}
+
+function VerificationCard({
+  email,
+  phone,
+  emailVerified,
+  phoneVerified,
+  onVerified,
+}: {
+  email?: string;
+  phone?: string;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  onVerified: () => void;
+}) {
+  const [code, setCode] = useState("");
+  const [channel, setChannel] = useState<"email" | "phone" | "whatsapp">("email");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function send() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      if (channel === "email") {
+        await api("/api/v1/auth/email-otp", { method: "POST", body: JSON.stringify({ email }) });
+        setNotice("A verification code was sent to your email.");
+      } else {
+        await api(`/api/v1/auth/${channel === "whatsapp" ? "whatsapp" : "phone"}/start`, {
+          method: "POST",
+          body: JSON.stringify({ phone, channel: channel === "whatsapp" ? "WHATSAPP" : "SMS" }),
+        });
+        setNotice("A verification code was sent to that number.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send a code");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verify() {
+    setBusy(true);
+    setError(null);
+    try {
+      if (channel === "email") {
+        await api("/api/v1/auth/email-otp/verify", {
+          method: "POST",
+          body: JSON.stringify({ email, code }),
+        });
+      } else {
+        await api(`/api/v1/auth/${channel === "whatsapp" ? "whatsapp" : "phone"}/verify`, {
+          method: "POST",
+          body: JSON.stringify({ phone, code }),
+        });
+      }
+      setNotice("Verified.");
+      setCode("");
+      onVerified();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not verify");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card stack">
+      <strong>Account verification</strong>
+      <div className="muted">
+        Email: {emailVerified ? "verified" : "not verified"} · Phone: {phoneVerified ? "verified" : "not verified"}
+      </div>
+      <div className="row">
+        <button className={channel === "email" ? "btn" : "btn ghost"} type="button" onClick={() => setChannel("email")}>
+          Email
+        </button>
+        <button className={channel === "phone" ? "btn" : "btn ghost"} type="button" onClick={() => setChannel("phone")}>
+          SMS
+        </button>
+        <button className={channel === "whatsapp" ? "btn" : "btn ghost"} type="button" onClick={() => setChannel("whatsapp")}>
+          WhatsApp
+        </button>
+      </div>
+      <div className="row">
+        <input className="field" value={code} onChange={(e) => setCode(e.target.value)} placeholder="One-time code" />
+        <button className="btn ghost" type="button" disabled={busy} onClick={() => void send()}>
+          Send code
+        </button>
+        <button className="btn" type="button" disabled={busy || !code} onClick={() => void verify()}>
+          Verify
+        </button>
+      </div>
+      {notice && <div className="muted">{notice}</div>}
+      {error && <div className="error">{error}</div>}
     </div>
   );
 }

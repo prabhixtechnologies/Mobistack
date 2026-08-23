@@ -54,6 +54,8 @@ class SaleServiceTest {
     private InventoryService inventoryService;
     @Mock
     private AuditService auditService;
+    @Mock
+    private com.fixflow.billing.service.BillingService billingService;
 
     private SaleService saleService;
     private UUID shopId;
@@ -62,7 +64,7 @@ class SaleServiceTest {
     void setUp() {
         saleService = new SaleService(saleRepository, saleItemRepository, paymentRepository, variantRepository,
                 customerRepository, shopRepository, pricingService, inventoryService, auditService,
-                new com.fixflow.config.FixFlowProperties());
+                new com.fixflow.config.FixFlowProperties(), billingService);
         shopId = UUID.randomUUID();
     }
 

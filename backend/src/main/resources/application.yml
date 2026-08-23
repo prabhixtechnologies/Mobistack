@@ -52,6 +52,18 @@ spring:
   cache:
     type: ${FIXFLOW_CACHE_TYPE:simple}
 
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS:true}
+
 server:
   port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework
@@ -147,6 +159,10 @@ fixflow:
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
+  mail:
+    host: ${SMTP_HOST:}
+    from: ${SMTP_FROM:}
+    username: ${SMTP_USERNAME:}
   demo:
     seed-enabled: false
 

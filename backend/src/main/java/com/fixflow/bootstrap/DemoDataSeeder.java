@@ -100,7 +100,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                 properties.getDemo().getOwnerEmail(),
                 properties.getDemo().getOwnerPassword(),
                 "9876543210",
-                "Pune"));
+                "Pune"), true);
 
         UUID shopId = provisioned.shop().getId();
         User owner = provisioned.owner();

@@ -29,6 +29,7 @@ public class FixFlowProperties {
     private final Chat chat = new Chat();
     private final Updates updates = new Updates();
     private final Razorpay razorpay = new Razorpay();
+    private final Mail mail = new Mail();
 
     @Getter
     @Setter
@@ -157,6 +158,18 @@ public class FixFlowProperties {
     public static class Chat {
         private String openaiApiKey = "";
         private String openaiModel = "gpt-4o-mini";
+    }
+
+    @Getter
+    @Setter
+    public static class Mail {
+        private String host = "";
+        private String from = "";
+        private String username = "";
+
+        public boolean configured() {
+            return host != null && !host.isBlank() && from != null && !from.isBlank();
+        }
     }
 
     @Getter

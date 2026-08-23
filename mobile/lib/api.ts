@@ -49,6 +49,9 @@ export interface AuthUser {
   email: string;
   roles: string[];
   permissions: string[];
+  paymentRequired?: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
 }
 
 export interface AuthResponse {

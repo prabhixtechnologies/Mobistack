@@ -17,7 +17,10 @@ import com.fixflow.billing.repository.WorkspaceEntitlementRepository;
 import com.fixflow.commerce.domain.PaymentStatus;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
+import com.fixflow.notify.NotificationService;
 import com.fixflow.security.CurrentUser;
+import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -25,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +43,8 @@ public class BillingService {
     }
 
     public record BillingOverview(List<PriceCard> prices, List<String> entitlements, List<BillingOrder> orders,
-                                  String razorpayKeyId, boolean razorpayEnabled) {
+                                  String razorpayKeyId, boolean razorpayEnabled, boolean paymentRequired,
+                                  Instant currentPeriodEnd) {
     }
 
     public record CheckoutOrderResponse(
@@ -67,6 +72,13 @@ public class BillingService {
     private final AuditService auditService;
     private final Environment environment;
     private final RazorpayGateway razorpayGateway;
+    private final NotificationService notificationService;
+    private final ShopRepository shopRepository;
+    private final UserRepository userRepository;
+    private final com.fixflow.notify.MailGateway mailGateway;
+
+    public static final List<String> OPERATIONAL = List.of(
+            "WORKSPACE_CREATE", "MEMBER_ADD", "INVENTORY", "SALES", "REPAIRS", "MULTI_USER");
 
     @Transactional(readOnly = true)
     public BillingOverview overview(UUID workspaceId) {
@@ -77,10 +89,13 @@ public class BillingService {
                                 p.getEntitlement()))
                         .toList(),
                 entitlementRepository.findByWorkspaceIdAndActiveTrue(workspaceId).stream()
+                        .filter(this::live)
                         .map(WorkspaceEntitlement::getCode).toList(),
                 orderRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId),
                 enabled ? razorpayGateway.keyId() : null,
-                enabled);
+                enabled,
+                paymentRequired(workspaceId),
+                currentPeriodEnd(workspaceId));
     }
 
     @Transactional
@@ -168,22 +183,69 @@ public class BillingService {
     }
 
     public void require(UUID workspaceId, String entitlement) {
-        if (!entitlementRepository.existsByWorkspaceIdAndCodeAndActiveTrue(workspaceId, entitlement)) {
+        if (!hasLive(workspaceId, entitlement)) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
-                    "This workspace does not have the " + entitlement + " entitlement.");
+                    "This workspace needs an active MobiStack plan. Open Billing and complete payment.");
         }
+    }
+
+    public boolean paymentRequired(UUID workspaceId) {
+        return workspaceId != null && !hasLive(workspaceId, "SALES");
+    }
+
+    public Instant currentPeriodEnd(UUID workspaceId) {
+        return entitlementRepository.findByWorkspaceIdAndActiveTrue(workspaceId).stream()
+                .filter(this::live)
+                .map(WorkspaceEntitlement::getExpiresAt)
+                .filter(value -> value != null)
+                .max(Instant::compareTo)
+                .orElse(null);
+    }
+
+    public boolean hasLive(UUID workspaceId, String entitlement) {
+        return entitlementRepository.findByWorkspaceIdAndCode(workspaceId, entitlement)
+                .filter(this::live)
+                .isPresent();
     }
 
     @Transactional
     public void grantPilotEntitlements(UUID workspaceId) {
-        for (String code : List.of("WORKSPACE_CREATE", "MEMBER_ADD", "INVENTORY", "SALES", "REPAIRS", "MULTI_USER")) {
-            WorkspaceEntitlement row = entitlementRepository.findByWorkspaceIdAndCode(workspaceId, code)
-                    .orElseGet(WorkspaceEntitlement::new);
-            row.setWorkspaceId(workspaceId);
-            row.setCode(code);
-            row.setActive(true);
-            entitlementRepository.save(row);
+        grantOperational(workspaceId, null, null);
+    }
+
+    @Transactional
+    public void notifyPaymentPending(UUID workspaceId, UUID userId, String email) {
+        notificationService.emit(workspaceId, userId, "PAYMENT_PENDING", email,
+                "Finish opening your MobiStack shop",
+                "Your shop is created. Pay the activation or monthly plan on Billing to unlock sales, repairs, and stock.");
+    }
+
+    @Transactional
+    public int sendDueReminders() {
+        Instant now = Instant.now();
+        int reminded = 0;
+        for (UUID workspaceId : entitlementRepository.findWorkspaceIdsExpiringBetween(now, now.plus(7, ChronoUnit.DAYS))) {
+            notifyOwner(workspaceId, "BILLING_REMINDER",
+                    "Your MobiStack plan is due soon",
+                    "Your current period ends soon. Open Billing and pay the monthly plan so the counter stays unlocked.");
+            reminded++;
         }
+        return reminded;
+    }
+
+    @Transactional
+    public int expireLapsedPlans() {
+        Instant now = Instant.now();
+        java.util.Set<UUID> shops = new java.util.LinkedHashSet<>();
+        for (WorkspaceEntitlement row : entitlementRepository.findByActiveTrueAndExpiresAtBefore(now)) {
+            row.setActive(false);
+            entitlementRepository.save(row);
+            shops.add(row.getWorkspaceId());
+        }
+        shops.forEach(id -> notifyOwner(id, "PAYMENT_PENDING",
+                "MobiStack payment is pending",
+                "The shop plan has lapsed. Pay the monthly plan on Billing to restore sales, repairs, and stock."));
+        return shops.size();
     }
 
     @Transactional
@@ -225,16 +287,58 @@ public class BillingService {
         order.setUpdatedAt(Instant.now());
         orderRepository.save(order);
         UUID workspaceId = order.getWorkspaceId();
-        if (!entitlementRepository.existsByWorkspaceIdAndCodeAndActiveTrue(workspaceId, order.getEntitlementCode())) {
-            WorkspaceEntitlement entitlement = new WorkspaceEntitlement();
-            entitlement.setWorkspaceId(workspaceId);
-            entitlement.setCode(order.getEntitlementCode());
-            entitlement.setSourceOrderId(order.getId());
-            entitlementRepository.save(entitlement);
+        Instant periodEnd = Instant.now().plus(31, ChronoUnit.DAYS);
+        if ("WORKSPACE_ACTIVATION".equals(order.getPriceCode()) || "WORKSPACE_MONTHLY".equals(order.getPriceCode())) {
+            grantOperational(workspaceId, periodEnd, order.getId());
+        } else {
+            grantOne(workspaceId, order.getEntitlementCode(), periodEnd, order.getId());
         }
         auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
                 "Captured billing order " + order.getPriceCode());
+        notifyOwner(workspaceId, "PAYMENT_RECEIVED",
+                "Payment received",
+                "MobiStack recorded payment for " + order.getPriceCode().replace('_', ' ')
+                        + ". The shop counter is unlocked until "
+                        + periodEnd.toString() + ".");
         return order;
+    }
+
+    private void grantOperational(UUID workspaceId, Instant expiresAt, UUID orderId) {
+        OPERATIONAL.forEach(code -> grantOne(workspaceId, code, expiresAt, orderId));
+    }
+
+    private void grantOne(UUID workspaceId, String code, Instant expiresAt, UUID orderId) {
+        WorkspaceEntitlement row = entitlementRepository.findByWorkspaceIdAndCode(workspaceId, code)
+                .orElseGet(WorkspaceEntitlement::new);
+        row.setWorkspaceId(workspaceId);
+        row.setCode(code);
+        row.setActive(true);
+        row.setSourceOrderId(orderId);
+        if (expiresAt != null) {
+            row.setExpiresAt(expiresAt);
+        }
+        entitlementRepository.save(row);
+    }
+
+    private boolean live(WorkspaceEntitlement row) {
+        return row != null && row.isActive()
+                && (row.getExpiresAt() == null || row.getExpiresAt().isAfter(Instant.now()));
+    }
+
+    private void notifyOwner(UUID workspaceId, String event, String subject, String body) {
+        shopRepository.findById(workspaceId).ifPresent(shop -> {
+            var user = userRepository.findWithRolesByEmail(shop.getEmail()).orElse(null);
+            UUID userId = user == null ? null : user.getId();
+            String email = shop.getEmail() != null ? shop.getEmail() : (user == null ? null : user.getEmail());
+            notificationService.emit(workspaceId, userId, event, email, subject, body);
+            if (email != null && email.contains("@") && mailGateway.configured()) {
+                try {
+                    mailGateway.send(email, subject, body);
+                } catch (RuntimeException ignored) {
+                    /* inbox already has the reminder */
+                }
+            }
+        });
     }
 
     private static String receiptFor(UUID orderId) {

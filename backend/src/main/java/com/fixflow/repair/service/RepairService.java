@@ -63,9 +63,11 @@ public class RepairService {
     private final PricingService pricingService;
     private final InventoryService inventoryService;
     private final AuditService auditService;
+    private final com.fixflow.billing.service.BillingService billingService;
 
     @Transactional
     public RepairResponse create(UUID shopId, CreateRepairRequest request) {
+        billingService.require(shopId, "REPAIRS");
         if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
             var existing = repairRepository.findByShopIdAndIdempotencyKey(shopId, request.idempotencyKey());
             if (existing.isPresent()) {

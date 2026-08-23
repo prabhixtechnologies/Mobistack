@@ -28,7 +28,8 @@ public class NotificationService {
             "PASSWORD_RESET", "PHONE_OTP", "EMAIL_OTP", "WHATSAPP_OTP", "MAGIC_LINK",
             "USER_INVITED", "JOIN_REQUEST_APPROVED",
             "SALE_COMPLETED", "REPAIR_READY", "LOW_STOCK",
-            "SUPPORT_REPLY", "SUPPORT_TICKET", "DEVICE_REVOKED");
+            "SUPPORT_REPLY", "SUPPORT_TICKET", "DEVICE_REVOKED",
+            "PAYMENT_PENDING", "PAYMENT_RECEIVED", "BILLING_REMINDER");
 
     private final NotificationOutboxRepository outboxRepository;
     private final NotificationPreferenceRepository preferenceRepository;

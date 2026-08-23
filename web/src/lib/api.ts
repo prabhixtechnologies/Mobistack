@@ -31,6 +31,10 @@ export function persistSession(auth: AuthResponse): void {
   }
 }
 
+export function persistUser(user: AuthenticatedUser): void {
+  storeSet("user", JSON.stringify(user));
+}
+
 export function persistWorkspaces(workspaces: WorkspaceCard[]): void {
   storeSet("workspaces", JSON.stringify(workspaces));
 }

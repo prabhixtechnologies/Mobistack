@@ -42,11 +42,13 @@ public class InvitationService {
     private final JwtService jwtService;
     private final AuditService auditService;
     private final NotificationService notificationService;
+    private final com.fixflow.billing.service.BillingService billingService;
     private final SecureRandom random = new SecureRandom();
 
     @Transactional
     public InvitationResponse invite(UUID workspaceId, InviteMemberRequest request) {
         workspaceAccessService.requireActive(CurrentUser.userId(), workspaceId);
+        billingService.require(workspaceId, "MEMBER_ADD");
         Role role = roleRepository.findSystemRoleByCode(request.role().trim().toUpperCase())
                 .orElseThrow(() -> ApiException.businessRule("Unknown role " + request.role()));
         String token = generateToken();

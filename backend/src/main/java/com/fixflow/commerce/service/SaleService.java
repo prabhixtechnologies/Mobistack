@@ -64,9 +64,11 @@ public class SaleService {
     private final InventoryService inventoryService;
     private final AuditService auditService;
     private final FixFlowProperties properties;
+    private final com.fixflow.billing.service.BillingService billingService;
 
     @Transactional
     public SaleResponse complete(UUID shopId, CreateSaleRequest request) {
+        billingService.require(shopId, "SALES");
         if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
             var existing = saleRepository.findByShopIdAndIdempotencyKey(shopId, request.idempotencyKey());
             if (existing.isPresent()) {

@@ -34,6 +34,9 @@ export interface AuthenticatedUser {
   permissions: string[];
   mustChangePassword: boolean;
   systemAdmin?: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  paymentRequired?: boolean;
 }
 
 export interface AuthResponse {

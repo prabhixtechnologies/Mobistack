@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "../../lib/auth";
 import { selectedWorkspaceId } from "../../lib/api";
@@ -32,6 +32,11 @@ export default function MoreScreen() {
       </Text>
       <Text style={styles.legal}>{BRAND.tagline}</Text>
       <Text style={styles.legal}>{copyrightLine()}</Text>
+      {user?.paymentRequired ? (
+        <Pressable style={styles.ghost} onPress={() => void Linking.openURL(`${BRAND.publicOrigin}/billing`)}>
+          <Text style={styles.ghostText}>Pay on the web console</Text>
+        </Pressable>
+      ) : null}
 
       {active.length > 1 && (
         <View style={styles.block}>

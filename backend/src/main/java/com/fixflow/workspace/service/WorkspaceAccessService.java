@@ -102,7 +102,7 @@ public class WorkspaceAccessService {
         workspace.setJoinCode(uniqueJoinCode(workspaceName));
         shopRepository.save(workspace);
         shopProvisioningService.seedCategories(workspace);
-        billingService.grantPilotEntitlements(workspace.getId());
+        billingService.notifyPaymentPending(workspace.getId(), user.getId(), user.getEmail());
 
         Role ownerRole = systemRole(SystemRole.OWNER);
         WorkspaceMembership membership = activate(user, workspace, ownerRole, userId);

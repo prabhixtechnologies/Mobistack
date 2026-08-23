@@ -78,6 +78,11 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={styles.page}>
         <Text style={styles.hello}>Good evening, {user?.fullName.split(" ")[0]}.</Text>
+        {user?.paymentRequired ? (
+          <Text style={styles.banner}>
+            Payment is pending. Open the web console Billing page to activate this shop. Sales, repairs, and stock stay locked until then.
+          </Text>
+        ) : null}
         {offline ? <Text style={styles.banner}>Working offline from the last snapshot.</Text> : null}
         <TextInput
           style={styles.search}

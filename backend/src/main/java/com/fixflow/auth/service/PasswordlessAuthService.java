@@ -14,7 +14,6 @@ import com.fixflow.auth.repository.UserTokenRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;
-import com.fixflow.notify.NotificationService;
 import com.fixflow.security.jwt.JwtService;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
@@ -38,11 +37,11 @@ public class PasswordlessAuthService {
     private final UserTokenRepository userTokenRepository;
     private final UserIdentityRepository identityRepository;
     private final JwtService jwtService;
-    private final NotificationService notificationService;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
     private final FixFlowProperties properties;
     private final com.fixflow.notify.OtpDeliveryService otpDeliveryService;
+    private final com.fixflow.notify.EmailDeliveryService emailDeliveryService;
 
     public record AuthMethods(List<String> methods, Map<String, Object> brand) {
     }
@@ -92,9 +91,9 @@ public class PasswordlessAuthService {
         row.setExpiresAt(Instant.now().plus(Duration.ofMinutes(20)));
         userTokenRepository.save(row);
         String url = properties.getAuth().getWebOrigin() + properties.getAuth().getMagicLinkPath() + token;
-        notificationService.emit(null, row.getUserId(), "MAGIC_LINK", request.email(),
+        emailDeliveryService.send(null, row.getUserId(), "MAGIC_LINK", request.email(),
                 "Your " + product() + " sign-in link",
-                "A sign-in link was sent. The URL is not stored in the shop inbox.");
+                "Open this link to sign in. It expires in 20 minutes.\n\n" + url + "\n\n— " + product());
         return Map.of("status", "SENT");
     }
 
@@ -120,8 +119,9 @@ public class PasswordlessAuthService {
         row.setTokenHash(jwtService.hashRefreshToken(code));
         row.setExpiresAt(Instant.now().plus(Duration.ofMinutes(10)));
         userTokenRepository.save(row);
-        notificationService.emit(null, row.getUserId(), "EMAIL_OTP", request.email(),
-                "Your " + product() + " code", "A one-time code was sent to this email.");
+        emailDeliveryService.send(null, row.getUserId(), "EMAIL_OTP", request.email(),
+                "Your " + product() + " code",
+                "Your " + product() + " verification code is " + code + ". It expires in 10 minutes.\n\n— " + product());
         return Map.of("status", "SENT");
     }
 
@@ -374,10 +374,6 @@ public class PasswordlessAuthService {
     }
 
     private String issueOtp() {
-        String configured = properties.getAuth().getDevOtp();
-        if (configured != null && !configured.isBlank()) {
-            return configured;
-        }
-        return String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
+        return otpDeliveryService.issueCode();
     }
 }

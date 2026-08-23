@@ -40,6 +40,8 @@ class InventoryServiceTest {
     private StockAlertRepository stockAlertRepository;
     @Mock
     private AuditService auditService;
+    @Mock
+    private com.fixflow.billing.service.BillingService billingService;
 
     private InventoryService inventoryService;
     private UUID shopId;
@@ -48,7 +50,7 @@ class InventoryServiceTest {
     @BeforeEach
     void setUp() {
         inventoryService = new InventoryService(variantRepository, transactionRepository,
-                stockAlertRepository, auditService, new FixFlowProperties());
+                stockAlertRepository, auditService, new FixFlowProperties(), billingService);
         shopId = UUID.randomUUID();
 
         Product product = new Product();

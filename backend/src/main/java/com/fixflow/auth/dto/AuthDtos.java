@@ -134,7 +134,10 @@ public final class AuthDtos {
             Set<String> roles,
             Set<String> permissions,
             boolean mustChangePassword,
-            boolean systemAdmin
+            boolean systemAdmin,
+            boolean emailVerified,
+            boolean phoneVerified,
+            boolean paymentRequired
     ) {
     }
 

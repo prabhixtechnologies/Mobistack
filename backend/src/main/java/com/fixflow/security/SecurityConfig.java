@@ -86,10 +86,17 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /** Keep the guard in the security chain only — not as a servlet filter before JWT. */
+    /** Keep these in the security chain only — not as servlet filters before JWT. */
     @Bean
     public FilterRegistrationBean<WorkspaceGuardFilter> workspaceGuardRegistration(WorkspaceGuardFilter filter) {
         FilterRegistrationBean<WorkspaceGuardFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<AuthRateLimitFilter> authRateLimitRegistration(AuthRateLimitFilter filter) {
+        FilterRegistrationBean<AuthRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

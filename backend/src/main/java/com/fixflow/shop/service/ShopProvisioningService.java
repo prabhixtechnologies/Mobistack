@@ -56,6 +56,11 @@ public class ShopProvisioningService {
 
     @Transactional
     public ProvisionedShop provision(NewShop request) {
+        return provision(request, false);
+    }
+
+    @Transactional
+    public ProvisionedShop provision(NewShop request, boolean complimentary) {
         if (userRepository.existsByEmail(request.email())) {
             throw ApiException.alreadyExists("An account with this email already exists.");
         }
@@ -82,9 +87,14 @@ public class ShopProvisioningService {
         owner.setPhone(request.phone());
         owner.setPasswordHash(passwordEncoder.encode(request.rawPassword()));
         owner.setRoles(new LinkedHashSet<>(Set.of(ownerRole)));
+        owner.setEmailVerified(false);
         userRepository.save(owner);
         attachOwnerMembership(owner, shop);
-        billingService.grantPilotEntitlements(shop.getId());
+        if (complimentary) {
+            billingService.grantPilotEntitlements(shop.getId());
+        } else {
+            billingService.notifyPaymentPending(shop.getId(), owner.getId(), owner.getEmail());
+        }
 
         auditService.recordForShop(shop.getId(), request.ownerName(), AuditAction.SHOP_CREATED,
                 "Shop", shop.getId(), "Shop \"%s\" created".formatted(shop.getName()));

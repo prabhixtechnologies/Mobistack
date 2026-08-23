@@ -60,6 +60,8 @@ public class AuthService {
     private final NotificationService notificationService;
     private final com.fixflow.notify.OtpDeliveryService otpDeliveryService;
     private final DeviceSessionService deviceSessionService;
+    private final com.fixflow.billing.service.BillingService billingService;
+    private final com.fixflow.notify.EmailDeliveryService emailDeliveryService;
 
     public record ClientInfo(String deviceId, String userAgent, String ipAddress) {
         public static ClientInfo unknown() {
@@ -112,6 +114,21 @@ public class AuthService {
                 .orElseThrow(() -> ApiException.notFound("User", provisioned.owner().getId()));
 
         UserPrincipal principal = workspaceAccessService.principalFor(owner, provisioned.shop().getId());
+        try {
+            String code = otpDeliveryService.issueCode();
+            UserToken row = new UserToken();
+            row.setUserId(owner.getId());
+            row.setEmail(owner.getEmail());
+            row.setTokenType(UserToken.EMAIL_OTP);
+            row.setTokenHash(jwtService.hashRefreshToken(code));
+            row.setExpiresAt(Instant.now().plus(java.time.Duration.ofMinutes(10)));
+            userTokenRepository.save(row);
+            emailDeliveryService.send(provisioned.shop().getId(), owner.getId(), "EMAIL_OTP", owner.getEmail(),
+                    "Verify your " + properties.getBrand().getProduct() + " shop",
+                    "Your verification code is " + code + ". It expires in 10 minutes.");
+        } catch (RuntimeException ignored) {
+            /* shop is created; owner can request another code from login */
+        }
         return issueTokens(owner, principal, client);
     }
 
@@ -181,9 +198,16 @@ public class AuthService {
             row.setTokenHash(jwtService.hashRefreshToken(token));
             row.setExpiresAt(Instant.now().plus(java.time.Duration.ofHours(2)));
             userTokenRepository.save(row);
-            notificationService.emit(user.getShopId(), user.getId(), "PASSWORD_RESET", user.getEmail(),
-                    "Reset your " + properties.getBrand().getProduct() + " password",
-                    "A password reset was requested. The reset secret is not stored in the shop inbox.");
+            String url = properties.getAuth().getWebOrigin() + "/login?reset=" + token;
+            try {
+                emailDeliveryService.send(user.getShopId(), user.getId(), "PASSWORD_RESET", user.getEmail(),
+                        "Reset your " + properties.getBrand().getProduct() + " password",
+                        "Open this link to set a new password. It expires in 2 hours.\n\n" + url);
+            } catch (RuntimeException ignored) {
+                notificationService.emit(user.getShopId(), user.getId(), "PASSWORD_RESET", user.getEmail(),
+                        "Reset your " + properties.getBrand().getProduct() + " password",
+                        "A password reset was requested.");
+            }
         });
     }
 
@@ -323,7 +347,9 @@ public class AuthService {
         String workspaceName = shop == null ? null : shop.getName();
         return new AuthenticatedUser(user.getId(), workspaceId, workspaceName, workspaceId, workspaceName,
                 user.getFullName(), user.getEmail(), user.getPhone(), user.getAvatarUrl(),
-                principal.getRoles(), permissions, user.isMustChangePassword(), user.isSystemAdmin());
+                principal.getRoles(), permissions, user.isMustChangePassword(), user.isSystemAdmin(),
+                user.isEmailVerified(), user.isPhoneVerified(),
+                workspaceId != null && !user.isSystemAdmin() && billingService.paymentRequired(workspaceId));
     }
 
     private static String truncate(String value, int max) {

@@ -5,6 +5,7 @@ import { AppShell } from "./ui/AppShell";
 import { BrandMark } from "./ui/BrandMark";
 import { ThemeToggle } from "./ui/ThemeToggle";
 import { LoginPage } from "./pages/LoginPage";
+import { LegalPage } from "./pages/LegalPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { SearchPage } from "./pages/SearchPage";
 import { DevicePage } from "./pages/DevicePage";
@@ -27,6 +28,17 @@ import { AdminPage } from "./pages/AdminPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { SupportPage } from "./pages/SupportPage";
 import { AppDownloadPage } from "./pages/AppDownloadPage";
+
+function PublicLegalRoutes() {
+  return (
+    <>
+      <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+      <Route path="/terms" element={<LegalPage kind="terms" />} />
+      <Route path="/refunds" element={<LegalPage kind="refunds" />} />
+      <Route path="/app/:platform" element={<AppDownloadPage />} />
+    </>
+  );
+}
 
 function UnscopedWorkspaces() {
   const { logout } = useAuth();
@@ -53,7 +65,7 @@ export function App() {
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/app/:platform" element={<AppDownloadPage />} />
+        {PublicLegalRoutes()}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -63,7 +75,24 @@ export function App() {
     return (
       <Routes>
         <Route path="/workspaces" element={<UnscopedWorkspaces />} />
+        {PublicLegalRoutes()}
         <Route path="*" element={<Navigate to="/workspaces" replace />} />
+      </Routes>
+    );
+  }
+
+  if (user.paymentRequired) {
+    return (
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/billing" element={<BillingPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/support" element={<SupportPage />} />
+          <Route path="/workspaces" element={<WorkspacesPage />} />
+        </Route>
+        {PublicLegalRoutes()}
+        <Route path="*" element={<Navigate to="/billing?activate=1" replace />} />
       </Routes>
     );
   }
@@ -93,7 +122,7 @@ export function App() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Route>
-      <Route path="/app/:platform" element={<AppDownloadPage />} />
+      {PublicLegalRoutes()}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

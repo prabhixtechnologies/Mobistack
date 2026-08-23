@@ -83,9 +83,16 @@ export function AppShell() {
   const navigate = useNavigate();
   const currentWorkspace = selectedWorkspaceId(user);
   const activeWorkspaces = workspaces.filter((workspace) => workspace.status === "ACTIVE");
-  const sections = user?.systemAdmin
-    ? [...NAV, { label: "Platform", items: [{ to: "/admin", label: "Platform", icon: "crown" as const, tint: "amber" as const }] }]
+  const allowedWhenUnpaid = new Set(["/billing", "/settings", "/notifications", "/support", "/workspaces"]);
+  const baseSections = user?.paymentRequired
+    ? NAV.map((section) => ({
+        ...section,
+        items: section.items.filter((item) => allowedWhenUnpaid.has(item.to)),
+      })).filter((section) => section.items.length > 0)
     : NAV;
+  const sections = user?.systemAdmin && !user.paymentRequired
+    ? [...baseSections, { label: "Platform", items: [{ to: "/admin", label: "Platform", icon: "crown" as const, tint: "amber" as const }] }]
+    : baseSections;
   const [unread, setUnread] = useState(0);
   usePresence(Boolean(user));
 
@@ -193,6 +200,11 @@ export function AppShell() {
         </aside>
 
         <div className="main">
+          {user?.paymentRequired && (
+            <div className="banner banner-warn paywall-strip">
+              Payment pending — finish Billing to unlock the counter.
+            </div>
+          )}
           <Outlet />
         </div>
       </div>

@@ -1,18 +1,19 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, clearSession, getRefreshToken, getStoredUser, getStoredWorkspaces, persistSession, persistWorkspaces } from "./api";
+import { api, clearSession, getRefreshToken, getStoredUser, getStoredWorkspaces, persistSession, persistUser, persistWorkspaces } from "./api";
 import { getDeviceId } from "./device";
 import type { AuthResponse, AuthenticatedUser, MyWorkspacesResponse, WorkspaceCard } from "./types";
 
 interface AuthContextValue {
   user: AuthenticatedUser | null;
   workspaces: WorkspaceCard[];
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthResponse>;
   acceptSession: (auth: AuthResponse) => void;
   logout: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   createWorkspace: (name: string, city?: string) => Promise<void>;
   joinWorkspace: (joinCode: string) => Promise<WorkspaceCard>;
   refreshWorkspaces: () => Promise<MyWorkspacesResponse>;
+  refreshUser: () => Promise<AuthenticatedUser>;
   has: (permission: string) => boolean;
 }
 
@@ -33,6 +34,20 @@ function applySession(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(getStoredUser);
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>(getStoredWorkspaces);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    api<AuthenticatedUser>("/api/v1/auth/me")
+      .then((me) => {
+        persistUser(me);
+        setUser(me);
+      })
+      .catch(() => {
+        /* keep the cached session until the next API call */
+      });
+  }, []);
 
   useEffect(() => {
     if (!user || workspaces.length > 0) {
@@ -58,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ email, password, deviceId: getDeviceId() }),
         });
         applySession(auth, setUser, setWorkspaces);
+        return auth;
       },
       acceptSession(auth) {
         applySession(auth, setUser, setWorkspaces);
@@ -82,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: "POST",
         });
         applySession(auth, setUser, setWorkspaces);
-        window.location.assign("/");
+        window.location.assign(auth.user.paymentRequired ? "/billing?activate=1" : "/");
       },
       async createWorkspace(name, city) {
         const auth = await api<AuthResponse>("/api/v1/workspaces", {
@@ -90,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ name, city }),
         });
         applySession(auth, setUser, setWorkspaces);
-        window.location.assign("/");
+        window.location.assign(auth.user.paymentRequired ? "/billing?activate=1" : "/");
       },
       async joinWorkspace(joinCode) {
         const card = await api<WorkspaceCard>("/api/v1/workspaces/join", {
@@ -107,6 +123,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         persistWorkspaces(mine.workspaces);
         setWorkspaces(mine.workspaces);
         return mine;
+      },
+      async refreshUser() {
+        const me = await api<AuthenticatedUser>("/api/v1/auth/me");
+        persistUser(me);
+        setUser(me);
+        return me;
       },
       has: (permission) => Boolean(user?.permissions.includes(permission)),
     }),

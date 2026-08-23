@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import type { AuthResponse } from "../lib/types";
@@ -45,6 +45,8 @@ export function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [shopName, setShopName] = useState("");
   const [ownerName, setOwnerName] = useState("");
+  const [city, setCity] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,7 +67,7 @@ export function LoginPage() {
       })
         .then((auth) => {
           acceptRef.current(auth);
-          navigate("/");
+          navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
         })
         .catch((err: unknown) => {
           setError(err instanceof Error ? err.message : "That magic link is no longer valid.");
@@ -73,6 +75,12 @@ export function LoginPage() {
         })
         .finally(() => setBusy(false));
       return;
+    }
+    const reset = params.get("reset");
+    if (reset) {
+      setRecover("reset");
+      setToken(reset);
+      setMethod("password");
     }
     if (sso === "google" && googleCode) {
       setBusy(true);
@@ -86,7 +94,7 @@ export function LoginPage() {
       })
         .then((auth) => {
           acceptRef.current(auth);
-          navigate("/");
+          navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
         })
         .catch((err: unknown) => {
           setError(err instanceof Error ? err.message : "Google sign-in failed.");
@@ -95,9 +103,15 @@ export function LoginPage() {
     }
   }, [navigate, params]);
 
+  function afterAuth(auth: AuthResponse) {
+    acceptSession(auth);
+    navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
+  }
+
   function finish(auth?: AuthResponse) {
     if (auth) {
-      acceptSession(auth);
+      afterAuth(auth);
+      return;
     }
     navigate("/");
   }
@@ -134,8 +148,8 @@ export function LoginPage() {
           } else {
             storeRemove(REMEMBER_KEY);
           }
-          await login(email, password);
-          navigate("/");
+          const auth = await login(email, password);
+          navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
         }
       } else if (method === "magic") {
         await api("/api/v1/auth/magic-link", {
@@ -175,6 +189,9 @@ export function LoginPage() {
           );
         }
       } else if (method === "register") {
+        if (!acceptedTerms) {
+          throw new Error("Accept the terms to create an account.");
+        }
         finish(
           await api<AuthResponse>("/api/v1/auth/register", {
             method: "POST",
@@ -182,10 +199,13 @@ export function LoginPage() {
           }),
         );
       } else {
+        if (!acceptedTerms) {
+          throw new Error("Accept the terms to open a shop.");
+        }
         finish(
           await api<AuthResponse>("/api/v1/auth/register-shop", {
             method: "POST",
-            body: JSON.stringify({ shopName, ownerName, email, password, phone, city: "Pune" }),
+            body: JSON.stringify({ shopName, ownerName, email, password, phone, city: city.trim() || undefined }),
           }),
         );
       }
@@ -321,6 +341,19 @@ export function LoginPage() {
                   />
                 </span>
               </label>
+              <label className="auth-label">
+                City
+                <span className="auth-field">
+                  <IconShop />
+                  <input
+                    className="auth-input"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="City"
+                    required
+                  />
+                </span>
+              </label>
             </>
           )}
 
@@ -447,6 +480,22 @@ export function LoginPage() {
             </button>
           )}
 
+          {(method === "register" || method === "shop") && (
+            <label className="auth-remember">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                required
+              />
+              <span>
+                I agree to the <Link to="/terms">Terms</Link>, <Link to="/privacy">Privacy Policy</Link>,
+                and <Link to="/refunds">Refunds</Link>. Opening a shop asks for payment before the
+                counter unlocks.
+              </span>
+            </label>
+          )}
+
           {notice && <div className="auth-notice">{notice}</div>}
           {error && <div className="auth-error">{error}</div>}
 
@@ -534,7 +583,9 @@ export function LoginPage() {
           </div>
 
           <p className="auth-legal">
-            {copyrightLine()}
+            {copyrightLine()}{" "}
+            <Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link> ·{" "}
+            <Link to="/refunds">Refunds</Link>
           </p>
         </form>
 

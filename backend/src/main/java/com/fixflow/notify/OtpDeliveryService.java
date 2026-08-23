@@ -74,7 +74,7 @@ public class OtpDeliveryService {
                 whatsapp ? "WHATSAPP" : "SMS", "log", false);
     }
 
-    private String issueCode() {
+    public String issueCode() {
         String configured = properties.getAuth().getDevOtp();
         if (StringUtils.hasText(configured)) {
             return configured;

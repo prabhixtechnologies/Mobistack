@@ -10,6 +10,10 @@ import com.fixflow.billing.repository.WorkspaceEntitlementRepository;
 import com.fixflow.commerce.domain.PaymentStatus;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
+import com.fixflow.notify.MailGateway;
+import com.fixflow.notify.NotificationService;
+import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,13 +49,22 @@ class BillingServiceTest {
     private Environment environment;
     @Mock
     private RazorpayGateway razorpayGateway;
+    @Mock
+    private NotificationService notificationService;
+    @Mock
+    private ShopRepository shopRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private MailGateway mailGateway;
 
     private BillingService billingService;
 
     @BeforeEach
     void setUp() {
         billingService = new BillingService(priceRepository, orderRepository, entitlementRepository,
-                webhookEventRepository, auditService, environment, razorpayGateway);
+                webhookEventRepository, auditService, environment, razorpayGateway, notificationService,
+                shopRepository, userRepository, mailGateway);
     }
 
     @Test
@@ -89,15 +102,26 @@ class BillingServiceTest {
         when(orderRepository.findByGatewayOrderIdAndWorkspaceId("order_1", workspaceId))
                 .thenReturn(Optional.of(order));
         when(razorpayGateway.verifyCheckoutSignature("order_1", "pay_1", "good-sig")).thenReturn(true);
-        when(entitlementRepository.existsByWorkspaceIdAndCodeAndActiveTrue(workspaceId, "WORKSPACE_CREATE"))
-                .thenReturn(false);
 
         BillingOrder captured = billingService.verifyPayment(workspaceId,
                 new BillingService.VerifyPaymentRequest("order_1", "pay_1", "good-sig"));
 
         assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
         assertThat(captured.getGatewayPaymentId()).isEqualTo("pay_1");
-        verify(entitlementRepository).save(any());
+        verify(entitlementRepository, org.mockito.Mockito.atLeastOnce()).save(any());
+    }
+
+    @Test
+    void requireBlocksWhenSalesEntitlementIsMissing() {
+        UUID workspaceId = UUID.randomUUID();
+        when(entitlementRepository.findByWorkspaceIdAndCode(workspaceId, "SALES"))
+                .thenReturn(Optional.empty());
+
+        assertThat(billingService.paymentRequired(workspaceId)).isTrue();
+        assertThatThrownBy(() -> billingService.require(workspaceId, "SALES"))
+                .isInstanceOf(ApiException.class)
+                .extracting(ex -> ((ApiException) ex).getCode())
+                .isEqualTo(ErrorCode.ENTITLEMENT_DENIED);
     }
 
     private static BillingOrder pendingRazorpayOrder(UUID workspaceId, String gatewayOrderId) {

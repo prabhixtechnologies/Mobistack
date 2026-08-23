@@ -44,9 +44,11 @@ public class InventoryService {
     private final StockAlertRepository stockAlertRepository;
     private final AuditService auditService;
     private final FixFlowProperties properties;
+    private final com.fixflow.billing.service.BillingService billingService;
 
     @Transactional
     public InventoryTransaction post(UUID shopId, StockMovement movement) {
+        billingService.require(shopId, "INVENTORY");
         if (movement.quantity() <= 0) {
             throw ApiException.businessRule("Quantity must be greater than zero.");
         }

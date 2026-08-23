@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, money } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { BRAND } from "../lib/brand";
@@ -11,6 +12,8 @@ interface Overview {
   orders: { id: string; priceCode: string; amount: number; status: string; createdAt: string }[];
   razorpayKeyId?: string;
   razorpayEnabled?: boolean;
+  paymentRequired?: boolean;
+  currentPeriodEnd?: string | null;
 }
 
 interface CheckoutOrder {
@@ -23,8 +26,30 @@ interface CheckoutOrder {
   gateway: string;
 }
 
+function priceTitle(code: string): string {
+  if (code === "WORKSPACE_ACTIVATION") {
+    return "Shop activation";
+  }
+  if (code === "WORKSPACE_MONTHLY") {
+    return "Monthly plan";
+  }
+  return code.replaceAll("_", " ");
+}
+
+function priceHelp(code: string): string {
+  if (code === "WORKSPACE_ACTIVATION") {
+    return "Unlocks sales, repairs, stock, and staff for 31 days.";
+  }
+  if (code === "WORKSPACE_MONTHLY") {
+    return "Renews the shop for another 31 days. You will get a reminder before it ends.";
+  }
+  return "Recorded against this workspace after Razorpay confirms the payment.";
+}
+
 export function BillingPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const [params] = useSearchParams();
+  const activating = params.get("activate") === "1" || Boolean(user?.paymentRequired);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -55,7 +80,8 @@ export function BillingPage() {
       if (order.gateway === "DEV" || !order.order_id?.startsWith("order_")) {
         await api(`/api/v1/billing/orders/${order.id}/confirm`, { method: "POST" });
         await load();
-        setNotice("Local gateway captured the order.");
+        await refreshUser();
+        setNotice("Payment recorded. The shop counter is unlocked.");
         return;
       }
       const key = publishableKey || order.keyId;
@@ -70,7 +96,7 @@ export function BillingPage() {
           amount: order.amount,
           currency: order.currency,
           name: BRAND.product,
-          description: priceCode.replaceAll("_", " "),
+          description: priceTitle(priceCode),
           order_id: order.order_id,
           prefill: {
             name: user?.fullName,
@@ -90,7 +116,8 @@ export function BillingPage() {
               .then(async () => {
                 settled = true;
                 await load();
-                setNotice("Payment received.");
+                await refreshUser();
+                setNotice("Payment received. The shop counter is unlocked.");
                 resolve();
               })
               .catch((err: Error) => {
@@ -119,6 +146,14 @@ export function BillingPage() {
     }
   }
 
+  const periodEnd = data?.currentPeriodEnd
+    ? new Date(data.currentPeriodEnd).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
   return (
     <div className="page">
       <PageHeader
@@ -126,6 +161,15 @@ export function BillingPage() {
         title="Billing"
         subtitle="Pay with Razorpay Checkout. The server creates the order and verifies the payment signature before anything is marked paid."
       />
+      {activating && (
+        <div className="banner banner-warn">
+          Payment is pending. Complete shop activation or the monthly plan to unlock sales, repairs,
+          stock, and staff invites.
+        </div>
+      )}
+      {data && !data.paymentRequired && periodEnd && (
+        <div className="banner">Current plan is active until {periodEnd}.</div>
+      )}
       {error && <div className="error">{error}</div>}
       {notice && <div className="muted">{notice}</div>}
       {data && (
@@ -134,9 +178,9 @@ export function BillingPage() {
           <div className="grid-2">
             {data.prices.map((price) => (
               <article className="card stack" key={price.code}>
-                <strong>{price.code.replaceAll("_", " ")}</strong>
+                <strong>{priceTitle(price.code)}</strong>
                 <div className="metric-value">{money.format(price.amount)}</div>
-                <div className="faint">{price.interval} · grants {price.entitlement}</div>
+                <div className="faint">{price.interval} · {priceHelp(price.code)}</div>
                 <button
                   className="btn"
                   type="button"
@@ -149,9 +193,10 @@ export function BillingPage() {
             ))}
           </div>
           <div className="card tight">
+            {data.orders.length === 0 && <div className="muted">No payments recorded yet.</div>}
             {data.orders.map((order) => (
               <div className="category-row" key={order.id}>
-                <div>{order.priceCode}</div>
+                <div>{priceTitle(order.priceCode)}</div>
                 <span>{order.status}</span>
                 <span>{money.format(order.amount)}</span>
               </div>

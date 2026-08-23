@@ -51,9 +51,11 @@ public class PurchaseService {
     private final SupplierRepository supplierRepository;
     private final InventoryService inventoryService;
     private final AuditService auditService;
+    private final com.fixflow.billing.service.BillingService billingService;
 
     @Transactional
     public PurchaseResponse receive(UUID shopId, CreatePurchaseRequest request) {
+        billingService.require(shopId, "INVENTORY");
         if (request.idempotencyKey() != null && !request.idempotencyKey().isBlank()) {
             var existing = purchaseRepository.findByShopIdAndIdempotencyKey(shopId, request.idempotencyKey());
             if (existing.isPresent()) {
