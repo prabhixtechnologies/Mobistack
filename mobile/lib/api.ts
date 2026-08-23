@@ -52,10 +52,14 @@ export interface AuthUser {
   paymentRequired?: boolean;
   catalogOnly?: boolean;
   features?: string[];
+  planCode?: string | null;
   planName?: string | null;
   periodEnd?: string | null;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  phone?: string | null;
+  systemAdmin?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {
@@ -125,7 +129,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     || path.startsWith("/api/v1/auth/phone/")
     || path.startsWith("/api/v1/auth/whatsapp/")
     || path.startsWith("/api/v1/auth/forgot-password")
-    || path.startsWith("/api/v1/auth/reset-password");
+    || path.startsWith("/api/v1/auth/reset-password")
+    || path.startsWith("/api/v1/auth/sso/");
   const token = anonymous ? null : await getAccessToken();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);

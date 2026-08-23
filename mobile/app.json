@@ -3,7 +3,7 @@
     "name": "MobiStack",
     "slug": "mobistack",
     "scheme": "mobistack",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -22,7 +22,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.prabhix.fixflow",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "MobiStack scans part barcodes at the counter.",
         "ITSAppUsesNonExemptEncryption": false,
@@ -39,7 +39,7 @@
     },
     "android": {
       "package": "app.prabhix.fixflow",
-      "versionCode": 1,
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#14130F"
@@ -48,6 +48,7 @@
       "permissions": ["CAMERA", "INTERNET", "ACCESS_NETWORK_STATE"]
     },
     "plugins": [
+      "./plugins/withReleaseSigning",
       "expo-router",
       "expo-secure-store",
       "expo-sqlite",

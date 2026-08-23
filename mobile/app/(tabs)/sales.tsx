@@ -21,6 +21,7 @@ export default function SalesScreen() {
   const [sales, setSales] = useState<CachedSale[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
+  const [method, setMethod] = useState<"CASH" | "UPI" | "CARD">("CASH");
   const styles = makeStyles(colors);
 
   async function load() {
@@ -75,7 +76,7 @@ export default function SalesScreen() {
       pricingFlag: "NORMAL",
       idempotencyKey: `${Date.now()}-${Math.random()}`,
       items: lines.map((line) => ({ variantId: line.variantId, quantity: line.quantity, unitPrice: line.unitPrice })),
-      payments: [{ method: "CASH", amount: total }],
+      payments: [{ method, amount: total }],
     };
     try {
       await api("/api/v1/sales", { method: "POST", body: JSON.stringify(payload) });
@@ -112,10 +113,15 @@ export default function SalesScreen() {
           key={hit.id}
           style={styles.card}
           onPress={() => {
-            setLines((current) => [
-              ...current,
-              { variantId: hit.id, name: hit.productName, quantity: 1, unitPrice: hit.retailPrice },
-            ]);
+            setLines((current) => {
+              const existing = current.find((line) => line.variantId === hit.id);
+              if (existing) {
+                return current.map((line) =>
+                  line.variantId === hit.id ? { ...line, quantity: line.quantity + 1 } : line,
+                );
+              }
+              return [...current, { variantId: hit.id, name: hit.productName, quantity: 1, unitPrice: hit.retailPrice }];
+            });
             setQuery("");
             setHits([]);
           }}
@@ -132,10 +138,39 @@ export default function SalesScreen() {
           <Text style={styles.sub}>
             {line.quantity} × {money(line.unitPrice)}
           </Text>
+          <View style={{ flexDirection: "row", gap: 16, marginTop: 8 }}>
+            <Pressable onPress={() => setLines((current) => current.map((row) => row.variantId === line.variantId ? { ...row, quantity: Math.max(1, row.quantity - 1) } : row))}>
+              <Text style={{ fontWeight: "700", color: colors.ink }}>−</Text>
+            </Pressable>
+            <Pressable onPress={() => setLines((current) => current.map((row) => row.variantId === line.variantId ? { ...row, quantity: row.quantity + 1 } : row))}>
+              <Text style={{ fontWeight: "700", color: colors.ink }}>+</Text>
+            </Pressable>
+            <Pressable onPress={() => setLines((current) => current.filter((row) => row.variantId !== line.variantId))}>
+              <Text style={{ fontWeight: "700", color: colors.bad }}>Remove</Text>
+            </Pressable>
+          </View>
         </View>
       ))}
+      <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+        {(["CASH", "UPI", "CARD"] as const).map((item) => (
+          <Pressable
+            key={item}
+            onPress={() => setMethod(item)}
+            style={{
+              borderWidth: 1,
+              borderColor: method === item ? colors.ink : colors.line,
+              backgroundColor: method === item ? colors.ink : colors.card,
+              borderRadius: 999,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+            }}
+          >
+            <Text style={{ color: method === item ? colors.bg : colors.ink, fontWeight: "700" }}>{item}</Text>
+          </Pressable>
+        ))}
+      </View>
       <Pressable style={styles.btn} onPress={() => void checkout()} disabled={lines.length === 0}>
-        <Text style={styles.btnText}>Take {money(total)}</Text>
+        <Text style={styles.btnText}>Take {money(total)} · {method}</Text>
       </Pressable>
       {sales.map((sale) => (
         <View key={sale.id} style={styles.card}>

@@ -7,7 +7,7 @@ import { BRAND, copyrightLine } from "../lib/brand";
 import { getDeviceId } from "../lib/device";
 import { useTheme } from "../lib/theme";
 
-type Method = "password" | "magic" | "email" | "phone" | "whatsapp" | "sso" | "register";
+type Method = "password" | "magic" | "email" | "phone" | "whatsapp" | "sso" | "register" | "shop" | "forgot";
 
 const METHODS: { id: Method; label: string }[] = [
   { id: "password", label: "Password" },
@@ -17,16 +17,20 @@ const METHODS: { id: Method; label: string }[] = [
   { id: "whatsapp", label: "WhatsApp" },
   { id: "sso", label: "SSO" },
   { id: "register", label: "New user" },
+  { id: "shop", label: "Open a shop" },
+  { id: "forgot", label: "Forgot" },
 ];
 
 export default function LoginScreen() {
-  const { login, acceptSession } = useAuth();
+  const { login, acceptSession, registerShop } = useAuth();
   const { colors, toggle, mode } = useTheme();
   const params = useLocalSearchParams<{ code?: string; sso?: string }>();
   const [method, setMethod] = useState<Method>("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [shopName, setShopName] = useState("");
+  const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -81,6 +85,21 @@ export default function LoginScreen() {
         }
       } else if (method === "sso") {
         setError("Use Continue with Google to sign in with your company account.");
+      } else if (method === "forgot") {
+        await api("/api/v1/auth/forgot-password", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+        });
+        setNotice("If that email is registered, a reset link was sent.");
+      } else if (method === "shop") {
+        await go(await registerShop({
+          shopName: shopName.trim(),
+          ownerName: fullName.trim(),
+          email: email.trim(),
+          password,
+          phone: phone.trim() || undefined,
+          city: city.trim() || undefined,
+        }));
       } else {
         const auth = await api<AuthResponse>("/api/v1/auth/register", {
           method: "POST",
@@ -152,7 +171,9 @@ export default function LoginScreen() {
         method === "magic" ||
         method === "email" ||
         method === "sso" ||
-        method === "register") && (
+        method === "register" ||
+        method === "shop" ||
+        method === "forgot") && (
         <TextInput
           style={styles.input}
           value={email}
@@ -163,7 +184,7 @@ export default function LoginScreen() {
           placeholderTextColor={colors.faint}
         />
       )}
-      {(method === "password" || method === "register") && (
+      {(method === "password" || method === "register" || method === "shop") && (
         <TextInput
           style={styles.input}
           value={password}
@@ -173,16 +194,34 @@ export default function LoginScreen() {
           placeholderTextColor={colors.faint}
         />
       )}
-      {(method === "sso" || method === "register") && (
+      {(method === "sso" || method === "register" || method === "shop") && (
         <TextInput
           style={styles.input}
           value={fullName}
           onChangeText={setFullName}
-          placeholder="Full name"
+          placeholder={method === "shop" ? "Owner name" : "Full name"}
           placeholderTextColor={colors.faint}
         />
       )}
-      {(method === "phone" || method === "whatsapp" || method === "register") && (
+      {method === "shop" && (
+        <>
+          <TextInput
+            style={styles.input}
+            value={shopName}
+            onChangeText={setShopName}
+            placeholder="Shop name"
+            placeholderTextColor={colors.faint}
+          />
+          <TextInput
+            style={styles.input}
+            value={city}
+            onChangeText={setCity}
+            placeholder="City"
+            placeholderTextColor={colors.faint}
+          />
+        </>
+      )}
+      {(method === "phone" || method === "whatsapp" || method === "register" || method === "shop") && (
         <TextInput
           style={styles.input}
           value={phone}
@@ -227,7 +266,9 @@ export default function LoginScreen() {
         </Pressable>
       )}
       <Pressable style={styles.btn} onPress={() => void onContinue()}>
-        <Text style={styles.btnText}>{busy ? "Working…" : "Continue"}</Text>
+        <Text style={styles.btnText}>
+          {busy ? "Working…" : method === "forgot" ? "Send reset link" : method === "shop" ? "Create shop" : "Continue"}
+        </Text>
       </Pressable>
       <Text style={styles.legal}>{copyrightLine()}</Text>
     </ScrollView>

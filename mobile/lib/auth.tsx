@@ -27,6 +27,23 @@ interface AuthValue {
   switchWorkspace: (workspaceId: string) => Promise<void>;
   createWorkspace: (name: string, city?: string) => Promise<void>;
   joinWorkspace: (joinCode: string) => Promise<WorkspaceCard>;
+  completeJoin: (
+    joinCode: string,
+    payment?: {
+      orderId?: string;
+      razorpay_order_id?: string;
+      razorpay_payment_id?: string;
+      razorpay_signature?: string;
+    },
+  ) => Promise<WorkspaceCard>;
+  registerShop: (input: {
+    shopName: string;
+    ownerName: string;
+    email: string;
+    password: string;
+    phone?: string;
+    city?: string;
+  }) => Promise<AuthUser>;
   refreshWorkspaces: () => Promise<void>;
 }
 
@@ -52,9 +69,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         workspaces,
         ready,
         async login(email, password) {
+          await clearSession();
+          setUser(null);
+          setWorkspaces([]);
           const auth = await api<AuthResponse>("/api/v1/auth/login", {
             method: "POST",
-            body: JSON.stringify({ email, password, deviceId: await getDeviceId() }),
+            body: JSON.stringify({ email: email.trim(), password, deviceId: await getDeviceId() }),
           });
           await persistSession(auth);
           setUser(auth.user);
@@ -90,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setWorkspaces(auth.workspaces ?? []);
         },
         async joinWorkspace(joinCode) {
-          const card = await api<WorkspaceCard>("/api/v1/workspaces/join", {
+          const card = await api<WorkspaceCard>("/api/v1/workspaces/join/complete", {
             method: "POST",
             body: JSON.stringify({ joinCode }),
           });
@@ -98,6 +118,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await persistWorkspaces(mine.workspaces);
           setWorkspaces(mine.workspaces);
           return card;
+        },
+        async completeJoin(joinCode, payment) {
+          const card = await api<WorkspaceCard>("/api/v1/workspaces/join/complete", {
+            method: "POST",
+            body: JSON.stringify({ joinCode, ...payment }),
+          });
+          const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+          await persistWorkspaces(mine.workspaces);
+          setWorkspaces(mine.workspaces);
+          return card;
+        },
+        async registerShop(input) {
+          await clearSession();
+          setUser(null);
+          setWorkspaces([]);
+          const auth = await api<AuthResponse>("/api/v1/auth/register-shop", {
+            method: "POST",
+            body: JSON.stringify(input),
+          });
+          await persistSession(auth);
+          setUser(auth.user);
+          setWorkspaces(auth.workspaces ?? []);
+          return auth.user;
         },
         async refreshWorkspaces() {
           const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");

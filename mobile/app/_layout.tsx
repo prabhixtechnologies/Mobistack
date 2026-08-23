@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AppState, Linking, Platform, Pressable, Text, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as Application from "expo-application";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { ThemeProvider, useTheme } from "../lib/theme";
 import { selectedWorkspaceId } from "../lib/api";
@@ -43,7 +44,7 @@ function ThemedStack() {
 
   useEffect(() => {
     const platform = Platform.OS === "ios" ? "IOS" : "ANDROID";
-    void checkRelease(platform, 1)
+    void checkRelease(platform, Number(Application.nativeBuildVersion || 2))
       .then((policy) => {
         if (policy.updateRequired) {
           setBlocked(true);

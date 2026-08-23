@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
 import { api } from "../lib/api";
 import { cachedCustomers, type CachedCustomer } from "../lib/offline";
 import { enqueue } from "../lib/outbox";
@@ -31,6 +32,9 @@ export default function CustomersScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={styles.page}>
+      <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }}>
+        <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
+      </Pressable>
       <Text style={styles.title}>Customers</Text>
       {offline ? <Text style={styles.banner}>Customer list is from this phone. New names queue until sync.</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
+import { PaySheet } from "../components/PaySheet";
 import { useAuth } from "../lib/auth";
 import { api, selectedWorkspaceId, type WorkspaceCard } from "../lib/api";
+import { needsRazorpay, type CheckoutOrder } from "../lib/pay";
 import { useTheme } from "../lib/theme";
 
 export default function WorkspacesScreen() {
-  const { workspaces, refreshWorkspaces, switchWorkspace, createWorkspace, joinWorkspace, user } = useAuth();
+  const { workspaces, refreshWorkspaces, switchWorkspace, createWorkspace, completeJoin, user } = useAuth();
   const { colors } = useTheme();
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
@@ -14,6 +16,7 @@ export default function WorkspacesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pay, setPay] = useState<{ order: CheckoutOrder; joinCode: string } | null>(null);
   const styles = makeStyles(colors);
 
   useEffect(() => {
@@ -102,7 +105,7 @@ export default function WorkspacesScreen() {
       </Pressable>
 
       <Text style={styles.section}>Join with a code</Text>
-      <Text style={styles.sub}>Each shop join is a separate ₹50 payment on the web. Four shops = ₹200.</Text>
+      <Text style={styles.sub}>Each shop join is a separate ₹50 payment. Four shops = ₹200.</Text>
       <TextInput
         style={styles.input}
         placeholder="HUB-7K2P"
@@ -118,7 +121,19 @@ export default function WorkspacesScreen() {
           setBusy(true);
           setError(null);
           try {
-            const card = await joinWorkspace(joinCode.trim());
+            const code = joinCode.trim();
+            const checkout = await api<CheckoutOrder>("/api/v1/workspaces/join/checkout", {
+              method: "POST",
+              body: JSON.stringify({ joinCode: code }),
+            });
+            if (needsRazorpay(checkout)) {
+              setPay({ order: checkout, joinCode: code });
+              return;
+            }
+            const card = await completeJoin(
+              code,
+              checkout.gateway === "DEV" && checkout.id ? { orderId: checkout.id } : undefined,
+            );
             setJoinCode("");
             setNotice(
               card.status === "PENDING"
@@ -139,6 +154,29 @@ export default function WorkspacesScreen() {
         <Pressable style={styles.ghost} onPress={() => router.back()}>
           <Text style={styles.ghostText}>Back</Text>
         </Pressable>
+      ) : null}
+      {pay ? (
+        <PaySheet
+          order={pay.order}
+          description={`Join ${pay.order.shopName ?? "shop"}`}
+          onCancel={() => setPay(null)}
+          onPaid={(slip) => {
+            void completeJoin(pay.joinCode, slip)
+              .then((card) => {
+                setPay(null);
+                setJoinCode("");
+                setNotice(
+                  card.status === "PENDING"
+                    ? `Asked to join ${card.name}. Waiting for approval.`
+                    : `Joined ${card.name}.`,
+                );
+              })
+              .catch((err: Error) => {
+                setPay(null);
+                setError(err.message);
+              });
+          }}
+        />
       ) : null}
     </ScrollView>
   );

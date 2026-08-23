@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 import { api } from "../lib/api";
 import { cachedInbox, saveInbox } from "../lib/offline";
 import { useTheme } from "../lib/theme";
@@ -39,6 +40,9 @@ export default function InboxScreen() {
 
   return (
     <View style={styles.page}>
+      <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }}>
+        <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
+      </Pressable>
       <Text style={styles.title}>Inbox</Text>
       <Text style={styles.sub}>{offline ? `Offline · ${unread} unread` : `${unread} unread`}</Text>
       <Pressable style={styles.ghost} onPress={() => void api("/api/v1/inbox/read-all", { method: "POST" }).then(load)}>

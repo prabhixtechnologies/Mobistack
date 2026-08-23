@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
 import { api } from "../lib/api";
 import { cachedSupport, saveSupport } from "../lib/offline";
 import { useTheme } from "../lib/theme";
@@ -65,6 +66,9 @@ export default function SupportScreen() {
 
   return (
     <View style={styles.page}>
+      <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }}>
+        <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
+      </Pressable>
       <Text style={styles.title}>Support</Text>
       <Text style={styles.sub}>{BRAND.organization} · {BRAND.publicOrigin ?? "mobistack.prabhixtechnologies.com"}</Text>
       <ScrollView style={styles.log}>

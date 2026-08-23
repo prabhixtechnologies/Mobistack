@@ -83,7 +83,7 @@ export default function HomeScreen() {
         <Text style={styles.hello}>Good evening, {user?.fullName.split(" ")[0]}.</Text>
         {user?.paymentRequired ? (
           <Text style={styles.banner}>
-            Payment is pending. Open the web console Billing page to activate this shop. Sales, repairs, and stock stay locked until then.
+            Payment is pending. Open Billing in More to activate this shop. Sales, repairs, and stock stay locked until then.
           </Text>
         ) : null}
         {user?.catalogOnly ? (
@@ -151,6 +151,10 @@ export default function HomeScreen() {
               <FabAction label="Add stock" onPress={() => router.push("/inventory")} colors={colors} />
               <FabAction label="New sale" onPress={() => router.push("/(tabs)/sales")} colors={colors} />
               <FabAction label="New repair" onPress={() => router.push("/(tabs)/repairs")} colors={colors} />
+              <FabAction label="Receive purchase" onPress={() => router.push("/purchases")} colors={colors} />
+              {user?.paymentRequired ? (
+                <FabAction label="Billing" onPress={() => router.push("/billing")} colors={colors} />
+              ) : null}
             </View>
           )}
         </>
