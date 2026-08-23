@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { WorkspaceCard } from "../lib/types";
 
 export function WorkspacesPage() {
@@ -53,12 +54,7 @@ export function WorkspacesPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>My workspaces</h1>
-          <p>One account. Many shops. Switch here — never by editing a request.</p>
-        </div>
-      </div>
+      <PageHeader kicker="Workspace" title="My workspaces" subtitle="One account. Many shops. Switch here — never by editing a request." />
       {error && <div className="error">{error}</div>}
       {notice && <div className="muted">{notice}</div>}
 

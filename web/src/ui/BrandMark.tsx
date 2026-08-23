@@ -1,9 +1,15 @@
 import { BRAND, copyrightLine } from "../lib/brand";
 
-export function BrandMark({ compact = false }: { compact?: boolean }) {
+export function BrandMark({
+  compact = false,
+  inverse = false,
+}: {
+  compact?: boolean;
+  inverse?: boolean;
+}) {
   return (
-    <div className="brand" style={{ padding: compact ? 0 : undefined }}>
-      <div className="brand-mark">F</div>
+    <div className={`brand${inverse ? " brand--inverse" : ""}`} style={{ padding: compact ? 0 : undefined }}>
+      <div className="brand-mark">M</div>
       <div>
         <div className="brand-name">{BRAND.product}</div>
         {!compact && <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{BRAND.organization}</div>}

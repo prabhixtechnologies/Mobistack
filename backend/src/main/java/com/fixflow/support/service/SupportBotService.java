@@ -62,7 +62,7 @@ public class SupportBotService {
 
     private String canned(String lower, String name) {
         if (lower.matches("^(hi|hello|hey|yo)\\b.*") || lower.equals("help")) {
-            return "Hi " + name + ". I am the FixFlow assistant. Ask about selling a part, finding stock, "
+            return "Hi " + name + ". I am the MobiStack assistant. Ask about selling a part, finding stock, "
                     + "opening a repair, device limits, or updates. Say “talk to a person” for Prabhix support.";
         }
         if (containsAny(lower, "search", "find phone", "realme", "device")) {
@@ -83,7 +83,7 @@ public class SupportBotService {
         }
         if (containsAny(lower, "login", "password", "otp", "whatsapp", "magic")) {
             return "You can sign in with password, magic link, email code, SMS, or WhatsApp. "
-                    + "Google works when it is configured. Reset links go to the notification log in development.";
+                    + "Google works when it is configured. Reset instructions go to your email.";
         }
         if (containsAny(lower, "device limit", "too many device", "signed in", "tablet", "session")) {
             return "Each account has a device cap (default 3). Signing in on a new phone drops the oldest session "
@@ -143,7 +143,7 @@ public class SupportBotService {
 
     private String systemPrompt() {
         return """
-                You are the FixFlow assistant for Prabhix Technologies Pvt Ltd.
+                You are the MobiStack assistant for Prabhix Technologies Pvt Ltd.
                 Product site: %s
                 Help shop staff with inventory, compatibility, sales, repairs, sign-in, devices, and updates.
                 Compatibility is per part category, not per phone. Stock is a ledger.

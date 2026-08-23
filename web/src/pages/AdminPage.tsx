@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 
 interface Workspace {
   id: string;
@@ -94,11 +95,11 @@ export function AdminPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Platform</h1>
-          <p>Live users, device caps, support, and the native/OTA release gate.</p>
-        </div>
+      <PageHeader
+        kicker="Platform"
+        title="Platform"
+        subtitle="Live users, device caps, support, and the native/OTA release gate."
+        actions={
         <div className="method-tabs">
           {(["shops", "live", "support", "releases"] as const).map((id) => (
             <button key={id} className={`method-tab ${tab === id ? "on" : ""}`} type="button" onClick={() => setTab(id)}>
@@ -106,7 +107,8 @@ export function AdminPage() {
             </button>
           ))}
         </div>
-      </div>
+        }
+      />
       {error && <div className="error">{error}</div>}
 
       {tab === "shops" && (

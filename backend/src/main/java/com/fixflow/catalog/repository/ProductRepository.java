@@ -28,7 +28,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
               and (:categoryId is null or p.categoryId = :categoryId)
               and (:brandId is null or p.brandId = :brandId)
               and (:activeOnly = false or p.active = true)
-              and (:query is null or p.normalizedName like concat('%', :query, '%'))
+              and (:query = '' or p.normalizedName like concat('%', :query, '%'))
             """)
     Page<Product> search(@Param("shopId") UUID shopId,
                          @Param("query") String normalizedQuery,

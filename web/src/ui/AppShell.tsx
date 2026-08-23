@@ -1,40 +1,91 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { selectedWorkspaceId } from "../lib/types";
-import { BrandFooter, BrandMark } from "./BrandMark";
+import { BrandMark } from "./BrandMark";
 import { ThemeToggle } from "./ThemeToggle";
 import { GlobalSearch } from "./GlobalSearch";
 import { usePresence } from "../lib/presence";
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { Icon, type NavIconName } from "./navIcons";
 
-const LINKS = [
-  { to: "/", label: "Dashboard" },
-  { to: "/sales", label: "Sales" },
-  { to: "/repairs", label: "Repairs" },
-  { to: "/inventory", label: "Inventory" },
-  { to: "/purchases", label: "Purchases" },
-  { to: "/customers", label: "Customers" },
-  { to: "/suppliers", label: "Suppliers" },
-  { to: "/compatibility", label: "Compatibility" },
-  { to: "/reports", label: "Reports" },
-  { to: "/movements", label: "Movements" },
-  { to: "/members", label: "People" },
-  { to: "/workspaces", label: "Workspaces" },
-  { to: "/billing", label: "Billing" },
-  { to: "/import", label: "Import" },
-  { to: "/notifications", label: "Notifications" },
-  { to: "/support", label: "Support" },
-  { to: "/audit", label: "Audit" },
-  { to: "/settings", label: "Settings" },
+type Tint = "rose" | "green" | "amber" | "blue" | "violet" | "cyan" | "slate" | "orange";
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: NavIconName;
+  tint: Tint;
+  end?: boolean;
+}
+
+const NAV: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Counter",
+    items: [
+      { to: "/", label: "Dashboard", icon: "home", tint: "rose", end: true },
+      { to: "/sales", label: "Sales", icon: "cart", tint: "green" },
+      { to: "/repairs", label: "Repairs", icon: "wrench", tint: "amber" },
+      { to: "/inventory", label: "Inventory", icon: "box", tint: "blue" },
+      { to: "/purchases", label: "Purchases", icon: "truck", tint: "orange" },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      { to: "/customers", label: "Customers", icon: "users", tint: "violet" },
+      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan" },
+      { to: "/members", label: "People", icon: "people", tint: "blue" },
+    ],
+  },
+  {
+    label: "Catalog",
+    items: [
+      { to: "/compatibility", label: "Compatibility", icon: "link", tint: "violet" },
+      { to: "/import", label: "Import", icon: "upload", tint: "slate" },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [
+      { to: "/reports", label: "Reports", icon: "chart", tint: "green" },
+      { to: "/movements", label: "Movements", icon: "move", tint: "amber" },
+      { to: "/audit", label: "Audit", icon: "shield", tint: "slate" },
+    ],
+  },
+  {
+    label: "Workspace",
+    items: [
+      { to: "/workspaces", label: "Workspaces", icon: "grid", tint: "violet" },
+      { to: "/billing", label: "Billing", icon: "card", tint: "green" },
+      { to: "/settings", label: "Settings", icon: "settings", tint: "slate" },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      { to: "/notifications", label: "Notifications", icon: "bell", tint: "rose" },
+      { to: "/support", label: "Support", icon: "chat", tint: "violet" },
+    ],
+  },
 ];
+
+function initials(name?: string): string {
+  const parts = (name ?? "U").trim().split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 export function AppShell() {
   const { user, workspaces, logout, switchWorkspace } = useAuth();
   const navigate = useNavigate();
   const currentWorkspace = selectedWorkspaceId(user);
   const activeWorkspaces = workspaces.filter((workspace) => workspace.status === "ACTIVE");
-  const links = user?.systemAdmin ? [...LINKS, { to: "/admin", label: "Platform" }] : LINKS;
+  const sections = user?.systemAdmin
+    ? [...NAV, { label: "Platform", items: [{ to: "/admin", label: "Platform", icon: "crown" as const, tint: "amber" as const }] }]
+    : NAV;
   const [unread, setUnread] = useState(0);
   usePresence(Boolean(user));
 
@@ -54,68 +105,101 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <BrandMark />
-        <nav className="nav-group">
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.to === "/"}
-              className={({ isActive }) => (isActive ? "nav-link active" : "nav-link")}
+      <header className="app-header">
+        <BrandMark compact inverse />
+        <span className="role-chip">{user?.roles[0] ?? "MEMBER"}</span>
+        <GlobalSearch />
+        <div className="app-header__actions">
+          {activeWorkspaces.length > 1 && (
+            <select
+              className="select workspace-switcher header-select"
+              value={currentWorkspace ?? ""}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (next && next !== currentWorkspace) {
+                  void switchWorkspace(next);
+                }
+              }}
             >
-              <span>{link.label}</span>
-              {link.to === "/notifications" && unread > 0 && <span className="nav-badge">{unread}</span>}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="sidebar-foot stack">
-          <ThemeToggle />
+              {activeWorkspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <ThemeToggle icon />
           <button
-            className="btn ghost"
+            className="icon-btn header-icon"
             type="button"
-            onClick={async () => {
-              await logout();
-              navigate("/login");
-            }}
+            aria-label={unread ? `${unread} unread notifications` : "Notifications"}
+            onClick={() => navigate("/notifications")}
           >
-            Sign out
+            <Icon name="bell" />
+            {unread > 0 && <span className="header-dot">{unread > 9 ? "9+" : unread}</span>}
           </button>
-          <BrandFooter />
-        </div>
-      </aside>
-      <div className="main">
-        <header className="topbar">
-          <GlobalSearch />
-          <div className="spread" style={{ minWidth: 280 }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>{user?.fullName}</div>
-              <div className="faint" style={{ fontSize: 12 }}>
-                {user?.workspaceName ?? user?.shopName} · {user?.roles[0]}
-              </div>
-            </div>
-            {activeWorkspaces.length > 1 && (
-              <select
-                className="select workspace-switcher"
-                value={currentWorkspace ?? ""}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  if (next && next !== currentWorkspace) {
-                    void switchWorkspace(next);
-                  }
-                }}
-              >
-                {activeWorkspaces.map((workspace) => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </select>
-            )}
+          <div className="avatar" title={user?.email}>
+            {initials(user?.fullName)}
           </div>
-        </header>
-        <Outlet />
+        </div>
+      </header>
+
+      <div className="app-body">
+        <aside className="sidebar">
+          <div className="sidebar-workspace">
+            <strong>{user?.workspaceName ?? user?.shopName ?? "Workspace"}</strong>
+            <span>{user?.fullName}</span>
+          </div>
+          <nav className="nav-group">
+            {sections.map((section) => (
+              <div className="nav-section" key={section.label}>
+                <div className="nav-section__label">{section.label}</div>
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      `nav-link tint-${item.tint}${isActive ? " active" : ""}`
+                    }
+                  >
+                    <span className="nav-ico">
+                      <Icon name={item.icon} />
+                    </span>
+                    <span>{item.label}</span>
+                    {item.to === "/notifications" && unread > 0 && (
+                      <span className="nav-badge">{unread}</span>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+            ))}
+          </nav>
+          <div className="sidebar-foot">
+            <button
+              className="nav-link tint-slate"
+              type="button"
+              onClick={async () => {
+                await logout();
+                navigate("/login");
+              }}
+            >
+              <span className="nav-ico">
+                <Icon name="logout" />
+              </span>
+              <span>Sign out</span>
+            </button>
+          </div>
+        </aside>
+
+        <div className="main">
+          <Outlet />
+        </div>
       </div>
+
+      <NavLink to="/support" className="support-fab" aria-label="Open support">
+        <Icon name="chat" />
+      </NavLink>
     </div>
   );
 }

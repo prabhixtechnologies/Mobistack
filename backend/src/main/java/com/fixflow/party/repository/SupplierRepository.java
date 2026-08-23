@@ -23,7 +23,7 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
     @Query("""
             select s from Supplier s
             where s.shopId = :shopId
-              and (:query is null
+              and (:query = ''
                    or s.normalizedName like concat('%', :query, '%')
                    or s.phone like concat('%', :rawQuery, '%'))
             """)

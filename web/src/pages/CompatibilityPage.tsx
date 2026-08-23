@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { DeviceSearchHit, GlobalSearchResponse, PageResponse } from "../lib/types";
 
 interface Group {
@@ -47,12 +48,7 @@ export function CompatibilityPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Compatibility</h1>
-          <p>Type the phone the customer put on the counter. Everything that fits comes back with it.</p>
-        </div>
-      </div>
+      <PageHeader kicker="Catalog" title="Compatibility" subtitle="Type the phone the customer put on the counter. Everything that fits comes back with it." />
       <input className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Realme 6, iPhone 11, RMX2002…" />
       <div className="card tight">
         {hits.map((device) => (

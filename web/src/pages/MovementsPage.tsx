@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, qty } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { InventoryTransaction, PageResponse } from "../lib/types";
 
 export function MovementsPage() {
@@ -11,12 +12,7 @@ export function MovementsPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Stock movements</h1>
-          <p>Every change is a row. Nothing is overwritten.</p>
-        </div>
-      </div>
+      <PageHeader kicker="Insights" title="Stock movements" subtitle="Every change is a row. Nothing is overwritten." />
       <div className="card tight">
         <table className="table">
           <thead>

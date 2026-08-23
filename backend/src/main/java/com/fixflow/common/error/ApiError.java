@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-@Schema(name = "ApiError", description = "Uniform error envelope returned by every FixFlow endpoint")
+@Schema(name = "ApiError", description = "Uniform error envelope returned by every MobiStack endpoint")
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public record ApiError(
         Instant timestamp,

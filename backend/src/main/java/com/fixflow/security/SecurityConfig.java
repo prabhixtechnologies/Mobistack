@@ -50,19 +50,15 @@ public class SecurityConfig {
             "/api/v1/auth/phone/verify",
             "/api/v1/auth/whatsapp/start",
             "/api/v1/auth/whatsapp/verify",
-            "/api/v1/auth/sso/dev",
             "/api/v1/auth/sso/google/start",
             "/api/v1/auth/sso/google",
             "/api/v1/public/**",
-            "/api/v1/billing/webhooks/**",
-            "/actuator/health/**",
-            "/v3/api-docs/**",
-            "/swagger-ui/**",
-            "/swagger-ui.html"
+            "/actuator/health/**"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final WorkspaceGuardFilter workspaceGuardFilter;
+    private final AuthRateLimitFilter authRateLimitFilter;
     private final FixFlowProperties properties;
     private final ObjectMapper objectMapper;
 
@@ -72,13 +68,18 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll();
+                    if (properties.getAuth().isDevSsoEnabled()) {
+                        auth.requestMatchers("/api/v1/auth/sso/dev").permitAll();
+                    }
+                    auth.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                            .anyRequest().authenticated();
+                })
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
+                .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(workspaceGuardFilter, JwtAuthenticationFilter.class);
 

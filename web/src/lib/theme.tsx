@@ -1,11 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { storeGet, storeSet } from "./storage";
 
 export type Theme = "light" | "dark";
 
-const KEY = "fixflow.theme";
-
 function readTheme(): Theme {
-  const stored = localStorage.getItem(KEY);
+  const stored = storeGet("theme");
   if (stored === "light" || stored === "dark") {
     return stored;
   }
@@ -15,7 +14,7 @@ function readTheme(): Theme {
 function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
-  localStorage.setItem(KEY, theme);
+  storeSet("theme", theme);
 }
 
 interface ThemeValue {

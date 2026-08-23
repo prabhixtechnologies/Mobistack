@@ -1,11 +1,11 @@
-# FixFlow API
+# MobiStack API
 
 Base path: `/api/v1`  
 Auth: `Authorization: Bearer <accessToken>`  
 Production: [https://mobistack.prabhixtechnologies.com](https://mobistack.prabhixtechnologies.com)  
 Interactive docs (dev): [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-Every business request is scoped to the workspace encoded in the access token. A mismatched `X-FixFlow-Workspace` header is rejected.
+Every business request is scoped to the workspace encoded in the access token. A mismatched `X-MobiStack-Workspace` header is rejected. The previous `X-FixFlow-Workspace` header is still accepted.
 
 ## Authentication
 
@@ -14,14 +14,14 @@ Every business request is scoped to the workspace encoded in the access token. A
 | POST | `/auth/login` | Email + password. Access + rotating refresh token |
 | POST | `/auth/register` | Create a user without a shop |
 | POST | `/auth/register-shop` | Creates a shop and its first OWNER |
-| POST | `/auth/magic-link` | Passwordless email link (token in the notification log) |
+| POST | `/auth/magic-link` | Passwordless email link. The code is never returned in the API response |
 | POST | `/auth/magic-link/consume` | Exchange the token for a session |
 | POST | `/auth/email-otp` / `/auth/email-otp/verify` | Passwordless email code |
 | POST | `/auth/phone/start` / `/auth/phone/verify` | SMS OTP via Twilio (creates the user if needed) |
 | POST | `/auth/whatsapp/start` / `/auth/whatsapp/verify` | WhatsApp OTP via Twilio |
 | POST | `/auth/sso/dev` | Local SSO stand-in (`fixflow.auth.dev-sso-enabled`) |
 | GET | `/auth/sso/google/start` | Google authorization URL when a client id is configured |
-| POST | `/auth/sso/google` | Exchange the Google code for a FixFlow session |
+| POST | `/auth/sso/google` | Exchange the Google code for a MobiStack session |
 | GET | `/auth/methods` | Available methods + brand card |
 | GET | `/public/brand` | Product name, organisation, tagline, copyright, public HTTPS origin |
 | GET | `/public/platform` | Canonical URLs, support email, HTTPS flag |
@@ -29,9 +29,9 @@ Every business request is scoped to the workspace encoded in the access token. A
 | GET | `/auth/sessions` | Active devices for this account |
 | DELETE | `/auth/sessions/{id}` | Revoke one device |
 | POST | `/auth/refresh` | Replay of a used refresh token kills every session |
-| POST | `/auth/forgot-password` | Writes a reset token to the notification log |
+| POST | `/auth/forgot-password` | Sends reset instructions if the account exists |
 | POST | `/auth/reset-password` | Consumes the reset token |
-| POST | `/auth/request-otp` | SMS OTP via Twilio; local fallback is `123456` |
+| POST | `/auth/request-otp` | SMS OTP via Twilio. The code is never returned in the API response |
 | POST | `/auth/verify-otp` | Marks the phone verified (does not issue a session) |
 | POST | `/auth/logout` | Revokes the refresh token |
 | GET | `/auth/me` | Current user + permissions |

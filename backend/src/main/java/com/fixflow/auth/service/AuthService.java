@@ -182,7 +182,8 @@ public class AuthService {
             row.setExpiresAt(Instant.now().plus(java.time.Duration.ofHours(2)));
             userTokenRepository.save(row);
             notificationService.emit(user.getShopId(), user.getId(), "PASSWORD_RESET", user.getEmail(),
-                    "Reset your FixFlow password", "Reset token: " + token);
+                    "Reset your " + properties.getBrand().getProduct() + " password",
+                    "A password reset was requested. The reset secret is not stored in the shop inbox.");
         });
     }
 

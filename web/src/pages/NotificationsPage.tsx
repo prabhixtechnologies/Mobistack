@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 
 interface Pref {
   eventType: string;
@@ -63,22 +64,21 @@ export function NotificationsPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Notifications</h1>
-          <p>
-            {inbox.unread} unread in your inbox. Push uses Expo when the counter app has registered a token.
-          </p>
-        </div>
-        <div className="row">
-          <button className="btn ghost" type="button" onClick={() => void api("/api/v1/inbox/read-all", { method: "POST" }).then(load)}>
-            Mark all read
-          </button>
-          <button className="btn" type="button" onClick={() => void save()}>
-            Save
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        kicker="Support"
+        title="Notifications"
+        subtitle={`${inbox.unread} unread in your inbox. Push uses Expo when the counter app has registered a token.`}
+        actions={
+          <div className="row">
+            <button className="btn ghost" type="button" onClick={() => void api("/api/v1/inbox/read-all", { method: "POST" }).then(load)}>
+              Mark all read
+            </button>
+            <button className="btn" type="button" onClick={() => void save()}>
+              Save
+            </button>
+          </div>
+        }
+      />
       {error && <div className="error">{error}</div>}
       <div className="card tight">
         {inbox.items.map((item) => (

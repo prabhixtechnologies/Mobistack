@@ -48,7 +48,7 @@ function ThemedStack() {
         if (policy.updateRequired) {
           setBlocked(true);
           setStoreUrl(policy.storeUrl ?? policy.publicOrigin);
-          setNotes(policy.notes ?? "Install the latest FixFlow build.");
+          setNotes(policy.notes ?? "Install the latest MobiStack build.");
         }
       })
       .catch(() => undefined);

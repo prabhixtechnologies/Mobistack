@@ -62,7 +62,7 @@ class WorkspaceGuardFilterTest {
 
     @Test
     void mismatchedWorkspaceHeaderIsRejectedNotTrusted() throws Exception {
-        authenticate(new UserPrincipal(userId, workspaceId, "owner@fixflow.app", "Abhishek", true,
+        authenticate(new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Abhishek", true,
                 java.util.Set.of("OWNER"), java.util.Set.of()));
 
         MockHttpServletResponse response = run("GET", "/api/v1/inventory", UUID.randomUUID().toString());
@@ -75,7 +75,7 @@ class WorkspaceGuardFilterTest {
 
     @Test
     void matchingHeaderReChecksMembershipThenContinues() throws Exception {
-        authenticate(new UserPrincipal(userId, workspaceId, "owner@fixflow.app", "Abhishek", true,
+        authenticate(new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Abhishek", true,
                 java.util.Set.of("OWNER"), java.util.Set.of()));
         when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
 
@@ -154,7 +154,7 @@ class WorkspaceGuardFilterTest {
     private User user() {
         User user = new User();
         user.setId(userId);
-        user.setEmail("owner@fixflow.app");
+        user.setEmail("owner@prabhixtechnologies.com");
         user.setFullName("Abhishek Sharma");
         user.setActive(true);
         return user;

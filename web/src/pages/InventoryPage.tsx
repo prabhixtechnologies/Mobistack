@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, money, qty } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
 export function InventoryPage() {
@@ -32,12 +33,11 @@ export function InventoryPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Inventory</h1>
-          <p>Stock is the ledger. The number on the row is a cache of every movement.</p>
-        </div>
-      </div>
+      <PageHeader
+        kicker="Counter"
+        title="Inventory"
+        subtitle="Stock is the ledger. The number on the row is a cache of every movement."
+      />
 
       <form
         className="row"

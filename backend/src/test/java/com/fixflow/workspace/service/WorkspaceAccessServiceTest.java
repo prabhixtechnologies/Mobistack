@@ -81,7 +81,7 @@ class WorkspaceAccessServiceTest {
         user = new User();
         user.setId(userId);
         user.setFullName("Abhishek Sharma");
-        user.setEmail("owner@fixflow.app");
+        user.setEmail("owner@prabhixtechnologies.com");
         user.setActive(true);
         user.setRoles(Set.of(ownerRole));
         user.setShopId(workspaceA);

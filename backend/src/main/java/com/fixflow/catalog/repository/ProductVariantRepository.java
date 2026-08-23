@@ -74,7 +74,7 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
               and (:categoryId is null or v.product.categoryId = :categoryId)
               and (:brandId is null or v.product.brandId = :brandId)
               and (:supplierId is null or v.supplierId = :supplierId)
-              and (:query is null
+              and (:query = ''
                    or v.normalizedName like concat('%', :query, '%')
                    or v.product.normalizedName like concat('%', :query, '%')
                    or upper(v.sku) like concat('%', upper(:rawQuery), '%')

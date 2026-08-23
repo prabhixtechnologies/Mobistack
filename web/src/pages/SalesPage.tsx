@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, apiText, money } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse, PartSearchHit, GlobalSearchResponse } from "../lib/types";
 
 interface Sale {
@@ -105,12 +106,11 @@ export function SalesPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Sales</h1>
-          <p>Scan or type a SKU, add the part, take the money. Stock leaves the ledger on complete.</p>
-        </div>
-      </div>
+      <PageHeader
+        kicker="Counter"
+        title="Sales"
+        subtitle="Scan or type a SKU, add the part, take the money. Stock leaves the ledger on complete."
+      />
       {error && <div className="error">{error}</div>}
 
       <form className="card stack" onSubmit={checkout}>

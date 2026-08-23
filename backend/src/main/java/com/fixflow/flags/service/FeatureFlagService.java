@@ -22,7 +22,7 @@ public class FeatureFlagService {
 
     private final FeatureFlagRepository flagRepository;
 
-    @Cacheable(cacheNames = "flags", key = "T(String).valueOf(#shopId) + ':' + #code")
+    @Cacheable(cacheNames = "flags", key = "(#shopId == null ? 'global' : #shopId.toString()) + ':' + #code")
     @Transactional(readOnly = true)
     public boolean enabled(UUID shopId, String code) {
         if (shopId != null) {

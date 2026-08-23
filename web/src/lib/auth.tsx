@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, clearSession, getStoredUser, getStoredWorkspaces, persistSession, persistWorkspaces } from "./api";
+import { api, clearSession, getRefreshToken, getStoredUser, getStoredWorkspaces, persistSession, persistWorkspaces } from "./api";
 import { getDeviceId } from "./device";
 import type { AuthResponse, AuthenticatedUser, MyWorkspacesResponse, WorkspaceCard } from "./types";
 
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         applySession(auth, setUser, setWorkspaces);
       },
       async logout() {
-        const refreshToken = localStorage.getItem("fixflow.refresh");
+        const refreshToken = getRefreshToken();
         try {
           if (refreshToken) {
             await api("/api/v1/auth/logout", {

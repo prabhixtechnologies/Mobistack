@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, money } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 
 interface Overview {
   prices: { code: string; amount: number; currency: string; interval: string; entitlement: string }[];
@@ -34,12 +35,11 @@ export function BillingPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Billing</h1>
-          <p>Dev capture is server-side. Production would verify a Razorpay signature first.</p>
-        </div>
-      </div>
+      <PageHeader
+        kicker="Workspace"
+        title="Billing"
+        subtitle="Local Docker can confirm a pilot plan. Production refuses self-confirm until a payment gateway is wired."
+      />
       {error && <div className="error">{error}</div>}
       {data && (
         <>

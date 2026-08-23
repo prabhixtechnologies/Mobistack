@@ -1,0 +1,28 @@
+name: Deploy to EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to pull on EC2 (latest or a git SHA)
+        required: true
+        default: latest
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and restart on EC2
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.EC2_APP_DIR }}"
+            if [ -d .git ]; then git pull --ff-only; fi
+            export IMAGE_TAG="${{ github.event.inputs.tag }}"
+            chmod +x deploy/ec2-up.sh
+            ./deploy/ec2-up.sh

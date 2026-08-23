@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { BRAND } from "../lib/brand";
+import { PageHeader } from "../ui/PageHeader";
 
 interface Message {
   id: string;
@@ -77,18 +78,16 @@ export function SupportPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Support</h1>
-          <p>
-            Ask the FixFlow assistant, or reach Prabhix at{" "}
-            <a href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a>.
-          </p>
-        </div>
-        <button className="btn ghost" type="button" onClick={() => void ticket()}>
-          Contact support
-        </button>
-      </div>
+      <PageHeader
+        kicker="Support"
+        title="Support"
+        subtitle={`Ask the MobiStack assistant, or reach Prabhix at ${BRAND.supportEmail}.`}
+        actions={
+          <button className="btn ghost" type="button" onClick={() => void ticket()}>
+            Contact support
+          </button>
+        }
+      />
       {error && <div className="error">{error}</div>}
       <div className="card chat-log">
         {(conversation?.messages ?? []).map((row) => (

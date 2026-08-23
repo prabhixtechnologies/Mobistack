@@ -32,11 +32,11 @@ function UnscopedWorkspaces() {
   const { logout } = useAuth();
   return (
     <div>
-      <header className="topbar">
-        <BrandMark compact />
-        <div className="row">
-          <ThemeToggle compact />
-          <button className="btn ghost" type="button" onClick={() => void logout()}>
+      <header className="app-header">
+        <BrandMark compact inverse />
+        <div className="app-header__actions">
+          <ThemeToggle icon />
+          <button className="btn ghost header-ghost" type="button" onClick={() => void logout()}>
             Sign out
           </button>
         </div>

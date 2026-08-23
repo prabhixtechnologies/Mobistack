@@ -1,5 +1,5 @@
 export const BRAND = {
-  product: "FixFlow",
+  product: "MobiStack",
   organization: "Prabhix Technologies Pvt Ltd",
   tagline: "Building software that simplifies business",
   copyrightYear: 2026,

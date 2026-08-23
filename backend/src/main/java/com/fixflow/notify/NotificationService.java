@@ -71,10 +71,14 @@ public class NotificationService {
         log.info("Notification {} to {}: {}", eventType, recipient, subject);
     }
 
-    private static boolean isAuthSecret(String eventType) {
+    public static boolean isAuthSecret(String eventType) {
         return "PASSWORD_RESET".equals(eventType) || "MAGIC_LINK".equals(eventType)
                 || "EMAIL_OTP".equals(eventType) || "PHONE_OTP".equals(eventType)
                 || "WHATSAPP_OTP".equals(eventType);
+    }
+
+    public static String redactedBody(String eventType, String body) {
+        return isAuthSecret(eventType) ? "Delivered through a private channel." : body;
     }
 
     public void record(UUID shopId, UUID userId, String eventType, String channel, String recipient,
@@ -102,7 +106,7 @@ public class NotificationService {
         row.setChannel(channel);
         row.setRecipient(recipient);
         row.setSubject(subject);
-        row.setBody(body);
+        row.setBody(redactedBody(eventType, body));
         row.setStatus(status);
         row.setProvider(provider);
         row.setProviderRef(providerRef);

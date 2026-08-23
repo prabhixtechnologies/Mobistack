@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "FixFlow",
-    "slug": "fixflow",
-    "scheme": "fixflow",
+    "name": "MobiStack",
+    "slug": "mobistack",
+    "scheme": "mobistack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,7 +24,7 @@
       "bundleIdentifier": "app.prabhix.fixflow",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "FixFlow scans part barcodes at the counter.",
+        "NSCameraUsageDescription": "MobiStack scans part barcodes at the counter.",
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true,
@@ -57,7 +57,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "FixFlow scans part barcodes at the counter."
+          "cameraPermission": "MobiStack scans part barcodes at the counter."
         }
       ]
     ],

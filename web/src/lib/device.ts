@@ -1,11 +1,11 @@
-const DEVICE_KEY = "fixflow.device";
+import { storeGet, storeSet } from "./storage";
 
 export function getDeviceId(): string {
-  const existing = localStorage.getItem(DEVICE_KEY);
+  const existing = storeGet("device");
   if (existing) {
     return existing;
   }
   const created = crypto.randomUUID();
-  localStorage.setItem(DEVICE_KEY, created);
+  storeSet("device", created);
   return created;
 }

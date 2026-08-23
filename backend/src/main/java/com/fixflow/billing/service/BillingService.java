@@ -15,6 +15,8 @@ import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class BillingService {
     private final WorkspaceEntitlementRepository entitlementRepository;
     private final BillingWebhookEventRepository webhookEventRepository;
     private final AuditService auditService;
+    private final Environment environment;
 
     @Transactional(readOnly = true)
     public BillingOverview overview(UUID workspaceId) {
@@ -73,10 +76,14 @@ public class BillingService {
     }
 
     /**
-     * Dev/local capture. Production would verify a Razorpay signature first.
+     * Local capture only. Production must confirm through a signed payment webhook.
      */
     @Transactional
     public BillingOrder confirm(UUID workspaceId, UUID orderId) {
+        if (environment.acceptsProfiles(Profiles.of("prod"))) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
+                    "Self-confirm is disabled in production. Complete payment through the configured gateway.");
+        }
         BillingOrder order = orderRepository.findByIdAndWorkspaceId(orderId, workspaceId)
                 .orElseThrow(() -> ApiException.notFound("Billing order", orderId));
         if (order.getStatus() == PaymentStatus.CAPTURED) {
@@ -118,6 +125,9 @@ public class BillingService {
     @Transactional
     public BillingOrder processWebhook(String provider, String eventId, UUID orderId, String status,
                                        java.util.Map<String, Object> payload) {
+        if (environment.acceptsProfiles(Profiles.of("prod")) && "DEV".equalsIgnoreCase(provider)) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "The development billing webhook is disabled in production.");
+        }
         var existing = webhookEventRepository.findByProviderAndEventId(provider, eventId);
         if (existing.isPresent() && existing.get().getProcessedAt() != null) {
             return orderRepository.findById(orderId).orElse(null);

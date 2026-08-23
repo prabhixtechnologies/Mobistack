@@ -1,45 +1,42 @@
 import type { ApiError, AuthResponse, AuthenticatedUser, WorkspaceCard } from "./types";
 import { getDeviceId } from "./device";
+import { storeGet, storeRemove, storeSet } from "./storage";
 
 const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN as string | undefined) ?? "";
 
-const ACCESS = "fixflow.access";
-const REFRESH = "fixflow.refresh";
-const USER = "fixflow.user";
-const WORKSPACES = "fixflow.workspaces";
-
 export function getAccessToken(): string | null {
-  return localStorage.getItem(ACCESS);
+  return storeGet("access");
+}
+
+export function getRefreshToken(): string | null {
+  return storeGet("refresh");
 }
 
 export function getStoredUser(): AuthenticatedUser | null {
-  const raw = localStorage.getItem(USER);
+  const raw = storeGet("user");
   return raw ? (JSON.parse(raw) as AuthenticatedUser) : null;
 }
 
 export function getStoredWorkspaces(): WorkspaceCard[] {
-  const raw = localStorage.getItem(WORKSPACES);
+  const raw = storeGet("workspaces");
   return raw ? (JSON.parse(raw) as WorkspaceCard[]) : [];
 }
 
 export function persistSession(auth: AuthResponse): void {
-  localStorage.setItem(ACCESS, auth.accessToken);
-  localStorage.setItem(REFRESH, auth.refreshToken);
-  localStorage.setItem(USER, JSON.stringify(auth.user));
+  storeSet("access", auth.accessToken);
+  storeSet("refresh", auth.refreshToken);
+  storeSet("user", JSON.stringify(auth.user));
   if (auth.workspaces) {
-    localStorage.setItem(WORKSPACES, JSON.stringify(auth.workspaces));
+    storeSet("workspaces", JSON.stringify(auth.workspaces));
   }
 }
 
 export function persistWorkspaces(workspaces: WorkspaceCard[]): void {
-  localStorage.setItem(WORKSPACES, JSON.stringify(workspaces));
+  storeSet("workspaces", JSON.stringify(workspaces));
 }
 
 export function clearSession(): void {
-  localStorage.removeItem(ACCESS);
-  localStorage.removeItem(REFRESH);
-  localStorage.removeItem(USER);
-  localStorage.removeItem(WORKSPACES);
+  storeRemove("access", "refresh", "user", "workspaces");
 }
 
 async function parseError(response: Response): Promise<never> {
@@ -47,13 +44,18 @@ async function parseError(response: Response): Promise<never> {
   try {
     payload = (await response.json()) as ApiError;
   } catch {
-    // keep the status text
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      payload = {
+        code: "UNAVAILABLE",
+        message: "MobiStack is temporarily unavailable. Try again shortly.",
+      };
+    }
   }
   throw Object.assign(new Error(payload.message), payload);
 }
 
 function withDevice(headers: Headers): Headers {
-  headers.set("X-FixFlow-Device", getDeviceId());
+  headers.set("X-MobiStack-Device", getDeviceId());
   return headers;
 }
 
@@ -69,11 +71,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   let response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
 
-  if (response.status === 401 && localStorage.getItem(REFRESH) && path !== "/api/v1/auth/refresh") {
+  if (response.status === 401 && getRefreshToken() && path !== "/api/v1/auth/refresh") {
     const refreshed = await fetch(`${API_ORIGIN}/api/v1/auth/refresh`, {
       method: "POST",
       headers: withDevice(new Headers({ "Content-Type": "application/json" })),
-      body: JSON.stringify({ refreshToken: localStorage.getItem(REFRESH), deviceId: getDeviceId() }),
+      body: JSON.stringify({ refreshToken: getRefreshToken(), deviceId: getDeviceId() }),
     });
     if (refreshed.ok) {
       persistSession((await refreshed.json()) as AuthResponse);

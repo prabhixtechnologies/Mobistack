@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { BRAND, copyrightLine } from "../lib/brand";
+import { PageHeader } from "../ui/PageHeader";
 
 interface Shop {
   id: string;
@@ -43,15 +44,16 @@ export function SettingsPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Shop settings</h1>
-          <p>Printed on every invoice. Keep it exact.</p>
-        </div>
-        <button className="btn" type="button" onClick={() => void save()}>
-          Save
-        </button>
-      </div>
+      <PageHeader
+        kicker="Workspace"
+        title="Shop settings"
+        subtitle="Printed on every invoice. Keep it exact."
+        actions={
+          <button className="btn" type="button" onClick={() => void save()}>
+            Save
+          </button>
+        }
+      />
       {error && <div className="error">{error}</div>}
       {saved && <div className="muted">Saved.</div>}
       <div className="grid-2">

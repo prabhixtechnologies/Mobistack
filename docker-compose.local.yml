@@ -1,12 +1,28 @@
-# Laptop / local Docker: demo seed, Redis on, HTTP on localhost.
-#   docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml up --build
+# Laptop overlay. Do not use this file on EC2.
+#   docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml up --build -d
+
 services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
   backend:
+    ports:
+      - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:-fixflow-local-development-signing-key-do-not-use-in-production-0123456789}
       FIXFLOW_REQUIRE_HTTPS: "false"
       FIXFLOW_WEB_ORIGIN: http://localhost:4173
       FIXFLOW_PUBLIC_ORIGIN: http://localhost:4173
       FIXFLOW_API_ORIGIN: http://localhost:8080
       FIXFLOW_REDIS_ENABLED: "true"
       FIXFLOW_CACHE_TYPE: redis
+
+  web:
+    ports:
+      - "4173:80"

@@ -5,10 +5,14 @@ import { getDeviceId } from "./device";
 
 const PRODUCTION_ORIGIN = "https://mobistack.prabhixtechnologies.com";
 
-const ACCESS = "fixflow.access";
-const REFRESH = "fixflow.refresh";
-const USER = "fixflow.user";
-const WORKSPACES = "fixflow.workspaces";
+const ACCESS = "mobistack.access";
+const REFRESH = "mobistack.refresh";
+const USER = "mobistack.user";
+const WORKSPACES = "mobistack.workspaces";
+const LEGACY_ACCESS = "fixflow.access";
+const LEGACY_REFRESH = "fixflow.refresh";
+const LEGACY_USER = "fixflow.user";
+const LEGACY_WORKSPACES = "fixflow.workspaces";
 
 function hostFromExpo(): string {
   const host = Constants.expoConfig?.hostUri?.split(":")[0];
@@ -59,17 +63,21 @@ export function selectedWorkspaceId(user: AuthUser | null | undefined): string |
   return user?.workspaceId ?? user?.shopId ?? null;
 }
 
+async function readStore(current: string, legacy: string): Promise<string | null> {
+  return (await SecureStore.getItemAsync(current)) ?? (await SecureStore.getItemAsync(legacy));
+}
+
 export async function getAccessToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(ACCESS);
+  return readStore(ACCESS, LEGACY_ACCESS);
 }
 
 export async function getStoredUser(): Promise<AuthUser | null> {
-  const raw = await SecureStore.getItemAsync(USER);
+  const raw = await readStore(USER, LEGACY_USER);
   return raw ? (JSON.parse(raw) as AuthUser) : null;
 }
 
 export async function getStoredWorkspaces(): Promise<WorkspaceCard[]> {
-  const raw = await SecureStore.getItemAsync(WORKSPACES);
+  const raw = await readStore(WORKSPACES, LEGACY_WORKSPACES);
   return raw ? (JSON.parse(raw) as WorkspaceCard[]) : [];
 }
 
@@ -91,6 +99,10 @@ export async function clearSession(): Promise<void> {
   await SecureStore.deleteItemAsync(REFRESH);
   await SecureStore.deleteItemAsync(USER);
   await SecureStore.deleteItemAsync(WORKSPACES);
+  await SecureStore.deleteItemAsync(LEGACY_ACCESS);
+  await SecureStore.deleteItemAsync(LEGACY_REFRESH);
+  await SecureStore.deleteItemAsync(LEGACY_USER);
+  await SecureStore.deleteItemAsync(LEGACY_WORKSPACES);
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -102,17 +114,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  headers.set("X-FixFlow-Device", await getDeviceId());
+  headers.set("X-MobiStack-Device", await getDeviceId());
 
   let response = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (response.status === 401 && path !== "/api/v1/auth/refresh") {
-    const refreshToken = await SecureStore.getItemAsync(REFRESH);
+    const refreshToken = await readStore(REFRESH, LEGACY_REFRESH);
     if (refreshToken) {
       const refreshed = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-FixFlow-Device": await getDeviceId(),
+          "X-MobiStack-Device": await getDeviceId(),
         },
         body: JSON.stringify({ refreshToken, deviceId: await getDeviceId() }),
       });

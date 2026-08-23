@@ -65,7 +65,8 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Page<ProductResponse> list(UUID shopId, String query, UUID categoryId, UUID brandId,
                                       boolean activeOnly, Pageable pageable) {
-        Page<Product> page = productRepository.search(shopId, TextNormalizer.normalizeOrNull(query),
+        String normalized = TextNormalizer.normalizeOrNull(query);
+        Page<Product> page = productRepository.search(shopId, normalized == null ? "" : normalized,
                 categoryId, brandId, activeOnly, pageable);
         Map<UUID, String> categoryNames = categoryNames(shopId);
         Map<UUID, String> brandNames = brandNames(shopId);
@@ -174,8 +175,9 @@ public class ProductService {
                                                        UUID brandId, UUID supplierId, boolean lowStockOnly,
                                                        boolean inStockOnly, Pageable pageable) {
         String raw = query == null ? "" : query.trim();
+        String normalized = TextNormalizer.normalizeOrNull(query);
         Page<ProductVariant> page = variantRepository.search(shopId,
-                TextNormalizer.normalizeOrNull(query), raw.isEmpty() ? null : raw,
+                normalized == null ? "" : normalized, raw,
                 categoryId, brandId, supplierId, true, lowStockOnly, inStockOnly, pageable);
 
         Map<UUID, String> categoryNames = categoryNames(shopId);

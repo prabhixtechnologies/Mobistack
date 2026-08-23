@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import type { GlobalSearchResponse } from "../lib/types";
+import { Icon } from "./navIcons";
 
 export function GlobalSearch() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<GlobalSearchResponse | null>(null);
   const box = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,19 +31,31 @@ export function GlobalSearch() {
         setOpen(false);
       }
     };
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        input.current?.focus();
+      }
+    };
     document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   return (
-    <div className="search" ref={box} style={{ position: "relative" }}>
-      <span className="faint">⌘K</span>
+    <div className="search" ref={box}>
+      <Icon name="search" className="search-ico" />
       <input
+        ref={input}
         value={query}
-        placeholder="Search Realme 6, SKU, barcode…"
+        placeholder="Search a phone, SKU, barcode…"
         onChange={(event) => setQuery(event.target.value)}
         onFocus={() => result && setOpen(true)}
       />
+      <kbd className="search-kbd">Ctrl K</kbd>
       {open && result && (
         <div className="search-panel">
           {result.devices.map((device) => (

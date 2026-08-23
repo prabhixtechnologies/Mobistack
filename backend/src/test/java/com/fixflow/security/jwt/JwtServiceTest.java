@@ -29,7 +29,7 @@ class JwtServiceTest {
         jwtService = new JwtService(properties);
         jwtService.init();
 
-        principal = new UserPrincipal(UUID.randomUUID(), UUID.randomUUID(), "owner@fixflow.app",
+        principal = new UserPrincipal(UUID.randomUUID(), UUID.randomUUID(), "owner@prabhixtechnologies.com",
                 "Abhishek Sharma", true, Set.of("OWNER"), Set.of(Permission.INVENTORY_READ, Permission.SALES_WRITE));
     }
 
@@ -40,7 +40,7 @@ class JwtServiceTest {
 
         assertThat(parsed.getId()).isEqualTo(principal.getId());
         assertThat(parsed.getShopId()).isEqualTo(principal.getShopId());
-        assertThat(parsed.getEmail()).isEqualTo("owner@fixflow.app");
+        assertThat(parsed.getEmail()).isEqualTo("owner@prabhixtechnologies.com");
         assertThat(parsed.getRoles()).containsExactly("OWNER");
         assertThat(parsed.has(Permission.SALES_WRITE)).isTrue();
         assertThat(parsed.has(Permission.USER_WRITE)).isFalse();

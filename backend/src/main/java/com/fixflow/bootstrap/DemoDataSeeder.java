@@ -93,7 +93,7 @@ public class DemoDataSeeder implements ApplicationRunner {
             return;
         }
 
-        log.info("Seeding FixFlow demo shop...");
+        log.info("Seeding MobiStack demo shop...");
         var provisioned = shopProvisioningService.provision(new ShopProvisioningService.NewShop(
                 "Mobile Care Hub",
                 "Abhishek Sharma",
@@ -120,9 +120,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         Role technician = role(SystemRole.TECHNICIAN);
         Role staff = role(SystemRole.STAFF);
 
-        createUser(shopId, ownerId, "Priya Deshmukh", "manager@fixflow.app", "9876500001", "Manager@123", manager);
-        createUser(shopId, ownerId, "Rahul Patil", "tech@fixflow.app", "9876500002", "Tech@123", technician);
-        createUser(shopId, ownerId, "Sneha Kulkarni", "staff@fixflow.app", "9876500003", "Staff@123", staff);
+        createUser(shopId, ownerId, "Priya Deshmukh", "manager@prabhixtechnologies.com", "9876500001", "Manager@123", manager);
+        createUser(shopId, ownerId, "Rahul Patil", "tech@prabhixtechnologies.com", "9876500002", "Tech@123", technician);
+        createUser(shopId, ownerId, "Sneha Kulkarni", "staff@prabhixtechnologies.com", "9876500003", "Staff@123", staff);
     }
 
     /**

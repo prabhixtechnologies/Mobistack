@@ -25,6 +25,12 @@ fixflow:
   demo:
     seed-enabled: false
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 logging:
   level:
     com.fixflow: INFO

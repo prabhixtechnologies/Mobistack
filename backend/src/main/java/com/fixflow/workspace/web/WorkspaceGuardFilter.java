@@ -31,7 +31,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WorkspaceGuardFilter extends OncePerRequestFilter {
 
-    public static final String WORKSPACE_HEADER = "X-FixFlow-Workspace";
+    public static final String WORKSPACE_HEADER = "X-MobiStack-Workspace";
+    public static final String WORKSPACE_HEADER_LEGACY = "X-FixFlow-Workspace";
 
     private final WorkspaceAccessService workspaceAccessService;
     private final ObjectMapper objectMapper;
@@ -105,13 +106,16 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
     private void rejectMismatchedHeader(HttpServletRequest request, UserPrincipal principal) {
         String header = request.getHeader(WORKSPACE_HEADER);
         if (header == null || header.isBlank()) {
+            header = request.getHeader(WORKSPACE_HEADER_LEGACY);
+        }
+        if (header == null || header.isBlank()) {
             return;
         }
         UUID requested;
         try {
             requested = UUID.fromString(header.trim());
         } catch (IllegalArgumentException ex) {
-            throw new ApiException(ErrorCode.MALFORMED_REQUEST, "X-FixFlow-Workspace is not a UUID.");
+            throw new ApiException(ErrorCode.MALFORMED_REQUEST, "X-MobiStack-Workspace is not a UUID.");
         }
         if (principal.getShopId() == null || !requested.equals(principal.getShopId())) {
             throw new ApiException(ErrorCode.FORBIDDEN,

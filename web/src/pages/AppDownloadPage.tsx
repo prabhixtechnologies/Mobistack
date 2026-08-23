@@ -10,7 +10,7 @@ export function AppDownloadPage() {
       <BrandMark />
       <h1>{ios ? "iOS build" : "Android build"}</h1>
       <p className="muted">
-        Install the latest FixFlow counter app from {BRAND.organization}. JavaScript fixes also arrive
+        Install the latest MobiStack counter app from {BRAND.organization}. JavaScript fixes also arrive
         over the air on the production channel. When this page is used as a force-update target, the
         native binary is newer than the one on the device.
       </p>

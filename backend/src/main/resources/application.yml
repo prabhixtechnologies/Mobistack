@@ -89,7 +89,7 @@ fixflow:
     jwt:
       # Override in every real environment. Startup fails if this is under 64 chars.
       secret: ${FIXFLOW_SECURITY_JWT_SECRET:}
-      issuer: fixflow
+      issuer: mobistack
       access-token-ttl: 30m
       refresh-token-ttl: 30d
     max-failed-logins: 8
@@ -107,7 +107,7 @@ fixflow:
     critical-stock-factor: 0.34
   brand:
     organization: Prabhix Technologies Pvt Ltd
-    product: FixFlow
+    product: MobiStack
     tagline: Building software that simplifies business
     copyright-year: 2026
   auth:

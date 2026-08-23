@@ -6,13 +6,14 @@ import org.springframework.http.HttpHeaders;
 
 public final class ClientRequests {
 
-    public static final String DEVICE_HEADER = "X-FixFlow-Device";
+    public static final String DEVICE_HEADER = "X-MobiStack-Device";
+    public static final String DEVICE_HEADER_LEGACY = "X-FixFlow-Device";
 
     private ClientRequests() {
     }
 
     public static AuthService.ClientInfo clientInfo(HttpServletRequest http, String deviceId) {
-        String resolved = deviceId == null || deviceId.isBlank() ? http.getHeader(DEVICE_HEADER) : deviceId;
+        String resolved = deviceId == null || deviceId.isBlank() ? firstHeader(http, DEVICE_HEADER, DEVICE_HEADER_LEGACY) : deviceId;
         String forwarded = http.getHeader("X-Forwarded-For");
         String ip = forwarded == null || forwarded.isBlank()
                 ? http.getRemoteAddr()
@@ -26,5 +27,15 @@ public final class ClientRequests {
             return http.getRemoteAddr();
         }
         return forwarded.split(",")[0].trim();
+    }
+
+    private static String firstHeader(HttpServletRequest http, String... names) {
+        for (String name : names) {
+            String value = http.getHeader(name);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

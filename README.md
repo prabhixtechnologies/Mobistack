@@ -1,4 +1,4 @@
-# FixFlow
+# MobiStack
 
 A product of **Prabhix Technologies Pvt Ltd**.  
 *Building software that simplifies business.*
@@ -26,22 +26,13 @@ This repository is a monorepo:
 
 That is the product. Everything else exists to make that path faster.
 
-## Demo shop
+## Local seed (development only)
 
-Seeded only under the `dev` profile, and only on an empty database.
+Under the `dev` profile, an empty database gets a sample shop so the counter workflow can be tried. Seeded accounts use `@prabhixtechnologies.com`. Passwords live only in `backend/src/main/resources/application-dev.yml` and the seeder — they are never shown on the login screen, in the API, or in OTP responses.
 
-| Role | Email | Password |
-| --- | --- | --- |
-| Owner | `owner@fixflow.app` | `Owner@123` |
-| Manager | `manager@fixflow.app` | `Manager@123` |
-| Technician | `tech@fixflow.app` | `Tech@123` |
-| Staff | `staff@fixflow.app` | `Staff@123` |
+Sign-in methods: email + password, magic link, email OTP, phone OTP, WhatsApp OTP, user registration, and new-shop registration. Google SSO exchanges an authorization code at `POST /auth/sso/google` when `FIXFLOW_GOOGLE_CLIENT_ID` / `FIXFLOW_GOOGLE_CLIENT_SECRET` are set.
 
-Shop: **Mobile Care Hub**, Pune. The demo owner also belongs to **ABC Mobile Repair** (Mumbai). Dev OTP / email / WhatsApp codes are `123456`. Magic-link and password-reset tokens are written to the notification log.
-
-Sign-in methods: email + password, magic link, email OTP, phone OTP, WhatsApp OTP, Dev SSO, user registration, and new-shop registration. Google SSO exchanges an authorization code at `POST /auth/sso/google` when `FIXFLOW_GOOGLE_CLIENT_ID` / `FIXFLOW_GOOGLE_CLIENT_SECRET` are set.
-
-SMS and WhatsApp OTPs go through **Twilio** when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and the matching From numbers are set. Without those, the API still issues the local dev code `123456`. See `.env.example`. For WhatsApp, the destination number must be in the Twilio sandbox (or a purchased WhatsApp sender).
+SMS and WhatsApp OTPs go through **Twilio**. One-time codes are never returned in the API response.
 
 A workspace is still the `shops` row — same UUID. Access is `User → Membership → Workspace`. Switching calls `POST /api/v1/workspaces/{id}/select` and issues a new JWT. Join-by-code creates a **PENDING** membership; an owner approves it from People.
 
@@ -51,7 +42,7 @@ A workspace is still the `shops` row — same UUID. Access is `User → Membersh
 - Maven 3.8+
 - Node 20+
 - PostgreSQL 16
-- Docker optional — `docker compose up postgres` if you have it
+- Docker optional — `docker compose -f docker-compose.yml -f docker-compose.local.yml up postgres redis` if you have it
 
 ### PostgreSQL without Docker
 
@@ -78,21 +69,28 @@ Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagge
 
 A JWT signing key is supplied by `application-dev.yml`. Every other profile refuses to start without `FIXFLOW_SECURITY_JWT_SECRET` (≥ 64 characters).
 
-## Production site (HTTPS)
+## Laptop Docker
+
+```powershell
+docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml up --build -d
+```
+
+Web: [http://localhost:4173](http://localhost:4173). API: [http://localhost:8080](http://localhost:8080).  
+Do not start `--profile prod` / Caddy on the laptop.
+
+## Production (Docker Hub → EC2)
 
 Canonical origin: **https://mobistack.prabhixtechnologies.com**
 
-Magic links, Google redirects, invoices, CORS, and release-app URLs use that host. Local `dev` still uses `http://localhost:5173`.
+Magic links, Google redirects, invoices, CORS, and release-app URLs use that host.
 
-```powershell
-docker compose up postgres redis
-# then, on a server with DNS pointed at this host:
-docker compose --profile prod up --build
-```
+1. Test on the laptop with the command above.
+2. `docker login` then `.\deploy\publish.ps1` — or push `master` and let GitHub Actions publish (secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`).
+3. On the EC2 that the subdomain points at: copy `deploy/.env.prod.example` to `.env`, then `./deploy/ec2-up.sh`.
 
-Caddy terminates TLS (Let's Encrypt). The web console is same-origin with `/api`. Redis holds live presence and short-lived caches.
+EC2 only pulls images. It does not build Java or Node. Caddy terminates TLS (Let's Encrypt) on ports 80 and 443. Postgres and Redis are not published on the host.
 
-Set `ACME_EMAIL` and `FIXFLOW_SECURITY_JWT_SECRET` in `.env`. See `.env.example`.
+Full runbook: [deploy/README.md](deploy/README.md).
 
 ## Run the web console
 

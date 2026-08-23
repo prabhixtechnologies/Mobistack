@@ -49,7 +49,7 @@ public class FixFlowProperties {
         @NotBlank
         private String secret;
 
-        private String issuer = "fixflow";
+        private String issuer = "mobistack";
         private Duration accessTokenTtl = Duration.ofMinutes(30);
         /** Long enough that a shop tablet offline for a week can still refresh. */
         private Duration refreshTokenTtl = Duration.ofDays(30);
@@ -82,7 +82,7 @@ public class FixFlowProperties {
     @Setter
     public static class Brand {
         private String organization = "Prabhix Technologies Pvt Ltd";
-        private String product = "FixFlow";
+        private String product = "MobiStack";
         private String tagline = "Building software that simplifies business";
         private int copyrightYear = 2026;
     }
@@ -119,7 +119,7 @@ public class FixFlowProperties {
     public static class Demo {
         /** Seeds a realistic demo shop on an empty database. Off outside the dev profile. */
         private boolean seedEnabled = false;
-        private String ownerEmail = "owner@fixflow.app";
+        private String ownerEmail = "owner@prabhixtechnologies.com";
         private String ownerPassword = "Owner@123";
     }
 

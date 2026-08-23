@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse } from "../lib/types";
 
 interface AuditRow {
@@ -22,12 +23,7 @@ export function AuditPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Audit</h1>
-          <p>Who changed stock, people, or prices. The ledger of decisions.</p>
-        </div>
-      </div>
+      <PageHeader kicker="Insights" title="Audit" subtitle="Who changed stock, people, or prices. The ledger of decisions." />
       {error && <div className="error">{error}</div>}
       <div className="card tight">
         {rows.map((row) => (

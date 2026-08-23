@@ -3,11 +3,12 @@ WORKDIR /app
 COPY pom.xml .
 COPY src src
 RUN apk add --no-cache maven \
-    && mvn -q -B -DskipTests package
+    && mvn -q -B -DskipTests -Dmaven.test.skip=true package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN addgroup -S fixflow && adduser -S fixflow -G fixflow
+RUN apk add --no-cache wget \
+    && addgroup -S fixflow && adduser -S fixflow -G fixflow
 COPY --from=build /app/target/fixflow-backend-*.jar app.jar
 USER fixflow
 EXPOSE 8080

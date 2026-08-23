@@ -20,7 +20,8 @@ export interface Palette {
   badSoft: string;
 }
 
-const KEY = "fixflow.theme";
+const KEY = "mobistack.theme";
+const LEGACY_KEY = "fixflow.theme";
 
 export const light: Palette = {
   bg: "#F4F1EA",
@@ -82,14 +83,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(fromScheme(Appearance.getColorScheme()));
 
   useEffect(() => {
-    SecureStore.getItemAsync(KEY).then((stored) => {
-      if (stored === "light" || stored === "dark") {
-        setMode(stored);
+    Promise.all([SecureStore.getItemAsync(KEY), SecureStore.getItemAsync(LEGACY_KEY)]).then(([stored, legacy]) => {
+      const value = stored ?? legacy;
+      if (value === "light" || value === "dark") {
+        setMode(value);
       }
     });
     const sub = Appearance.addChangeListener(({ colorScheme }) => {
-      SecureStore.getItemAsync(KEY).then((stored) => {
-        if (stored !== "light" && stored !== "dark") {
+      Promise.all([SecureStore.getItemAsync(KEY), SecureStore.getItemAsync(LEGACY_KEY)]).then(([stored, legacy]) => {
+        const value = stored ?? legacy;
+        if (value !== "light" && value !== "dark") {
           setMode(fromScheme(colorScheme));
         }
       });

@@ -15,7 +15,7 @@ fixflow:
     enabled: ${FIXFLOW_REDIS_ENABLED:false}
   demo:
     seed-enabled: true
-    owner-email: owner@fixflow.app
+    owner-email: owner@prabhixtechnologies.com
     owner-password: Owner@123
 
 spring:

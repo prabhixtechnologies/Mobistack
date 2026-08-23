@@ -57,9 +57,35 @@ public class NotificationController {
         }).toList();
     }
 
+    public record OutboxView(
+            java.util.UUID id,
+            String eventType,
+            String channel,
+            String recipient,
+            String subject,
+            String body,
+            String status,
+            java.time.Instant createdAt
+    ) {
+        static OutboxView from(NotificationOutbox row) {
+            return new OutboxView(
+                    row.getId(),
+                    row.getEventType(),
+                    row.getChannel(),
+                    row.getRecipient(),
+                    row.getSubject(),
+                    NotificationService.redactedBody(row.getEventType(), row.getBody()),
+                    row.getStatus(),
+                    row.getCreatedAt());
+        }
+    }
+
     @GetMapping
-    public List<NotificationOutbox> recent() {
+    public List<OutboxView> recent() {
         return outboxRepository.findByShopIdOrderByCreatedAtDesc(CurrentUser.shopId(), PageRequest.of(0, 40))
-                .getContent();
+                .getContent()
+                .stream()
+                .map(OutboxView::from)
+                .toList();
     }
 }

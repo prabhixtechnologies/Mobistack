@@ -33,7 +33,8 @@ public class PartyService {
     @Transactional(readOnly = true)
     public Page<CustomerResponse> searchCustomers(UUID shopId, String query, Pageable pageable) {
         String raw = query == null ? "" : query.trim();
-        return customerRepository.search(shopId, TextNormalizer.normalizeOrNull(raw), raw, pageable)
+        String normalized = TextNormalizer.normalizeOrNull(raw);
+        return customerRepository.search(shopId, normalized == null ? "" : normalized, raw, pageable)
                 .map(this::toCustomer);
     }
 
@@ -72,7 +73,8 @@ public class PartyService {
     @Transactional(readOnly = true)
     public Page<SupplierResponse> searchSuppliers(UUID shopId, String query, Pageable pageable) {
         String raw = query == null ? "" : query.trim();
-        return supplierRepository.search(shopId, TextNormalizer.normalizeOrNull(raw), raw, pageable)
+        String normalized = TextNormalizer.normalizeOrNull(raw);
+        return supplierRepository.search(shopId, normalized == null ? "" : normalized, raw, pageable)
                 .map(this::toSupplier);
     }
 

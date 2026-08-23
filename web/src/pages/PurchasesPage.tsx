@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, money } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
 interface Supplier {
@@ -65,12 +66,7 @@ export function PurchasesPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Purchases</h1>
-          <p>A purchase is stock in plus a supplier ledger row. Not a spreadsheet paste.</p>
-        </div>
-      </div>
+      <PageHeader kicker="Counter" title="Purchases" subtitle="A purchase is stock in plus a supplier ledger row. Not a spreadsheet paste." />
       {error && <div className="error">{error}</div>}
       <form className="card stack" onSubmit={receive}>
         <strong>Receive a carton</strong>

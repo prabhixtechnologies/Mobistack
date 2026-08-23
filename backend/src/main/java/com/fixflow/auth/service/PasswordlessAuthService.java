@@ -93,8 +93,9 @@ public class PasswordlessAuthService {
         userTokenRepository.save(row);
         String url = properties.getAuth().getWebOrigin() + properties.getAuth().getMagicLinkPath() + token;
         notificationService.emit(null, row.getUserId(), "MAGIC_LINK", request.email(),
-                "Your FixFlow sign-in link", "Open: " + url);
-        return Map.of("status", "SENT", "hint", "The link was written to the notification log in this environment.");
+                "Your " + product() + " sign-in link",
+                "A sign-in link was sent. The URL is not stored in the shop inbox.");
+        return Map.of("status", "SENT");
     }
 
     @Transactional
@@ -111,7 +112,7 @@ public class PasswordlessAuthService {
 
     @Transactional
     public Map<String, String> sendEmailOtp(EmailStartRequest request) {
-        String code = properties.getAuth().getDevOtp();
+        String code = issueOtp();
         UserToken row = new UserToken();
         row.setEmail(request.email().toLowerCase());
         userRepository.findWithRolesByEmail(request.email()).ifPresent(user -> row.setUserId(user.getId()));
@@ -120,8 +121,8 @@ public class PasswordlessAuthService {
         row.setExpiresAt(Instant.now().plus(Duration.ofMinutes(10)));
         userTokenRepository.save(row);
         notificationService.emit(null, row.getUserId(), "EMAIL_OTP", request.email(),
-                "Your FixFlow code", "OTP: " + code + " (dev provider)");
-        return Map.of("status", "SENT", "hint", "Dev email code is " + code);
+                "Your " + product() + " code", "A one-time code was sent to this email.");
+        return Map.of("status", "SENT");
     }
 
     @Transactional
@@ -149,8 +150,7 @@ public class PasswordlessAuthService {
         row.setExpiresAt(Instant.now().plus(Duration.ofMinutes(10)));
         user.ifPresent(found -> row.setUserId(found.getId()));
         userTokenRepository.save(row);
-        return Map.of("status", "SENT", "channel", delivery.channel(), "provider", delivery.provider(),
-                "hint", delivery.hint());
+        return Map.of("status", "SENT", "channel", delivery.channel(), "provider", delivery.provider());
     }
 
     @Transactional
@@ -196,8 +196,7 @@ public class PasswordlessAuthService {
     public Map<String, String> googleStart(String requestedRedirect) {
         String clientId = properties.getAuth().getGoogleClientId();
         if (clientId == null || clientId.isBlank()) {
-            return Map.of("provider", "GOOGLE", "status", "UNCONFIGURED",
-                    "hint", "Set FIXFLOW_GOOGLE_CLIENT_ID, or use SSO_DEV in this environment.");
+            return Map.of("provider", "GOOGLE", "status", "UNCONFIGURED");
         }
         String redirect = resolveGoogleRedirect(requestedRedirect);
         String url = "https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id="
@@ -246,7 +245,9 @@ public class PasswordlessAuthService {
         if (requested == null || requested.isBlank()) {
             return web;
         }
-        if (requested.equals(web) || requested.equals(publicWeb) || requested.startsWith("fixflow://")
+        if (requested.equals(web) || requested.equals(publicWeb)
+                || requested.startsWith("fixflow://")
+                || requested.startsWith("mobistack://")
                 || requested.startsWith(properties.getAuth().getWebOrigin() + "/")
                 || requested.startsWith(properties.getPlatform().getPublicOrigin() + "/")) {
             return requested;
@@ -354,17 +355,29 @@ public class PasswordlessAuthService {
     private User createPhoneUser(String phone) {
         User user = new User();
         user.setPhone(phone);
-        user.setEmail("p" + phone.replaceAll("[^0-9]", "") + "@phone.fixflow.local");
-        user.setFullName("FixFlow user");
+        user.setEmail("p" + phone.replaceAll("[^0-9]", "") + "@phone.prabhixtechnologies.local");
+        user.setFullName(product() + " user");
         user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
         return userRepository.save(user);
     }
 
-    private static String displayNameFromEmail(String email) {
+    private String displayNameFromEmail(String email) {
         if (email == null || !email.contains("@")) {
-            return "FixFlow user";
+            return product() + " user";
         }
         String local = email.substring(0, email.indexOf('@')).replace('.', ' ');
-        return local.isBlank() ? "FixFlow user" : local;
+        return local.isBlank() ? product() + " user" : local;
+    }
+
+    private String product() {
+        return properties.getBrand().getProduct();
+    }
+
+    private String issueOtp() {
+        String configured = properties.getAuth().getDevOtp();
+        if (configured != null && !configured.isBlank()) {
+            return configured;
+        }
+        return String.format("%06d", new java.security.SecureRandom().nextInt(1_000_000));
     }
 }

@@ -1,29 +1,38 @@
+# MobiStack stack.
+#
+# Laptop (demo seed, published debug ports):
+#   docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml up --build -d
+#
+# Publish after a local test:
+#   docker login
+#   .\deploy\publish.ps1
+#
+# EC2 (pull Hub images, HTTPS on 80/443 only):
+#   ./deploy/ec2-up.sh
+#
+# Override DOCKERHUB_NAMESPACE / IMAGE_TAG in .env if your Hub user is not prabhixtechnologies.
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: fixflow-postgres
-    restart: unless-stopped
     environment:
-      POSTGRES_DB: fixflow
-      POSTGRES_USER: fixflow
-      POSTGRES_PASSWORD: fixflow
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-fixflow}
+      POSTGRES_USER: ${POSTGRES_USER:-fixflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fixflow}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fixflow -d fixflow"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     container_name: fixflow-redis
-    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -31,12 +40,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   backend:
+    profiles: ["full", "prod"]
+    image: ${DOCKERHUB_NAMESPACE:-prabhixtechnologies}/mobistack-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
     container_name: fixflow-backend
-    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,17 +55,18 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fixflow
-      SPRING_DATASOURCE_USERNAME: fixflow
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fixflow}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fixflow}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-fixflow}
       REDIS_HOST: redis
-      FIXFLOW_REDIS_ENABLED: "true"
+      REDIS_PORT: "6379"
+      FIXFLOW_REDIS_ENABLED: ${FIXFLOW_REDIS_ENABLED:-true}
       FIXFLOW_CACHE_TYPE: redis
-      FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:-change-me-in-production-this-must-be-at-least-64-characters-long-abcdef}
-      FIXFLOW_WEB_ORIGIN: https://mobistack.prabhixtechnologies.com
-      FIXFLOW_PUBLIC_ORIGIN: https://mobistack.prabhixtechnologies.com
-      FIXFLOW_API_ORIGIN: https://mobistack.prabhixtechnologies.com
-      FIXFLOW_REQUIRE_HTTPS: "true"
+      FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:-}
+      FIXFLOW_WEB_ORIGIN: ${FIXFLOW_WEB_ORIGIN:-https://mobistack.prabhixtechnologies.com}
+      FIXFLOW_PUBLIC_ORIGIN: ${FIXFLOW_PUBLIC_ORIGIN:-https://mobistack.prabhixtechnologies.com}
+      FIXFLOW_API_ORIGIN: ${FIXFLOW_API_ORIGIN:-https://mobistack.prabhixtechnologies.com}
+      FIXFLOW_REQUIRE_HTTPS: ${FIXFLOW_REQUIRE_HTTPS:-true}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
       TWILIO_SMS_FROM: ${TWILIO_SMS_FROM:-}
@@ -62,28 +74,34 @@ services:
       FIXFLOW_GOOGLE_CLIENT_ID: ${FIXFLOW_GOOGLE_CLIENT_ID:-}
       FIXFLOW_GOOGLE_CLIENT_SECRET: ${FIXFLOW_GOOGLE_CLIENT_SECRET:-}
       FIXFLOW_OPENAI_API_KEY: ${FIXFLOW_OPENAI_API_KEY:-}
-    ports:
-      - "8080:8080"
-    profiles: ["full", "prod"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
+    restart: unless-stopped
 
   web:
+    profiles: ["full", "prod"]
+    image: ${DOCKERHUB_NAMESPACE:-prabhixtechnologies}/mobistack-web:${IMAGE_TAG:-latest}
     build:
       context: ./web
     container_name: fixflow-web
-    restart: unless-stopped
     depends_on:
-      - backend
-    ports:
-      - "4173:80"
-    profiles: ["full", "prod"]
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
   caddy:
+    profiles: ["prod"]
     image: caddy:2.10-alpine
     container_name: fixflow-caddy
-    restart: unless-stopped
     depends_on:
-      - backend
-      - web
+      backend:
+        condition: service_healthy
+      web:
+        condition: service_started
     ports:
       - "80:80"
       - "443:443"
@@ -93,7 +111,7 @@ services:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    profiles: ["prod"]
+    restart: unless-stopped
 
 volumes:
   pgdata:

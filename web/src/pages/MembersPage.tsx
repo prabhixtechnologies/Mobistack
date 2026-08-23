@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import { selectedWorkspaceId } from "../lib/types";
 import type { PageResponse } from "../lib/types";
 
@@ -77,12 +78,7 @@ export function MembersPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>People</h1>
-          <p>Join requests stay pending until you approve. Invites carry a one-time token.</p>
-        </div>
-      </div>
+      <PageHeader kicker="People" title="People" subtitle="Join requests stay pending until you approve. Invites carry a one-time token." />
       {error && <div className="error">{error}</div>}
       {token && <div className="card">Give them this invite token: <strong>{token}</strong></div>}
 

@@ -1,6 +1,6 @@
-# FixFlow native app
+# MobiStack native app
 
-This is the **Android / iOS counter app** for FixFlow (Prabhix Technologies Pvt Ltd). It is a standalone native binary — not Expo Go.
+This is the **Android / iOS counter app** for MobiStack (Prabhix Technologies Pvt Ltd). It is a standalone native binary — not Expo Go.
 
 - Package: `app.prabhix.fixflow`
 - Offline: SQLite snapshot + outbox

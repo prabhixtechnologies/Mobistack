@@ -1,0 +1,25 @@
+# EC2 overlay. Pull published images — do not compile on the server.
+# Postgres and Redis stay on the Docker network. Only Caddy is public (80/443).
+
+services:
+  postgres:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fixflow}
+      POSTGRES_USER: ${POSTGRES_USER:-fixflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+
+  backend:
+    pull_policy: always
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:?set a 64+ character JWT secret in .env}
+      FIXFLOW_WEB_ORIGIN: ${FIXFLOW_WEB_ORIGIN:-https://mobistack.prabhixtechnologies.com}
+      FIXFLOW_PUBLIC_ORIGIN: ${FIXFLOW_PUBLIC_ORIGIN:-https://mobistack.prabhixtechnologies.com}
+      FIXFLOW_API_ORIGIN: ${FIXFLOW_API_ORIGIN:-https://mobistack.prabhixtechnologies.com}
+      FIXFLOW_REQUIRE_HTTPS: "true"
+      FIXFLOW_REDIS_ENABLED: "true"
+      FIXFLOW_CACHE_TYPE: redis
+
+  web:
+    pull_policy: always

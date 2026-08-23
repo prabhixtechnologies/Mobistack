@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, money } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
 interface Repair {
@@ -86,12 +87,7 @@ export function RepairsPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Repairs</h1>
-          <p>Open a job, fit a part from stock, collect when it is ready.</p>
-        </div>
-      </div>
+      <PageHeader kicker="Counter" title="Repairs" subtitle="Open a job, fit a part from stock, collect when it is ready." />
       {error && <div className="error">{error}</div>}
 
       <form className="card stack" onSubmit={create}>

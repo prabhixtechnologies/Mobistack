@@ -21,7 +21,7 @@ public enum InventoryTransactionType {
     RESERVATION(0, 1),
     /** Reservation cancelled. */
     RELEASE(0, -1),
-    /** Balance carried in when the shop starts using FixFlow. */
+    /** Balance carried in when the shop starts using MobiStack. */
     OPENING(1, 0),
     /** Moved to another location or counter. */
     TRANSFER(0, 0);

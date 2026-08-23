@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, money, qty } from "../lib/api";
+import { api, getAccessToken, money, qty } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 
 interface ReportBundle {
   sales: { sales: number; profit: number; transactions: number };
@@ -22,11 +23,11 @@ export function ReportsPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Reports</h1>
-          <p>Profit is sale price minus ledger cost. Dead stock is inventory that has not moved.</p>
-        </div>
+      <PageHeader
+        kicker="Insights"
+        title="Reports"
+        subtitle="Profit is sale price minus ledger cost. Dead stock is inventory that has not moved."
+        actions={
         <div className="row">
           <select className="select" value={range} onChange={(e) => setRange(e.target.value)} style={{ width: 180 }}>
             <option value="today">Today</option>
@@ -37,7 +38,7 @@ export function ReportsPage() {
           </select>
           <a className="btn ghost" href={`/api/v1/reports/export?range=${range}`} onClick={(event) => {
             event.preventDefault();
-            const token = localStorage.getItem("fixflow.access");
+            const token = getAccessToken();
             void fetch(`/api/v1/reports/export?range=${range}`, {
               headers: token ? { Authorization: `Bearer ${token}` } : {},
             }).then(async (response) => {
@@ -45,7 +46,7 @@ export function ReportsPage() {
               const url = URL.createObjectURL(blob);
               const link = document.createElement("a");
               link.href = url;
-              link.download = "fixflow-report.csv";
+              link.download = "mobistack-report.csv";
               link.click();
               URL.revokeObjectURL(url);
             });
@@ -53,7 +54,8 @@ export function ReportsPage() {
             Export CSV
           </a>
         </div>
-      </div>
+        }
+      />
       {error && <div className="error">{error}</div>}
       {data && (
         <>

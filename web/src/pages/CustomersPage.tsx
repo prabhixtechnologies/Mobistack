@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api, money } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse } from "../lib/types";
 
 interface Customer {
@@ -43,12 +44,7 @@ export function CustomersPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Customers</h1>
-          <p>Walk-ins stay unnamed. Regulars keep a phone and an outstanding balance.</p>
-        </div>
-      </div>
+      <PageHeader kicker="People" title="Customers" subtitle="Walk-ins stay unnamed. Regulars keep a phone and an outstanding balance." />
       {error && <div className="error">{error}</div>}
       <form className="card row" onSubmit={create}>
         <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />

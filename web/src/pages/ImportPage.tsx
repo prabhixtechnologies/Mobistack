@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse } from "../lib/types";
 
 interface ImportJob {
@@ -43,12 +44,7 @@ export function ImportPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <h1>Import</h1>
-          <p>Paste the old universal list. <code>A = B = C</code>, CSV, or JSON all become aliases on the first model.</p>
-        </div>
-      </div>
+      <PageHeader kicker="Catalog" title="Import" subtitle="Paste the old universal list. A = B = C, CSV, or JSON all become aliases on the first model." />
       {error && <div className="error">{error}</div>}
       {result && <div className="muted">{result}</div>}
       <form className="card stack" onSubmit={submit}>

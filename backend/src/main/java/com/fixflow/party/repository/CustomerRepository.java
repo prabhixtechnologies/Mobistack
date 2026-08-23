@@ -19,7 +19,7 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     @Query("""
             select c from Customer c
             where c.shopId = :shopId
-              and (:query is null
+              and (:query = ''
                    or c.normalizedName like concat('%', :query, '%')
                    or c.phone like concat('%', :rawQuery, '%'))
             """)

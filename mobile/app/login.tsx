@@ -24,8 +24,8 @@ export default function LoginScreen() {
   const { colors, toggle, mode } = useTheme();
   const params = useLocalSearchParams<{ code?: string; sso?: string }>();
   const [method, setMethod] = useState<Method>("password");
-  const [email, setEmail] = useState("owner@fixflow.app");
-  const [password, setPassword] = useState("Owner@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -45,18 +45,18 @@ export default function LoginScreen() {
       if (method === "password") {
         await go(await login(email, password));
       } else if (method === "magic") {
-        const sent = await api<{ hint?: string }>("/api/v1/auth/magic-link", {
+        await api("/api/v1/auth/magic-link", {
           method: "POST",
           body: JSON.stringify({ email }),
         });
-        setNotice(sent.hint ?? "Open the link from the notification log.");
+        setNotice("If that email is registered, a sign-in link was sent.");
       } else if (method === "email") {
         if (!code) {
-          const sent = await api<{ hint?: string }>("/api/v1/auth/email-otp", {
+          await api("/api/v1/auth/email-otp", {
             method: "POST",
             body: JSON.stringify({ email }),
           });
-          setNotice(sent.hint ?? "Code sent.");
+          setNotice("If that email is registered, a one-time code was sent.");
         } else {
           const auth = await api<AuthResponse>("/api/v1/auth/email-otp/verify", {
             method: "POST",
@@ -67,11 +67,11 @@ export default function LoginScreen() {
       } else if (method === "phone" || method === "whatsapp") {
         const channel = method === "whatsapp" ? "whatsapp" : "phone";
         if (!code) {
-          const sent = await api<{ hint?: string }>(`/api/v1/auth/${channel}/start`, {
+          await api(`/api/v1/auth/${channel}/start`, {
             method: "POST",
             body: JSON.stringify({ phone, channel: method === "whatsapp" ? "WHATSAPP" : "SMS" }),
           });
-          setNotice(sent.hint ?? "Code sent.");
+          setNotice("A one-time code was sent to that number.");
         } else {
           const auth = await api<AuthResponse>(`/api/v1/auth/${channel}/verify`, {
             method: "POST",
@@ -80,16 +80,7 @@ export default function LoginScreen() {
           await go(await acceptSession(auth));
         }
       } else if (method === "sso") {
-        const auth = await api<AuthResponse>("/api/v1/auth/sso/dev", {
-          method: "POST",
-          body: JSON.stringify({
-            email,
-            fullName: fullName || email,
-            provider: "DEV",
-            deviceId: await getDeviceId(),
-          }),
-        });
-        await go(await acceptSession(auth));
+        setError("Use Continue with Google to sign in with your company account.");
       } else {
         const auth = await api<AuthResponse>("/api/v1/auth/register", {
           method: "POST",
@@ -115,7 +106,7 @@ export default function LoginScreen() {
       method: "POST",
       body: JSON.stringify({
         code,
-        redirectUri: "fixflow://login?sso=google",
+        redirectUri: "mobistack://login?sso=google",
         deviceId,
       }),
     }))
@@ -168,7 +159,7 @@ export default function LoginScreen() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          placeholder="Email"
+          placeholder="you@prabhixtechnologies.com"
           placeholderTextColor={colors.faint}
         />
       )}
@@ -220,13 +211,13 @@ export default function LoginScreen() {
             setError(null);
             try {
               const start = await api<{ status: string; authorizationUrl?: string; hint?: string }>(
-                `/api/v1/auth/sso/google/start?redirectUri=${encodeURIComponent("fixflow://login?sso=google")}`,
+                `/api/v1/auth/sso/google/start?redirectUri=${encodeURIComponent("mobistack://login?sso=google")}`,
               );
               if (start.status === "READY" && start.authorizationUrl) {
                 await Linking.openURL(start.authorizationUrl);
                 return;
               }
-              setNotice(start.hint ?? "Google SSO is not configured.");
+              setNotice("Google sign-in is not configured for this environment.");
             } catch (err) {
               setError(err instanceof Error ? err.message : "Could not start Google");
             }

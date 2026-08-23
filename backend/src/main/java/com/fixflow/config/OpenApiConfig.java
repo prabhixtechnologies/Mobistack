@@ -19,10 +19,10 @@ public class OpenApiConfig {
     private static final String BEARER_SCHEME = "bearerAuth";
 
     @Bean
-    public OpenAPI fixFlowOpenApi() {
+    public OpenAPI mobiStackOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("FixFlow API")
+                        .title("MobiStack API")
                         .version("v1")
                         .description("""
                                 Mobile repair shop management platform.
@@ -31,7 +31,7 @@ public class OpenApiConfig {
                                 `/api/v1/auth/register-shop` require a Bearer access token. Every request is
                                 scoped to the shop encoded in that token.
                                 """)
-                        .contact(new Contact().name("FixFlow").email("support@fixflow.app"))
+                        .contact(new Contact().name("MobiStack").email("support@prabhixtechnologies.com"))
                         .license(new License().name("Proprietary")))
                 .servers(List.of(new Server().url("/").description("Current host")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME))
