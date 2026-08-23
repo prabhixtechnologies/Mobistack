@@ -2,9 +2,7 @@
 	email {$ACME_EMAIL}
 }
 
-www.mobistack.prabhixtechnologies.com {
-	redir https://mobistack.prabhixtechnologies.com{uri} permanent
-}
+# www is omitted until an A/AAAA record exists. Caddy would otherwise retry ACME and hit rate limits.
 
 mobistack.prabhixtechnologies.com {
 	encode zstd gzip

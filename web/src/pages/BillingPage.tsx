@@ -167,6 +167,12 @@ export function BillingPage() {
           stock, and staff invites.
         </div>
       )}
+      {(publishableKey.startsWith("rzp_test_") || data?.razorpayKeyId?.startsWith("rzp_test_")) && (
+        <div className="banner">
+          Razorpay is in test mode. Real UPI IDs and QR scans will show as invalid. Use UPI ID{" "}
+          <strong>success@razorpay</strong> or card <strong>4111 1111 1111 1111</strong>.
+        </div>
+      )}
       {data && !data.paymentRequired && periodEnd && (
         <div className="banner">Current plan is active until {periodEnd}.</div>
       )}

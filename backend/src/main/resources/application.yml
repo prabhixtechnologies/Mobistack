@@ -87,6 +87,9 @@ management:
   health:
     redis:
       enabled: ${FIXFLOW_REDIS_ENABLED:false}
+    # SMTP is optional on first boot. A missing mailbox must not fail the process health check.
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
 
 springdoc:
   swagger-ui:

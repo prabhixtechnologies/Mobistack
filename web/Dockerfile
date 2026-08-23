@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+ARG VITE_RAZORPAY_KEY_ID
+ENV VITE_RAZORPAY_KEY_ID=$VITE_RAZORPAY_KEY_ID
 RUN npm run build
 
 FROM nginx:1.27-alpine
