@@ -1,11 +1,15 @@
 package com.fixflow.billing.service;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fixflow.audit.service.AuditAction;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.billing.domain.BillingOrder;
 import com.fixflow.billing.domain.BillingPrice;
 import com.fixflow.billing.domain.BillingWebhookEvent;
 import com.fixflow.billing.domain.WorkspaceEntitlement;
+import com.fixflow.billing.razorpay.RazorpayGateway;
+import com.fixflow.billing.razorpay.RazorpayMoney;
 import com.fixflow.billing.repository.BillingOrderRepository;
 import com.fixflow.billing.repository.BillingPriceRepository;
 import com.fixflow.billing.repository.BillingWebhookEventRepository;
@@ -21,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -32,7 +38,26 @@ public class BillingService {
                             String entitlement) {
     }
 
-    public record BillingOverview(List<PriceCard> prices, List<String> entitlements, List<BillingOrder> orders) {
+    public record BillingOverview(List<PriceCard> prices, List<String> entitlements, List<BillingOrder> orders,
+                                  String razorpayKeyId, boolean razorpayEnabled) {
+    }
+
+    public record CheckoutOrderResponse(
+            UUID id,
+            @JsonProperty("order_id") String orderId,
+            long amount,
+            String currency,
+            String keyId,
+            String priceCode,
+            String gateway
+    ) {
+    }
+
+    public record VerifyPaymentRequest(
+            @JsonAlias({"razorpay_order_id", "order_id"}) String razorpayOrderId,
+            @JsonAlias({"razorpay_payment_id", "payment_id"}) String razorpayPaymentId,
+            @JsonAlias({"razorpay_signature", "signature"}) String razorpaySignature
+    ) {
     }
 
     private final BillingPriceRepository priceRepository;
@@ -41,9 +66,11 @@ public class BillingService {
     private final BillingWebhookEventRepository webhookEventRepository;
     private final AuditService auditService;
     private final Environment environment;
+    private final RazorpayGateway razorpayGateway;
 
     @Transactional(readOnly = true)
     public BillingOverview overview(UUID workspaceId) {
+        boolean enabled = razorpayGateway.configured();
         return new BillingOverview(
                 priceRepository.findByActiveTrue().stream()
                         .map(p -> new PriceCard(p.getCode(), p.getAmount(), p.getCurrency(), p.getInterval(),
@@ -51,13 +78,17 @@ public class BillingService {
                         .toList(),
                 entitlementRepository.findByWorkspaceIdAndActiveTrue(workspaceId).stream()
                         .map(WorkspaceEntitlement::getCode).toList(),
-                orderRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId));
+                orderRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId),
+                enabled ? razorpayGateway.keyId() : null,
+                enabled);
     }
 
     @Transactional
-    public BillingOrder createOrder(UUID workspaceId, String priceCode) {
+    public CheckoutOrderResponse createOrder(UUID workspaceId, String priceCode) {
         BillingPrice price = priceRepository.findByCodeAndActiveTrue(priceCode)
                 .orElseThrow(() -> ApiException.notFound("Price", priceCode));
+        long amountPaise = RazorpayMoney.requireMinimum(RazorpayMoney.toPaise(price.getAmount()));
+
         BillingOrder order = new BillingOrder();
         order.setWorkspaceId(workspaceId);
         order.setUserId(CurrentUser.userId());
@@ -66,41 +97,74 @@ public class BillingService {
         order.setAmount(price.getAmount());
         order.setCurrency(price.getCurrency());
         order.setStatus(PaymentStatus.CREATED);
-        order.setGateway("DEV");
-        order.setGatewayOrderId("dev-" + UUID.randomUUID());
         order.setEntitlementCode(price.getEntitlement());
+
+        if (razorpayGateway.configured()) {
+            Map<String, String> notes = new LinkedHashMap<>();
+            notes.put("workspace_id", workspaceId.toString());
+            notes.put("price_code", price.getCode());
+            notes.put("internal_order_id", order.getId().toString());
+            RazorpayGateway.CreatedOrder remote = razorpayGateway.createOrder(
+                    amountPaise, price.getCurrency(), receiptFor(order.getId()), notes);
+            order.setGateway("RAZORPAY");
+            order.setGatewayOrderId(remote.id());
+            order.setStatus(PaymentStatus.PENDING);
+        } else if (environment.acceptsProfiles(Profiles.of("prod"))) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
+                    "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+        } else {
+            order.setGateway("DEV");
+            order.setGatewayOrderId("dev-" + UUID.randomUUID());
+        }
         orderRepository.save(order);
-        auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
-                "Created billing order " + priceCode);
-        return order;
+        return new CheckoutOrderResponse(order.getId(), order.getGatewayOrderId(), amountPaise,
+                order.getCurrency(), razorpayGateway.configured() ? razorpayGateway.keyId() : null,
+                order.getPriceCode(), order.getGateway());
     }
 
     /**
-     * Local capture only. Production must confirm through a signed payment webhook.
+     * Razorpay Standard Checkout handler. Marks paid only when the HMAC matches.
      */
     @Transactional
-    public BillingOrder confirm(UUID workspaceId, UUID orderId) {
-        if (environment.acceptsProfiles(Profiles.of("prod"))) {
-            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
-                    "Self-confirm is disabled in production. Complete payment through the configured gateway.");
+    public BillingOrder verifyPayment(UUID workspaceId, VerifyPaymentRequest request) {
+        if (request == null || isBlank(request.razorpayOrderId()) || isBlank(request.razorpayPaymentId())
+                || isBlank(request.razorpaySignature())) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "razorpay_order_id, razorpay_payment_id and razorpay_signature are required.");
         }
-        BillingOrder order = orderRepository.findByIdAndWorkspaceId(orderId, workspaceId)
-                .orElseThrow(() -> ApiException.notFound("Billing order", orderId));
+        BillingOrder order = orderRepository
+                .findByGatewayOrderIdAndWorkspaceId(request.razorpayOrderId().trim(), workspaceId)
+                .orElseThrow(() -> ApiException.notFound("Billing order", request.razorpayOrderId()));
         if (order.getStatus() == PaymentStatus.CAPTURED) {
             return order;
         }
-        order.setStatus(PaymentStatus.CAPTURED);
-        order.setGatewayPaymentId("dev-pay-" + UUID.randomUUID());
-        order.setUpdatedAt(Instant.now());
-        orderRepository.save(order);
-        if (!entitlementRepository.existsByWorkspaceIdAndCodeAndActiveTrue(workspaceId, order.getEntitlementCode())) {
-            WorkspaceEntitlement entitlement = new WorkspaceEntitlement();
-            entitlement.setWorkspaceId(workspaceId);
-            entitlement.setCode(order.getEntitlementCode());
-            entitlement.setSourceOrderId(order.getId());
-            entitlementRepository.save(entitlement);
+        if (!razorpayGateway.verifyCheckoutSignature(request.razorpayOrderId().trim(),
+                request.razorpayPaymentId().trim(), request.razorpaySignature().trim())) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "Payment signature did not match. The order was not marked as paid.");
         }
-        return order;
+        return markCaptured(order, request.razorpayPaymentId().trim());
+    }
+
+    /**
+     * Local capture only, and only for DEV gateway orders. Razorpay orders must use verifyPayment.
+     */
+    @Transactional
+    public BillingOrder confirm(UUID workspaceId, UUID orderId) {
+        BillingOrder order = orderRepository.findByIdAndWorkspaceId(orderId, workspaceId)
+                .orElseThrow(() -> ApiException.notFound("Billing order", orderId));
+        if ("RAZORPAY".equalsIgnoreCase(order.getGateway())) {
+            throw new ApiException(ErrorCode.FORBIDDEN,
+                    "Complete this order through Razorpay Checkout. Self-confirm is not allowed.");
+        }
+        if (environment.acceptsProfiles(Profiles.of("prod"))) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
+                    "Self-confirm is disabled in production. Complete payment through Razorpay.");
+        }
+        if (order.getStatus() == PaymentStatus.CAPTURED) {
+            return order;
+        }
+        return markCaptured(order, "dev-pay-" + UUID.randomUUID());
     }
 
     public void require(UUID workspaceId, String entitlement) {
@@ -124,7 +188,7 @@ public class BillingService {
 
     @Transactional
     public BillingOrder processWebhook(String provider, String eventId, UUID orderId, String status,
-                                       java.util.Map<String, Object> payload) {
+                                       Map<String, Object> payload) {
         if (environment.acceptsProfiles(Profiles.of("prod")) && "DEV".equalsIgnoreCase(provider)) {
             throw new ApiException(ErrorCode.FORBIDDEN, "The development billing webhook is disabled in production.");
         }
@@ -135,13 +199,17 @@ public class BillingService {
         BillingWebhookEvent event = existing.orElseGet(BillingWebhookEvent::new);
         event.setProvider(provider);
         event.setEventId(eventId);
-        event.setPayload(payload == null ? java.util.Map.of() : payload);
+        event.setPayload(payload == null ? Map.of() : payload);
         event.setProcessedAt(Instant.now());
         webhookEventRepository.save(event);
         BillingOrder order = orderRepository.findById(orderId)
                 .orElseThrow(() -> ApiException.notFound("Billing order", orderId));
         if ("CAPTURED".equalsIgnoreCase(status) || "paid".equalsIgnoreCase(status)) {
-            return confirm(order.getWorkspaceId(), order.getId());
+            if (order.getStatus() == PaymentStatus.CAPTURED) {
+                return order;
+            }
+            return markCaptured(order, order.getGatewayPaymentId() == null
+                    ? "webhook-" + eventId : order.getGatewayPaymentId());
         }
         if ("FAILED".equalsIgnoreCase(status)) {
             order.setStatus(PaymentStatus.FAILED);
@@ -149,5 +217,32 @@ public class BillingService {
             return orderRepository.save(order);
         }
         return order;
+    }
+
+    private BillingOrder markCaptured(BillingOrder order, String paymentId) {
+        order.setStatus(PaymentStatus.CAPTURED);
+        order.setGatewayPaymentId(paymentId);
+        order.setUpdatedAt(Instant.now());
+        orderRepository.save(order);
+        UUID workspaceId = order.getWorkspaceId();
+        if (!entitlementRepository.existsByWorkspaceIdAndCodeAndActiveTrue(workspaceId, order.getEntitlementCode())) {
+            WorkspaceEntitlement entitlement = new WorkspaceEntitlement();
+            entitlement.setWorkspaceId(workspaceId);
+            entitlement.setCode(order.getEntitlementCode());
+            entitlement.setSourceOrderId(order.getId());
+            entitlementRepository.save(entitlement);
+        }
+        auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
+                "Captured billing order " + order.getPriceCode());
+        return order;
+    }
+
+    private static String receiptFor(UUID orderId) {
+        String compact = "ms" + orderId.toString().replace("-", "");
+        return compact.length() <= 40 ? compact : compact.substring(0, 40);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

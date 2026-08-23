@@ -1,12 +1,17 @@
 package com.fixflow.sync.web;
 
+import com.fixflow.catalog.service.DeviceService;
 import com.fixflow.catalog.service.ProductService;
 import com.fixflow.commerce.dto.CommerceDtos.CreateSaleRequest;
 import com.fixflow.commerce.service.SaleService;
 import com.fixflow.inventory.dto.InventoryDtos.StockReceiveRequest;
 import com.fixflow.inventory.service.InventoryQueryService;
 import com.fixflow.inventory.service.InventoryService;
+import com.fixflow.party.dto.PartyDtos.CustomerRequest;
+import com.fixflow.party.service.PartyService;
+import com.fixflow.repair.domain.RepairStatus;
 import com.fixflow.repair.dto.RepairDtos.CreateRepairRequest;
+import com.fixflow.repair.dto.RepairDtos.UpdateRepairRequest;
 import com.fixflow.repair.service.RepairService;
 import com.fixflow.report.service.ReportService;
 import com.fixflow.security.Authorize;
@@ -41,13 +46,20 @@ public class SyncController {
     private final ProductService productService;
     private final RepairService repairService;
     private final ReportService reportService;
+    private final DeviceService deviceService;
+    private final PartyService partyService;
+
+    public record RepairStatusOp(java.util.UUID repairId, String status) {
+    }
 
     public record SyncOperation(
             @NotBlank String type,
             @NotBlank String idempotencyKey,
             CreateSaleRequest sale,
             StockReceiveRequest receive,
-            CreateRepairRequest repair
+            CreateRepairRequest repair,
+            CustomerRequest customer,
+            RepairStatusOp repairStatus
     ) {
     }
 
@@ -67,6 +79,8 @@ public class SyncController {
                 PageRequest.of(0, 200)).getContent());
         body.put("sales", saleService.list(shopId, null, PageRequest.of(0, 40)).getContent());
         body.put("repairs", repairService.list(shopId, null, PageRequest.of(0, 40)).getContent());
+        body.put("customers", partyService.searchCustomers(shopId, "", PageRequest.of(0, 80)).getContent());
+        body.put("devices", deviceService.list(shopId, null, PageRequest.of(0, 200)).getContent());
         var today = ReportService.resolve("today", null, null, java.time.ZoneId.of("Asia/Kolkata"));
         var sales = reportService.sales(shopId, today);
         var repairs = reportService.repairs(shopId);
@@ -112,6 +126,15 @@ public class SyncController {
                             repair.expectedAt(), op.idempotencyKey());
                     repairService.create(CurrentUser.shopId(), keyed);
                     results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Repair accepted"));
+                } else if ("CUSTOMER".equalsIgnoreCase(op.type()) && op.customer() != null) {
+                    partyService.createCustomer(CurrentUser.shopId(), op.customer());
+                    results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Customer accepted"));
+                } else if ("REPAIR_STATUS".equalsIgnoreCase(op.type()) && op.repairStatus() != null
+                        && op.repairStatus().repairId() != null && op.repairStatus().status() != null) {
+                    RepairStatus status = RepairStatus.valueOf(op.repairStatus().status().trim().toUpperCase());
+                    repairService.update(CurrentUser.shopId(), op.repairStatus().repairId(),
+                            new UpdateRepairRequest(status, null, null, null, null, null, null));
+                    results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Repair status accepted"));
                 } else {
                     results.add(new SyncResult(op.idempotencyKey(), "FAILED", "Unknown operation"));
                 }

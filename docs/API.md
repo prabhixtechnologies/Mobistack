@@ -74,13 +74,15 @@ Every business request is scoped to the workspace encoded in the access token. A
 `GET /reports/export` (CSV)  
 `POST /imports/compatibility` accepts `A = B = C`, CSV or JSON  
 `GET /sync/snapshot` hydrates the native app cache.  
-`POST /sync` accepts offline `SALE` / `RECEIVE` / `REPAIR` operations
+`POST /sync` accepts offline `SALE` / `RECEIVE` / `REPAIR` / `CUSTOMER` / `REPAIR_STATUS` operations
 
 ## Billing and admin
 
-`GET /billing` lists prices and entitlements.  
-`POST /billing/orders` then `POST /billing/orders/{id}/confirm` captures in the DEV gateway.  
-`POST /billing/webhooks/dev` is idempotent.  
+`GET /billing` lists prices, entitlements, and the public Razorpay key when configured.  
+`POST /billing/orders` creates a Razorpay order and returns `{ order_id, amount (paise), currency, keyId }`.  
+`POST /billing/verify` (also `/billing/verify-payment`) checks HMAC-SHA256(`order_id|payment_id`) against `KEY_SECRET` and marks paid only on a match.  
+`POST /billing/orders/{id}/confirm` is a local DEV fallback and refuses Razorpay orders.  
+`POST /billing/webhooks/dev` is idempotent and disabled in production.  
 `/admin/workspaces` and `/admin/feature-flags` require `users.system_admin`.  
 Also: `/admin/live`, `/admin/sessions/{userId}`, `/admin/support`, `/admin/app-releases`, `/admin/workspaces/{id}/device-limit`.
 

@@ -24,6 +24,7 @@ export function CompatibilityPage() {
   const [hits, setHits] = useState<DeviceSearchHit[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -31,8 +32,13 @@ export function CompatibilityPage() {
       return;
     }
     const handle = window.setTimeout(async () => {
-      const result = await api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(query)}`);
-      setHits(result.devices);
+      try {
+        const result = await api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(query)}`);
+        setHits(result.devices);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Search failed");
+      }
     }, 140);
     return () => window.clearTimeout(handle);
   }, [query]);
@@ -40,15 +46,25 @@ export function CompatibilityPage() {
   useEffect(() => {
     api<PageResponse<Group>>("/api/v1/compatibility-groups?size=40")
       .then((page) => setGroups(page.content))
-      .catch(() => undefined);
+      .catch((err: Error) => setError(err.message));
     api<ChangeRequest[]>("/api/v1/compatibility-requests")
       .then(setRequests)
-      .catch(() => undefined);
+      .catch((err: Error) => setError(err.message));
   }, []);
+
+  async function decide(id: string, action: "approve" | "reject") {
+    try {
+      await api(`/api/v1/compatibility-requests/${id}/${action}`, { method: "POST" });
+      setRequests((current) => current.filter((row) => row.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update request");
+    }
+  }
 
   return (
     <div className="page">
       <PageHeader kicker="Catalog" title="Compatibility" subtitle="Type the phone the customer put on the counter. Everything that fits comes back with it." />
+      {error && <div className="error">{error}</div>}
       <input className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Realme 6, iPhone 11, RMX2002…" />
       <div className="card tight">
         {hits.map((device) => (
@@ -74,8 +90,8 @@ export function CompatibilityPage() {
             <div className="category-row" key={request.id}>
               <div>{request.action.replaceAll("_", " ")} · {request.reason ?? "No reason"}</div>
               <div className="row">
-                <button className="btn" type="button" onClick={() => void api(`/api/v1/compatibility-requests/${request.id}/approve`, { method: "POST" }).then(() => window.location.reload())}>Approve</button>
-                <button className="btn ghost" type="button" onClick={() => void api(`/api/v1/compatibility-requests/${request.id}/reject`, { method: "POST" }).then(() => window.location.reload())}>Reject</button>
+                <button className="btn" type="button" onClick={() => void decide(request.id, "approve")}>Approve</button>
+                <button className="btn ghost" type="button" onClick={() => void decide(request.id, "reject")}>Reject</button>
               </div>
             </div>
           ))}

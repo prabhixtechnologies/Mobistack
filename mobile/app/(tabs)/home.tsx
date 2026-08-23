@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { router } from "expo-router";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { cachedDashboard, cachedVariants, searchVariants, syncNow, type CachedDashboard, type CachedVariant } from "../../lib/offline";
+import { cachedDashboard, cachedDevices, cachedVariants, searchDevices, searchVariants, syncNow, type CachedDashboard, type CachedVariant } from "../../lib/offline";
 import { money, useTheme } from "../../lib/theme";
 
 interface SearchHit {
@@ -59,7 +59,15 @@ export default function HomeScreen() {
           setParts([]);
         })
         .catch(async () => {
-          setHits([]);
+          const devices = searchDevices(await cachedDevices(), query).slice(0, 8);
+          setHits(
+            devices.map((device) => ({
+              id: device.id,
+              name: device.name,
+              brandName: device.brandName,
+              matchedAliases: (device.aliases ?? []).map((alias) => alias.alias),
+            })),
+          );
           setParts(searchVariants(await cachedVariants(), query).slice(0, 12));
         });
     }, 150);

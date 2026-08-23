@@ -74,6 +74,8 @@ services:
       FIXFLOW_GOOGLE_CLIENT_ID: ${FIXFLOW_GOOGLE_CLIENT_ID:-}
       FIXFLOW_GOOGLE_CLIENT_SECRET: ${FIXFLOW_GOOGLE_CLIENT_SECRET:-}
       FIXFLOW_OPENAI_API_KEY: ${FIXFLOW_OPENAI_API_KEY:-}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q UP"]
       interval: 15s

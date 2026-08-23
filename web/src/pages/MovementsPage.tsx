@@ -5,14 +5,18 @@ import type { InventoryTransaction, PageResponse } from "../lib/types";
 
 export function MovementsPage() {
   const [page, setPage] = useState<PageResponse<InventoryTransaction> | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<PageResponse<InventoryTransaction>>("/api/v1/inventory/transactions?size=40").then(setPage);
+    api<PageResponse<InventoryTransaction>>("/api/v1/inventory/transactions?size=40")
+      .then(setPage)
+      .catch((err: Error) => setError(err.message));
   }, []);
 
   return (
     <div className="page">
       <PageHeader kicker="Insights" title="Stock movements" subtitle="Every change is a row. Nothing is overwritten." />
+      {error && <div className="error">{error}</div>}
       <div className="card tight">
         <table className="table">
           <thead>
@@ -38,6 +42,7 @@ export function MovementsPage() {
             ))}
           </tbody>
         </table>
+        {page && page.content.length === 0 && <div className="empty">No movements yet.</div>}
       </div>
     </div>
   );

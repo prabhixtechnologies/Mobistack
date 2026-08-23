@@ -29,6 +29,13 @@ npm run apk
 
 `assembleRelease` needs a keystore. For the first local build, Android Studio can generate one under **Build → Generate Signed Bundle / APK**.
 
+GitHub Actions on `master` uploads:
+
+- `mobistack-android-apk` — installable debug APK
+- `mobistack-ios-module` — Xcode project zip, plus a simulator `.app` when the Mac runner can compile
+
+A signed iPhone IPA still needs an Apple Developer account (EAS `preview-device` or Xcode signing). Docker Hub image push is skipped until `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are set as repository secrets.
+
 Cloud builds (no local SDK):
 
 ```powershell

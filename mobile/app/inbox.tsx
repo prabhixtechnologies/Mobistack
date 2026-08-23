@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../lib/api";
+import { cachedInbox, saveInbox } from "../lib/offline";
 import { useTheme } from "../lib/theme";
 
 interface Item {
@@ -15,11 +16,21 @@ export default function InboxScreen() {
   const styles = makeStyles(colors);
   const [items, setItems] = useState<Item[]>([]);
   const [unread, setUnread] = useState(0);
+  const [offline, setOffline] = useState(false);
 
   async function load() {
-    const inbox = await api<{ unread: number; items: Item[] }>("/api/v1/inbox");
-    setItems(inbox.items);
-    setUnread(inbox.unread);
+    try {
+      const inbox = await api<{ unread: number; items: Item[] }>("/api/v1/inbox");
+      setItems(inbox.items);
+      setUnread(inbox.unread);
+      setOffline(false);
+      await saveInbox(inbox);
+    } catch {
+      const inbox = await cachedInbox<{ unread: number; items: Item[] }>({ unread: 0, items: [] });
+      setItems(inbox.items);
+      setUnread(inbox.unread);
+      setOffline(true);
+    }
   }
 
   useEffect(() => {
@@ -29,7 +40,7 @@ export default function InboxScreen() {
   return (
     <View style={styles.page}>
       <Text style={styles.title}>Inbox</Text>
-      <Text style={styles.sub}>{unread} unread</Text>
+      <Text style={styles.sub}>{offline ? `Offline · ${unread} unread` : `${unread} unread`}</Text>
       <Pressable style={styles.ghost} onPress={() => void api("/api/v1/inbox/read-all", { method: "POST" }).then(load)}>
         <Text style={styles.ghostText}>Mark all read</Text>
       </Pressable>

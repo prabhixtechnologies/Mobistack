@@ -3,6 +3,8 @@ package com.fixflow.billing.web;
 import com.fixflow.billing.domain.BillingOrder;
 import com.fixflow.billing.service.BillingService;
 import com.fixflow.billing.service.BillingService.BillingOverview;
+import com.fixflow.billing.service.BillingService.CheckoutOrderResponse;
+import com.fixflow.billing.service.BillingService.VerifyPaymentRequest;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,8 +36,15 @@ public class BillingController {
 
     @PostMapping("/orders")
     @PreAuthorize(Authorize.WORKSPACE_BILLING)
-    public BillingOrder create(@RequestBody Map<String, String> body) {
-        return billingService.createOrder(CurrentUser.shopId(), body.getOrDefault("priceCode", "WORKSPACE_ACTIVATION"));
+    public CheckoutOrderResponse create(@RequestBody Map<String, String> body) {
+        return billingService.createOrder(CurrentUser.shopId(),
+                body.getOrDefault("priceCode", "WORKSPACE_ACTIVATION"));
+    }
+
+    @PostMapping({"/verify", "/verify-payment"})
+    @PreAuthorize(Authorize.WORKSPACE_BILLING)
+    public BillingOrder verify(@RequestBody VerifyPaymentRequest body) {
+        return billingService.verifyPayment(CurrentUser.shopId(), body);
     }
 
     @PostMapping("/orders/{id}/confirm")

@@ -28,6 +28,7 @@ public class FixFlowProperties {
     private final Devices devices = new Devices();
     private final Chat chat = new Chat();
     private final Updates updates = new Updates();
+    private final Razorpay razorpay = new Razorpay();
 
     @Getter
     @Setter
@@ -156,6 +157,19 @@ public class FixFlowProperties {
     public static class Chat {
         private String openaiApiKey = "";
         private String openaiModel = "gpt-4o-mini";
+    }
+
+    @Getter
+    @Setter
+    public static class Razorpay {
+        /** Public checkout key. Safe to send to the browser. */
+        private String keyId = "";
+        /** Server-only signing secret. Never returned from an API. */
+        private String keySecret = "";
+
+        public boolean configured() {
+            return keyId != null && !keyId.isBlank() && keySecret != null && !keySecret.isBlank();
+        }
     }
 
     @Getter

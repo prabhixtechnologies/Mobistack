@@ -1,7 +1,7 @@
 import { api } from "./api";
 import { getDb } from "./db";
 
-export type OutboxType = "SALE" | "RECEIVE" | "REPAIR";
+export type OutboxType = "SALE" | "RECEIVE" | "REPAIR" | "CUSTOMER" | "REPAIR_STATUS";
 
 export interface OutboxOp {
   type: OutboxType;
@@ -9,6 +9,8 @@ export interface OutboxOp {
   sale?: unknown;
   receive?: unknown;
   repair?: unknown;
+  customer?: unknown;
+  repairStatus?: { repairId: string; status: string };
 }
 
 interface SyncResult {

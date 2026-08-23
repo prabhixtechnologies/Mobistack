@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../lib/api";
+import { cachedSupport, saveSupport } from "../lib/offline";
 import { useTheme } from "../lib/theme";
 import { BRAND } from "../lib/brand";
 
@@ -24,8 +25,21 @@ export default function SupportScreen() {
 
   useEffect(() => {
     api<Conversation[]>("/api/v1/support/conversations")
-      .then((rows) => setConversation(rows[0] ?? null))
-      .catch((err: Error) => setError(err.message));
+      .then(async (rows) => {
+        const first = rows[0] ?? null;
+        setConversation(first);
+        if (first) {
+          await saveSupport(first);
+        }
+      })
+      .catch(async (err: Error) => {
+        const cached = await cachedSupport<Conversation | null>(null);
+        if (cached) {
+          setConversation(cached);
+        } else {
+          setError(err.message);
+        }
+      });
   }, []);
 
   async function send() {

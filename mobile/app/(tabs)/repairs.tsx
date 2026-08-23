@@ -49,7 +49,17 @@ export default function RepairsScreen() {
       return;
     }
     const next = job.status === "RECEIVED" ? "IN_REPAIR" : job.status === "IN_REPAIR" ? "READY" : "DELIVERED";
-    await api(`/api/v1/repairs/${job.id}`, { method: "PUT", body: JSON.stringify({ status: next }) });
+    try {
+      await api(`/api/v1/repairs/${job.id}`, { method: "PUT", body: JSON.stringify({ status: next }) });
+    } catch {
+      await enqueue({
+        type: "REPAIR_STATUS",
+        idempotencyKey: `${job.id}-${next}`,
+        repairStatus: { repairId: job.id, status: next },
+      });
+      setJobs((current) => current.map((row) => (row.id === job.id ? { ...row, status: next } : row)));
+      return;
+    }
     await load();
   }
 

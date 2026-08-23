@@ -93,6 +93,7 @@ export function App() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Route>
+      <Route path="/app/:platform" element={<AppDownloadPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

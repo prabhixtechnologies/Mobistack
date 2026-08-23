@@ -2,6 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api } from "../../lib/api";
+import { cachedDeviceView, saveDeviceView } from "../../lib/offline";
 import { money, stockColor, useTheme } from "../../lib/theme";
 
 interface ViewModel {
@@ -30,16 +31,45 @@ export default function DeviceScreen() {
   const { colors } = useTheme();
   const [view, setView] = useState<ViewModel | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
   const styles = makeStyles(colors);
 
   useEffect(() => {
-    api<ViewModel>(`/api/v1/devices/${id}/compatibility`).then(setView);
+    if (!id) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const cached = await cachedDeviceView<ViewModel>(id);
+      if (!cancelled && cached) {
+        setView(cached);
+      }
+      try {
+        const live = await api<ViewModel>(`/api/v1/devices/${id}/compatibility`);
+        if (!cancelled) {
+          setView(live);
+          setOffline(false);
+        }
+        await saveDeviceView(id, live);
+      } catch {
+        if (!cancelled) {
+          setOffline(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (!view) {
     return (
       <View style={[styles.page, { backgroundColor: colors.bg, flex: 1 }]}>
-        <Text style={styles.sub}>Looking up parts…</Text>
+        <Text style={styles.sub}>
+          {offline
+            ? "This device has not been opened on this phone yet. Connect once to keep its parts list offline."
+            : "Looking up parts…"}
+        </Text>
       </View>
     );
   }
@@ -49,6 +79,7 @@ export default function DeviceScreen() {
       <Text style={styles.title}>
         {view.device.brandName} {view.device.name}
       </Text>
+      {offline ? <Text style={styles.sub}>Showing the last copy stored on this phone.</Text> : null}
       <Text style={styles.sub}>{view.totalPartsAvailable} parts on the shelf</Text>
       <Text style={styles.section}>Compatible models</Text>
       <Text style={styles.body}>

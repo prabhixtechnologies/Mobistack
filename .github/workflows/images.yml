@@ -1,13 +1,14 @@
+# Docker Hub push needs repository secrets (Settings → Secrets and variables → Actions):
+#   DOCKERHUB_USERNAME
+#   DOCKERHUB_TOKEN   (Hub access token, not the account password)
+# Optional variable: DOCKERHUB_NAMESPACE (defaults to the username)
+# Create private Hub repos mobistack-backend and mobistack-web before the first push.
+
 name: Build and push images
 
 on:
   push:
     branches: [master]
-    paths:
-      - "backend/**"
-      - "web/**"
-      - "docker-compose.yml"
-      - ".github/workflows/images.yml"
   workflow_dispatch:
     inputs:
       tag:
@@ -50,8 +51,32 @@ jobs:
           npm ci
           npx tsc --noEmit
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Mobile typecheck
+        working-directory: mobile
+        run: |
+          npm ci
+          npx tsc --noEmit
+
+  hub-note:
+    needs: test
+    if: ${{ secrets.DOCKERHUB_USERNAME == '' || secrets.DOCKERHUB_TOKEN == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docker Hub secrets are not set
+        run: |
+          echo "Image push was skipped because DOCKERHUB_USERNAME / DOCKERHUB_TOKEN are empty."
+          echo "Repo Settings → Secrets and variables → Actions → add those two secrets."
+          echo "Create private Hub repos mobistack-backend and mobistack-web first."
+
   push:
     needs: test
+    if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
     runs-on: ubuntu-latest
     env:
       NS: ${{ vars.DOCKERHUB_NAMESPACE || secrets.DOCKERHUB_USERNAME }}
@@ -100,3 +125,92 @@ jobs:
           tags: ${{ steps.tags.outputs.web }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  android-apk:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install JS dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Assemble debug APK
+        working-directory: mobile
+        run: node ./scripts/assemble-apk.js debug
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobistack-android-apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  ios-module:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install JS dependencies
+        working-directory: mobile
+        run: npm ci
+
+      - name: Pack Xcode project
+        run: |
+          mkdir -p dist
+          python3 - <<'PY'
+          import os, zipfile
+          root = "mobile/ios"
+          skip = {".gradle", "build", "Pods", "DerivedData"}
+          with zipfile.ZipFile("dist/mobistack-ios-xcode.zip", "w", zipfile.ZIP_DEFLATED) as zf:
+              for dirpath, dirnames, filenames in os.walk(root):
+                  dirnames[:] = [d for d in dirnames if d not in skip]
+                  for name in filenames:
+                      path = os.path.join(dirpath, name)
+                      zf.write(path, os.path.relpath(path, "mobile"))
+          PY
+
+      - name: Install CocoaPods and build simulator app
+        continue-on-error: true
+        working-directory: mobile/ios
+        run: |
+          pod install
+          xcodebuild \
+            -workspace FixFlow.xcworkspace \
+            -scheme FixFlow \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Upload iOS module
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobistack-ios-module
+          path: |
+            dist/mobistack-ios-xcode.zip
+            mobile/ios/build/Build/Products/Debug-iphonesimulator/*.app
+          if-no-files-found: error

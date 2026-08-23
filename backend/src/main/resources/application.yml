@@ -144,6 +144,9 @@ fixflow:
     sms-from: ${TWILIO_SMS_FROM:}
     whatsapp-from: ${TWILIO_WHATSAPP_FROM:}
     default-country-code: ${TWILIO_DEFAULT_COUNTRY_CODE:91}
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
   demo:
     seed-enabled: false
 
