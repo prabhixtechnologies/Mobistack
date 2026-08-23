@@ -43,10 +43,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:prod}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fixflow
       SPRING_DATASOURCE_USERNAME: fixflow
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:fixflow}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-fixflow}
       REDIS_HOST: redis
       FIXFLOW_REDIS_ENABLED: "true"
       FIXFLOW_CACHE_TYPE: redis
