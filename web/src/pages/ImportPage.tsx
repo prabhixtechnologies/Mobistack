@@ -1,30 +1,40 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { PageHeader } from "../ui/PageHeader";
-import type { PageResponse } from "../lib/types";
+import type { CompatibilityOverview, PageResponse } from "../lib/types";
 
 interface ImportJob {
   id: string;
   kind: string;
   status: string;
   sourceName?: string;
-  resultJson?: { warnings?: string[] };
+  resultJson?: { warnings?: string[]; groups?: number; devices?: number };
 }
 
 export function ImportPage() {
-  const [brand, setBrand] = useState("Realme");
-  const [text, setText] = useState("Realme 6 = Realme 6i = Realme 7 = Narzo 20");
+  const [categoryId, setCategoryId] = useState("");
+  const [brand, setBrand] = useState("");
+  const [text, setText] = useState("Samsung A32 4G = Samsung M32 4G\nRedmi 9 = Redmi 9A = Redmi 9C");
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [result, setResult] = useState<string | null>(null);
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const page = await api<PageResponse<ImportJob>>("/api/v1/imports?size=20");
+    const [overview, page] = await Promise.all([
+      api<CompatibilityOverview>("/api/v1/compatibility-groups/overview"),
+      api<PageResponse<ImportJob>>("/api/v1/imports?size=20"),
+    ]);
+    setCategories(overview.categories);
+    if (!categoryId && overview.categories[0]) {
+      setCategoryId(overview.categories[0].id);
+    }
     setJobs(page.content);
   }
 
   useEffect(() => {
     load().catch((err: Error) => setError(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function submit(event: FormEvent) {
@@ -33,9 +43,18 @@ export function ImportPage() {
     try {
       const body = await api<{ groups: number; devices: number; aliases: number; warnings: string[] }>(
         "/api/v1/imports/compatibility",
-        { method: "POST", body: JSON.stringify({ brand, text, sourceName: "paste" }) },
+        {
+          method: "POST",
+          body: JSON.stringify({
+            brand: brand.trim() || null,
+            text,
+            sourceName: "paste",
+            categoryId,
+          }),
+        },
       );
-      setResult(`Imported ${body.groups} groups, ${body.devices} devices, ${body.aliases} aliases.`);
+      const warningText = body.warnings?.length ? ` ${body.warnings.length} skipped.` : "";
+      setResult(`Imported ${body.groups} groups and ${body.devices} phones.${warningText}`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed");
@@ -44,12 +63,37 @@ export function ImportPage() {
 
   return (
     <div className="page">
-      <PageHeader kicker="Catalog" title="Import" subtitle="Paste the old universal list. A = B = C, CSV, or JSON all become aliases on the first model." />
+      <PageHeader
+        kicker="Catalog"
+        title="Import"
+        subtitle="Paste the old universal list. Each A = B = C line becomes a real compatibility group in the category you pick."
+      />
       {error && <div className="error">{error}</div>}
       {result && <div className="muted">{result}</div>}
       <form className="card stack" onSubmit={submit}>
-        <input className="field" value={brand} onChange={(e) => setBrand(e.target.value)} />
-        <textarea className="field" rows={8} value={text} onChange={(e) => setText(e.target.value)} />
+        <label className="stack" style={{ gap: 6 }}>
+          <span className="faint">Part category</span>
+          <select className="field" value={categoryId} onChange={(event) => setCategoryId(event.target.value)} required>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="stack" style={{ gap: 6 }}>
+          <span className="faint">Default brand when a line has no brand</span>
+          <input
+            className="field"
+            value={brand}
+            onChange={(event) => setBrand(event.target.value)}
+            placeholder="Samsung (optional)"
+          />
+        </label>
+        <label className="stack" style={{ gap: 6 }}>
+          <span className="faint">List</span>
+          <textarea className="field" rows={10} value={text} onChange={(event) => setText(event.target.value)} />
+        </label>
         <button className="btn">Import compatibility</button>
       </form>
       <div className="card tight">
@@ -57,7 +101,10 @@ export function ImportPage() {
           <div className="category-row" key={job.id}>
             <div>
               <div style={{ fontWeight: 650 }}>{job.kind}</div>
-              <div className="faint">{job.sourceName} · {job.status}</div>
+              <div className="faint">
+                {job.sourceName} · {job.status}
+                {job.resultJson?.groups != null ? ` · ${job.resultJson.groups} groups` : ""}
+              </div>
             </div>
           </div>
         ))}

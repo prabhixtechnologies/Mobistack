@@ -2,12 +2,14 @@ package com.fixflow.catalog.service;
 
 import com.fixflow.audit.service.AuditAction;
 import com.fixflow.audit.service.AuditService;
+import com.fixflow.catalog.DeviceNameParser;
 import com.fixflow.catalog.domain.Brand;
 import com.fixflow.catalog.domain.DeviceAlias;
 import com.fixflow.catalog.domain.DeviceModel;
 import com.fixflow.catalog.dto.CatalogDtos.AddAliasRequest;
 import com.fixflow.catalog.dto.CatalogDtos.DeviceModelRequest;
 import com.fixflow.catalog.dto.CatalogDtos.DeviceModelResponse;
+import com.fixflow.catalog.dto.CatalogDtos.ResolveDeviceRequest;
 import com.fixflow.catalog.repository.BrandRepository;
 import com.fixflow.catalog.repository.CompatibilityGroupDeviceRepository;
 import com.fixflow.catalog.repository.DeviceAliasRepository;
@@ -30,6 +32,7 @@ public class DeviceService {
     private final DeviceAliasRepository deviceAliasRepository;
     private final CompatibilityGroupDeviceRepository groupDeviceRepository;
     private final BrandRepository brandRepository;
+    private final BrandService brandService;
     private final CatalogMapper mapper;
     private final AuditService auditService;
 
@@ -56,16 +59,19 @@ public class DeviceService {
         Brand brand = brandRepository.findByIdAndShopId(request.brandId(), shopId)
                 .orElseThrow(() -> ApiException.notFound("Brand", request.brandId()));
 
-        deviceModelRepository.findByShopIdBrandAndName(shopId, brand.getId(), request.name())
+        String variant = blankToNull(request.variant());
+        deviceModelRepository.findByShopIdBrandNameAndVariant(shopId, brand.getId(), request.name().trim(), variant)
                 .ifPresent(existing -> {
                     throw ApiException.alreadyExists(
-                            "%s %s already exists.".formatted(brand.getName(), request.name()));
+                            "%s already exists.".formatted(com.fixflow.catalog.DeviceLabels.display(
+                                    brand.getName(), request.name(), variant)));
                 });
 
         DeviceModel device = new DeviceModel();
         device.setShopId(shopId);
         device.setBrand(brand);
         device.setName(request.name().trim());
+        device.setVariant(variant);
         device.setModelCode(request.modelCode());
         device.setReleaseYear(request.releaseYear());
         if (request.active() != null) {
@@ -94,6 +100,7 @@ public class DeviceService {
             device.setBrand(brand);
         }
         device.setName(request.name().trim());
+        device.setVariant(blankToNull(request.variant()));
         device.setModelCode(request.modelCode());
         device.setReleaseYear(request.releaseYear());
         if (request.active() != null) {
@@ -149,14 +156,49 @@ public class DeviceService {
 
     @Transactional
     public DeviceModel findOrCreate(UUID shopId, Brand brand, String name) {
-        return deviceModelRepository.findByShopIdBrandAndName(shopId, brand.getId(), name)
+        return findOrCreate(shopId, brand, name, null);
+    }
+
+    @Transactional
+    public DeviceModel findOrCreate(UUID shopId, Brand brand, String name, String variant) {
+        String trimmedName = name.trim();
+        String normalizedVariant = blankToNull(variant);
+        return deviceModelRepository
+                .findByShopIdBrandNameAndVariant(shopId, brand.getId(), trimmedName, normalizedVariant)
                 .orElseGet(() -> {
                     DeviceModel device = new DeviceModel();
                     device.setShopId(shopId);
                     device.setBrand(brand);
-                    device.setName(name.trim());
+                    device.setName(trimmedName);
+                    device.setVariant(normalizedVariant);
                     return deviceModelRepository.save(device);
                 });
+    }
+
+    /**
+     * Parse a counter string into brand + model + variant, creating rows as needed.
+     */
+    @Transactional
+    public DeviceModel findOrCreateFromText(UUID shopId, String text, String defaultBrand) {
+        if (text == null || text.isBlank()) {
+            throw ApiException.businessRule("Device name is empty.");
+        }
+        List<String> shopBrands = brandRepository.findByShopIdOrderBySortOrderAscNameAsc(shopId).stream()
+                .map(Brand::getName)
+                .toList();
+        DeviceNameParser.ParsedDeviceName parsed = DeviceNameParser.parse(text, shopBrands);
+        String brandName = parsed.brand() != null
+                ? parsed.brand()
+                : (defaultBrand == null || defaultBrand.isBlank() ? "Generic" : defaultBrand.trim());
+        String modelName = parsed.name() == null || parsed.name().isBlank() ? text.trim() : parsed.name();
+        Brand brand = brandService.findOrCreate(shopId, brandName);
+        return findOrCreate(shopId, brand, modelName, parsed.variant());
+    }
+
+    @Transactional
+    public DeviceModelResponse resolve(UUID shopId, ResolveDeviceRequest request) {
+        DeviceModel device = findOrCreateFromText(shopId, request.text(), request.defaultBrand());
+        return get(shopId, device.getId());
     }
 
     @Transactional(readOnly = true)
@@ -169,5 +211,12 @@ public class DeviceService {
     private DeviceModel require(UUID shopId, UUID id) {
         return deviceModelRepository.findByIdAndShopId(id, shopId)
                 .orElseThrow(() -> ApiException.notFound("Device model", id));
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

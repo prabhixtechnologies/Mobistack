@@ -1,5 +1,7 @@
 # MobiStack
 
+*See what fits. See stock. Sell.*
+
 A product of **Prabhix Technologies Pvt Ltd**.  
 *Building software that simplifies business.*
 

@@ -101,7 +101,7 @@ public class CompatibilityLookupService {
 
         return rows.stream()
                 .map(row -> new DeviceSummary(row.getId(), row.getName(), row.getBrandId(), row.getBrandName(),
-                        row.getModelCode(), aliasesByDevice.getOrDefault(row.getId(), List.of())))
+                        row.getModelCode(), row.getVariant(), aliasesByDevice.getOrDefault(row.getId(), List.of())))
                 .toList();
     }
 
@@ -233,6 +233,6 @@ public class CompatibilityLookupService {
 
     private DeviceSummary toSummary(DeviceModel device, List<String> aliases) {
         return new DeviceSummary(device.getId(), device.getName(), device.getBrand().getId(),
-                device.getBrand().getName(), device.getModelCode(), aliases);
+                device.getBrand().getName(), device.getModelCode(), device.getVariant(), aliases);
     }
 }

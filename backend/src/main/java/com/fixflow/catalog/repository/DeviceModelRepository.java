@@ -27,6 +27,20 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
     @EntityGraph(attributePaths = {"brand"})
     List<DeviceModel> findByShopIdAndIdIn(UUID shopId, List<UUID> ids);
 
+    @EntityGraph(attributePaths = {"brand"})
+    @Query("""
+            select d from DeviceModel d
+            where d.shopId = :shopId and lower(d.name) = lower(:name) and d.brand.id = :brandId
+              and (
+                    (:variant is null and (d.variant is null or d.variant = ''))
+                    or lower(d.variant) = lower(:variant)
+                  )
+            """)
+    Optional<DeviceModel> findByShopIdBrandNameAndVariant(@Param("shopId") UUID shopId,
+                                                          @Param("brandId") UUID brandId,
+                                                          @Param("name") String name,
+                                                          @Param("variant") String variant);
+
     @Query("""
             select d from DeviceModel d
             where d.shopId = :shopId and lower(d.name) = lower(:name) and d.brand.id = :brandId
@@ -54,6 +68,7 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
                    b.id             as "brandId",
                    b.name           as "brandName",
                    dm.model_code    as "modelCode",
+                   dm.variant       as "variant",
                    dm.popularity    as "popularity",
                    greatest(
                        similarity(dm.normalized_name, :query),
@@ -68,6 +83,7 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
               and (
                   dm.normalized_name like '%' || :query || '%'
                       or dm.normalized_name % :query
+                      or fixflow_normalize(coalesce(dm.variant, '')) like '%' || :query || '%'
                       or exists (select 1 from device_aliases da3
                                  where da3.device_model_id = dm.id
                                    and (da3.normalized_alias like '%' || :query || '%'
@@ -96,6 +112,7 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
                             b.id          as "brandId",
                             b.name        as "brandName",
                             dm.model_code as "modelCode",
+                            dm.variant    as "variant",
                             dm.popularity as "popularity",
                             cast(1 as real) as "score"
             from compatibility_group_devices source
@@ -127,6 +144,8 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
         String getBrandName();
 
         String getModelCode();
+
+        String getVariant();
 
         int getPopularity();
 

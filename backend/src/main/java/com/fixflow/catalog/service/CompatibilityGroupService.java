@@ -8,10 +8,14 @@ import com.fixflow.catalog.domain.CompatibilityGroup;
 import com.fixflow.catalog.domain.CompatibilityGroupDevice;
 import com.fixflow.catalog.domain.CompatibilityHistory;
 import com.fixflow.catalog.domain.DeviceModel;
+import com.fixflow.catalog.dto.CatalogDtos.CategoryOverview;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupRequest;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupResponse;
+import com.fixflow.catalog.dto.CatalogDtos.CompatibilityOverviewResponse;
+import com.fixflow.catalog.dto.CatalogDtos.CopyGroupRequest;
 import com.fixflow.catalog.dto.CatalogDtos.GroupDeviceRequest;
 import com.fixflow.catalog.dto.CatalogDtos.GroupDeviceResponse;
+import com.fixflow.catalog.dto.CatalogDtos.GroupMembershipRequest;
 import com.fixflow.catalog.repository.CategoryRepository;
 import com.fixflow.catalog.repository.CompatibilityChangeRequestRepository;
 import com.fixflow.catalog.repository.CompatibilityGroupDeviceRepository;
@@ -31,10 +35,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Manages the "these models take the same part" lists.
@@ -50,6 +60,7 @@ public class CompatibilityGroupService {
     private final CompatibilityGroupRepository groupRepository;
     private final CompatibilityGroupDeviceRepository groupDeviceRepository;
     private final DeviceModelRepository deviceModelRepository;
+    private final DeviceService deviceService;
     private final CategoryRepository categoryRepository;
     private final ProductCompatibilityRepository productCompatibilityRepository;
     private final CompatibilityHistoryRepository historyRepository;
@@ -59,11 +70,44 @@ public class CompatibilityGroupService {
     private final AuditService auditService;
 
     @Transactional(readOnly = true)
-    public Page<CompatibilityGroupResponse> list(UUID shopId, UUID categoryId, Pageable pageable) {
-        Page<CompatibilityGroup> page = categoryId == null
-                ? groupRepository.findByShopId(shopId, pageable)
-                : groupRepository.findByShopIdAndCategoryId(shopId, categoryId, pageable);
+    public Page<CompatibilityGroupResponse> list(UUID shopId, UUID categoryId, String q, Pageable pageable) {
+        String query = q == null || q.isBlank() ? null : q.trim().toLowerCase();
+        Page<CompatibilityGroup> page;
+        if (query == null) {
+            page = categoryId == null
+                    ? groupRepository.findByShopIdAndActiveTrueOrderByCreatedAtAsc(shopId, pageable)
+                    : groupRepository.findByShopIdAndCategoryIdAndActiveTrueOrderByCreatedAtAsc(
+                            shopId, categoryId, pageable);
+        } else {
+            page = categoryId == null
+                    ? groupRepository.search(shopId, query, pageable)
+                    : groupRepository.searchInCategory(shopId, categoryId, query, pageable);
+        }
         return page.map(group -> toResponse(shopId, group));
+    }
+
+    @Transactional(readOnly = true)
+    public CompatibilityOverviewResponse overview(UUID shopId) {
+        Map<UUID, Long> counts = new HashMap<>();
+        for (CompatibilityGroupRepository.CategoryGroupCount row : groupRepository.countActiveByCategory(shopId)) {
+            if (row.getCategoryId() != null) {
+                counts.put(row.getCategoryId(), row.getGroupCount());
+            }
+        }
+        List<CategoryOverview> categories = categoryRepository
+                .findByShopIdAndActiveTrueOrderBySortOrderAscNameAsc(shopId)
+                .stream()
+                .filter(Category::isCompatibilityRelevant)
+                .map(category -> new CategoryOverview(
+                        category.getId(),
+                        category.getCode(),
+                        category.getName(),
+                        category.getIcon(),
+                        category.getColor(),
+                        category.getSortOrder(),
+                        counts.getOrDefault(category.getId(), 0L)))
+                .toList();
+        return new CompatibilityOverviewResponse(categories, groupRepository.countByShopIdAndActiveTrue(shopId));
     }
 
     @Transactional(readOnly = true)
@@ -81,12 +125,9 @@ public class CompatibilityGroupService {
         apply(shopId, group, request);
         groupRepository.save(group);
 
-        if (request.deviceModelIds() != null) {
-            for (int i = 0; i < request.deviceModelIds().size(); i++) {
-                UUID deviceId = request.deviceModelIds().get(i);
-                // The first model listed becomes the one the group is named after.
-                addDeviceInternal(shopId, group, deviceId, i == 0, null);
-            }
+        List<UUID> deviceIds = resolveMembershipIds(shopId, request.deviceModelIds(), request.deviceTexts());
+        for (int i = 0; i < deviceIds.size(); i++) {
+            addDeviceInternal(shopId, group, deviceIds.get(i), i == 0, null);
         }
 
         auditService.record(AuditAction.COMPATIBILITY_GROUP_CREATED, "CompatibilityGroup", group.getId(),
@@ -102,6 +143,98 @@ public class CompatibilityGroupService {
 
         auditService.record(AuditAction.COMPATIBILITY_GROUP_UPDATED, "CompatibilityGroup", id,
                 "Updated compatibility group \"%s\"".formatted(group.getName()));
+        return toResponse(shopId, group);
+    }
+
+    @Transactional
+    public CompatibilityGroupResponse copy(UUID shopId, UUID id, CopyGroupRequest request) {
+        CompatibilityGroup source = require(shopId, id);
+        UUID categoryId = request != null && request.categoryId() != null
+                ? request.categoryId()
+                : source.getCategoryId();
+        if (categoryId != null) {
+            categoryRepository.findByIdAndShopId(categoryId, shopId)
+                    .orElseThrow(() -> ApiException.notFound("Category", categoryId));
+        }
+        String name = request != null && request.name() != null && !request.name().isBlank()
+                ? request.name().trim()
+                : trimName(source.getName() + " copy");
+
+        CompatibilityGroup copy = new CompatibilityGroup();
+        copy.setShopId(shopId);
+        copy.setCategoryId(categoryId);
+        copy.setName(name);
+        copy.setCode(resolveCode(shopId, new CompatibilityGroupRequest(
+                null, name, categoryId, null, false, true, null, null)));
+        copy.setNotes(source.getNotes());
+        copy.setVerified(false);
+        copy.setActive(true);
+        groupRepository.save(copy);
+
+        for (CompatibilityGroupDevice link : groupDeviceRepository.findByCompatibilityGroupId(source.getId())) {
+            CompatibilityGroupDevice clone = new CompatibilityGroupDevice();
+            clone.setCompatibilityGroupId(copy.getId());
+            clone.setDeviceModelId(link.getDeviceModelId());
+            clone.setPrimaryDevice(link.isPrimaryDevice());
+            clone.setNote(link.getNote());
+            groupDeviceRepository.save(clone);
+        }
+
+        auditService.record(AuditAction.COMPATIBILITY_GROUP_COPIED, "CompatibilityGroup", copy.getId(),
+                "Copied compatibility group \"%s\"".formatted(source.getName()));
+        recordHistory(shopId, copy, "Copied from " + source.getName(), Map.of("sourceId", source.getId().toString()));
+        return toResponse(shopId, copy);
+    }
+
+    @Transactional
+    public void delete(UUID shopId, UUID id) {
+        CompatibilityGroup group = require(shopId, id);
+        long linked = productCompatibilityRepository.countByCompatibilityGroupId(id);
+        if (linked == 0) {
+            groupRepository.delete(group);
+        } else {
+            group.setActive(false);
+            groupRepository.save(group);
+        }
+        auditService.record(AuditAction.COMPATIBILITY_GROUP_DELETED, "CompatibilityGroup", id,
+                linked == 0
+                        ? "Deleted compatibility group \"%s\"".formatted(group.getName())
+                        : "Deactivated compatibility group \"%s\" (parts still linked)".formatted(group.getName()));
+    }
+
+    @Transactional
+    public CompatibilityGroupResponse replaceMembership(UUID shopId, UUID groupId, GroupMembershipRequest request) {
+        CompatibilityGroup group = require(shopId, groupId);
+        List<UUID> desired = resolveMembershipIds(shopId,
+                request == null ? null : request.deviceModelIds(),
+                request == null ? null : request.deviceTexts());
+        if (desired.isEmpty()) {
+            throw ApiException.businessRule("A compatibility group needs at least one model.");
+        }
+
+        Set<UUID> current = groupDeviceRepository.findByCompatibilityGroupId(groupId).stream()
+                .map(CompatibilityGroupDevice::getDeviceModelId)
+                .collect(Collectors.toCollection(HashSet::new));
+
+        if (requiresApproval(shopId)) {
+            for (UUID deviceId : current) {
+                if (!desired.contains(deviceId)) {
+                    queueChange(shopId, group, CompatibilityChangeRequest.Action.REMOVE_DEVICE, deviceId, null);
+                }
+            }
+            for (UUID deviceId : desired) {
+                if (!current.contains(deviceId)) {
+                    queueChange(shopId, group, CompatibilityChangeRequest.Action.ADD_DEVICE, deviceId, null);
+                }
+            }
+            return toResponse(shopId, group);
+        }
+
+        groupDeviceRepository.deleteByCompatibilityGroupId(groupId);
+        groupDeviceRepository.flush();
+        for (int i = 0; i < desired.size(); i++) {
+            addDeviceInternal(shopId, group, desired.get(i), i == 0, null);
+        }
         return toResponse(shopId, group);
     }
 
@@ -166,6 +299,23 @@ public class CompatibilityGroupService {
     }
 
     // -----------------------------------------------------------------
+
+    private List<UUID> resolveMembershipIds(UUID shopId, List<UUID> deviceModelIds, List<String> deviceTexts) {
+        LinkedHashSet<UUID> ordered = new LinkedHashSet<>();
+        if (deviceTexts != null && !deviceTexts.isEmpty()) {
+            for (String text : deviceTexts) {
+                if (text == null || text.isBlank()) {
+                    continue;
+                }
+                ordered.add(deviceService.findOrCreateFromText(shopId, text.trim(), null).getId());
+            }
+            return new ArrayList<>(ordered);
+        }
+        if (deviceModelIds != null) {
+            ordered.addAll(deviceModelIds);
+        }
+        return new ArrayList<>(ordered);
+    }
 
     private void addDeviceInternal(UUID shopId, CompatibilityGroup group, UUID deviceModelId,
                                    boolean primary, String note) {
@@ -273,23 +423,28 @@ public class CompatibilityGroupService {
         List<CompatibilityGroupDevice> links = groupDeviceRepository
                 .findByCompatibilityGroupId(group.getId());
 
+        Map<UUID, CompatibilityGroupDevice> linkByDevice = links.stream()
+                .collect(Collectors.toMap(CompatibilityGroupDevice::getDeviceModelId, link -> link, (a, b) -> a));
+
         List<UUID> deviceIds = links.stream().map(CompatibilityGroupDevice::getDeviceModelId).toList();
         List<DeviceModel> devices = deviceIds.isEmpty()
                 ? List.of()
                 : deviceModelRepository.findByShopIdAndIdIn(shopId, deviceIds);
+
+        Map<UUID, Integer> order = new HashMap<>();
+        for (int i = 0; i < links.size(); i++) {
+            order.put(links.get(i).getDeviceModelId(), i);
+        }
 
         List<GroupDeviceResponse> deviceResponses = devices.stream()
                 .map(device -> new GroupDeviceResponse(
                         device.getId(),
                         device.getName(),
                         device.getBrand().getName(),
-                        links.stream()
-                                .filter(l -> l.getDeviceModelId().equals(device.getId()))
-                                .findFirst()
-                                .map(CompatibilityGroupDevice::isPrimaryDevice)
-                                .orElse(false)))
+                        device.getVariant(),
+                        linkByDevice.getOrDefault(device.getId(), new CompatibilityGroupDevice()).isPrimaryDevice()))
                 .sorted(Comparator
-                        .comparing(GroupDeviceResponse::primaryDevice).reversed()
+                        .comparing((GroupDeviceResponse row) -> order.getOrDefault(row.deviceModelId(), Integer.MAX_VALUE))
                         .thenComparing(GroupDeviceResponse::deviceName))
                 .toList();
 
@@ -301,11 +456,19 @@ public class CompatibilityGroupService {
         return new CompatibilityGroupResponse(group.getId(), group.getCode(), group.getName(),
                 group.getCategoryId(), categoryName, group.getNotes(), group.isVerified(),
                 group.isActive(), deviceResponses,
-                productCompatibilityRepository.countByCompatibilityGroupId(group.getId()));
+                productCompatibilityRepository.countByCompatibilityGroupId(group.getId()),
+                group.getCreatedAt());
     }
 
     private CompatibilityGroup require(UUID shopId, UUID id) {
         return groupRepository.findByIdAndShopId(id, shopId)
                 .orElseThrow(() -> ApiException.notFound("Compatibility group", id));
+    }
+
+    private static String trimName(String name) {
+        if (name.length() <= 160) {
+            return name;
+        }
+        return name.substring(0, 160);
     }
 }

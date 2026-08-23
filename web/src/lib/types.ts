@@ -106,6 +106,7 @@ export interface DeviceSearchHit {
   brandId: string;
   brandName: string;
   modelCode?: string;
+  variant?: string;
   matchedAliases: string[];
   partsInStock: number;
   score: number;
@@ -141,6 +142,7 @@ export interface DeviceSummary {
   brandId: string;
   brandName: string;
   modelCode?: string;
+  variant?: string;
   aliases: string[];
 }
 
@@ -224,6 +226,43 @@ export interface Category {
   sortOrder: number;
   compatibilityRelevant: boolean;
   active: boolean;
+}
+
+export interface CategoryOverview {
+  id: string;
+  code: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  sortOrder: number;
+  groupCount: number;
+}
+
+export interface CompatibilityOverview {
+  categories: CategoryOverview[];
+  totalGroups: number;
+}
+
+export interface GroupDevice {
+  deviceModelId: string;
+  deviceName: string;
+  brandName?: string;
+  variant?: string;
+  primaryDevice: boolean;
+}
+
+export interface CompatibilityGroup {
+  id: string;
+  code: string;
+  name: string;
+  categoryId?: string;
+  categoryName?: string;
+  notes?: string;
+  verified: boolean;
+  active: boolean;
+  devices: GroupDevice[];
+  linkedProductCount: number;
+  createdAt?: string;
 }
 
 export interface Brand {

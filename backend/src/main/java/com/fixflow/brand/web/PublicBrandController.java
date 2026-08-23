@@ -39,6 +39,7 @@ public class PublicBrandController {
         body.put("organization", brand.getOrganization());
         body.put("product", brand.getProduct());
         body.put("tagline", brand.getTagline());
+        body.put("organizationTagline", brand.getOrganizationTagline());
         body.put("copyrightYear", brand.getCopyrightYear());
         body.put("copyright", "© " + brand.getCopyrightYear() + " " + brand.getOrganization() + ". All rights reserved.");
         body.put("publicOrigin", platform.getPublicOrigin());

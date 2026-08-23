@@ -38,6 +38,10 @@ public class DeviceModel extends AuditableEntity {
     @Column(name = "model_code", length = 60)
     private String modelCode;
 
+    /** Radio or region split such as 4G / 5G. Distinct from part SKU variants. */
+    @Column(name = "variant", length = 40)
+    private String variant;
+
     @Column(name = "release_year")
     private Integer releaseYear;
 

@@ -123,7 +123,8 @@ fixflow:
   brand:
     organization: Prabhix Technologies Pvt Ltd
     product: MobiStack
-    tagline: Building software that simplifies business
+    tagline: See what fits. See stock. Sell.
+    organization-tagline: Building software that simplifies business
     copyright-year: 2026
   auth:
     web-origin: ${FIXFLOW_WEB_ORIGIN:https://mobistack.prabhixtechnologies.com}

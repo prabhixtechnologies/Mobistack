@@ -70,17 +70,27 @@ export function clearSession(): void {
   storeRemove("access", "refresh", "user", "workspaces");
 }
 
+const OFFLINE_API: ApiError = {
+  code: "UNAVAILABLE",
+  message: "The API is not running. Start the backend on http://localhost:8080, then try again.",
+};
+
 async function parseError(response: Response): Promise<never> {
   let payload: ApiError = { code: "HTTP_" + response.status, message: response.statusText };
   try {
     payload = (await response.json()) as ApiError;
   } catch {
-    if (response.status === 502 || response.status === 503 || response.status === 504) {
-      payload = {
-        code: "UNAVAILABLE",
-        message: "MobiStack is temporarily unavailable. Try again shortly.",
-      };
+    if (
+      response.status === 500 ||
+      response.status === 502 ||
+      response.status === 503 ||
+      response.status === 504
+    ) {
+      payload = OFFLINE_API;
     }
+  }
+  if (!payload.message || payload.message === "Internal Server Error") {
+    payload = OFFLINE_API;
   }
   throw Object.assign(new Error(payload.message), payload);
 }
@@ -101,7 +111,12 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  let response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
+  } catch {
+    throw Object.assign(new Error(OFFLINE_API.message), OFFLINE_API);
+  }
 
   if (response.status === 401 && !anonymous && getRefreshToken() && path !== "/api/v1/auth/refresh") {
     let sessionExpired = true;

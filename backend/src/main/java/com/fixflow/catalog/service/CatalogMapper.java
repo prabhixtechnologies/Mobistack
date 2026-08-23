@@ -48,8 +48,8 @@ public class CatalogMapper {
                 .map(alias -> new AliasResponse(alias.getId(), alias.getAlias(), alias.getSource().name()))
                 .toList();
         return new DeviceModelResponse(device.getId(), device.getName(), device.getBrand().getId(),
-                device.getBrand().getName(), device.getModelCode(), device.getReleaseYear(),
-                device.getPopularity(), device.isActive(), aliasResponses, groupCount);
+                device.getBrand().getName(), device.getModelCode(), device.getVariant(),
+                device.getReleaseYear(), device.getPopularity(), device.isActive(), aliasResponses, groupCount);
     }
 
     public ProductVariantResponse toResponse(ProductVariant variant, Map<UUID, String> categoryNames,

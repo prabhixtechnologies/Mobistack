@@ -108,6 +108,7 @@ public class SearchService {
                         row.getBrandId(),
                         row.getBrandName(),
                         row.getModelCode(),
+                        row.getVariant(),
                         matchingAliases(aliases.getOrDefault(row.getId(), List.of()), normalizedQuery),
                         // Filled lazily by the device screen; the list only needs identity.
                         0,

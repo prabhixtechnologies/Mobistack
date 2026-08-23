@@ -73,6 +73,9 @@ export default function MoreScreen() {
 
       {row("My profile", () => router.push("/profile"))}
       {row("My workspaces", () => router.push("/workspaces"))}
+      {show("COMPATIBILITY", "CATALOG_READ") || user?.catalogOnly
+        ? row("Compatibility lists", () => router.push("/compatibility"))
+        : null}
       {show("CUSTOMERS", "CUSTOMER_READ") ? row("Customers", () => router.push("/customers")) : null}
       {show("SUPPLIERS", "SUPPLIER_READ") ? row("Suppliers", () => router.push("/suppliers")) : null}
       {show("PURCHASES", "PURCHASE_READ") ? row("Purchases", () => router.push("/purchases")) : null}

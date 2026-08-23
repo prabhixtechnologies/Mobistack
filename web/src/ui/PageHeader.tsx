@@ -6,9 +6,9 @@ export function PageHeader({
   subtitle,
   actions,
 }: {
-  kicker?: string;
+  kicker?: ReactNode;
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   actions?: ReactNode;
 }) {
   return (

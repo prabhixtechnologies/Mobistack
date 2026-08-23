@@ -64,6 +64,7 @@ public class PasswordlessAuthService {
         card.put("organization", brand.getOrganization());
         card.put("product", brand.getProduct());
         card.put("tagline", brand.getTagline());
+        card.put("organizationTagline", brand.getOrganizationTagline());
         card.put("copyrightYear", brand.getCopyrightYear());
         card.put("copyright", "© " + brand.getCopyrightYear() + " " + brand.getOrganization());
         return new AuthMethods(methods, card);

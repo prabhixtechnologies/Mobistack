@@ -4,6 +4,7 @@ import com.fixflow.billing.service.BillingService;
 import com.fixflow.catalog.dto.CatalogDtos.AddAliasRequest;
 import com.fixflow.catalog.dto.CatalogDtos.DeviceModelRequest;
 import com.fixflow.catalog.dto.CatalogDtos.DeviceModelResponse;
+import com.fixflow.catalog.dto.CatalogDtos.ResolveDeviceRequest;
 import com.fixflow.catalog.dto.CompatibilityDtos.DeviceCompatibilityView;
 import com.fixflow.catalog.service.CompatibilityLookupService;
 import com.fixflow.catalog.service.DeviceService;
@@ -53,6 +54,13 @@ public class DeviceController {
     @PreAuthorize(Authorize.CATALOG_READ)
     public DeviceModelResponse get(@PathVariable UUID id) {
         return deviceService.get(CurrentUser.shopId(), id);
+    }
+
+    @PostMapping("/resolve")
+    @PreAuthorize(Authorize.CATALOG_WRITE)
+    @Operation(summary = "Find or create a device from a counter string such as Samsung A32 4G")
+    public DeviceModelResponse resolve(@Valid @RequestBody ResolveDeviceRequest request) {
+        return deviceService.resolve(CurrentUser.shopId(), request);
     }
 
     /**

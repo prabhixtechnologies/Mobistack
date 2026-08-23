@@ -7,6 +7,7 @@ import { BrandFooter, BrandMark } from "./ui/BrandMark";
 import { ThemeToggle } from "./ui/ThemeToggle";
 import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
 import { CompatibilityPage } from "./pages/CompatibilityPage";
+import { CompatibilityCategoryPage } from "./pages/CompatibilityCategoryPage";
 import { LoginPage } from "./pages/LoginPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
 
@@ -171,6 +172,7 @@ export function App() {
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
             <Route path="/compatibility" element={<CompatibilityPage />} />
+            <Route path="/compatibility/:categoryId" element={<CompatibilityCategoryPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/movements" element={<MovementsPage />} />
             <Route path="/members" element={<MembersPage />} />

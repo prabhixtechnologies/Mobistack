@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, money, qty } from "../lib/api";
+import { phoneLabel } from "../lib/compatibility";
 import type { DeviceCompatibilityView, PricingFlag } from "../lib/types";
 
 export function DevicePage() {
@@ -25,7 +26,7 @@ export function DevicePage() {
       <div className="page-title">
         <div>
           <h1>
-            {view.device.brandName} {view.device.name}
+            {phoneLabel(view.device)}
           </h1>
           <p>
             {view.totalPartsAvailable} parts on the shelf · {view.categoriesInStock} categories in stock
@@ -44,11 +45,11 @@ export function DevicePage() {
         <div className="metric-label">Compatible models</div>
         <div className="chips" style={{ marginTop: 12 }}>
           <span className="chip">
-            {view.device.brandName} {view.device.name}
+            {phoneLabel(view.device)}
           </span>
           {view.compatibleModels.map((model) => (
             <span className="chip" key={model.id}>
-              {model.brandName} {model.name}
+              {phoneLabel(model)}
             </span>
           ))}
         </div>

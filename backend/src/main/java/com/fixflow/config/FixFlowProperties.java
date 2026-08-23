@@ -85,7 +85,8 @@ public class FixFlowProperties {
     public static class Brand {
         private String organization = "Prabhix Technologies Pvt Ltd";
         private String product = "MobiStack";
-        private String tagline = "Building software that simplifies business";
+        private String tagline = "See what fits. See stock. Sell.";
+        private String organizationTagline = "Building software that simplifies business";
         private int copyrightYear = 2026;
     }
 

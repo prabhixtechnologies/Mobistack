@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fixflow.audit.service.AuditAction;
 import com.fixflow.audit.service.AuditService;
-import com.fixflow.catalog.domain.Brand;
-import com.fixflow.catalog.domain.DeviceAlias;
+import com.fixflow.catalog.DeviceLabels;
 import com.fixflow.catalog.domain.DeviceModel;
-import com.fixflow.catalog.service.BrandService;
+import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupRequest;
+import com.fixflow.catalog.service.CompatibilityGroupService;
 import com.fixflow.catalog.service.DeviceService;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.imports.domain.ImportJob;
@@ -29,13 +29,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ImportService {
 
-    private final BrandService brandService;
     private final DeviceService deviceService;
+    private final CompatibilityGroupService compatibilityGroupService;
     private final AuditService auditService;
     private final ImportJobRepository importJobRepository;
     private final ObjectMapper objectMapper;
 
-    public record ImportRequest(String brand, String text, String sourceName) {
+    public record ImportRequest(String brand, String text, String sourceName, UUID categoryId) {
     }
 
     public record ImportResult(int groups, int devices, int aliases, List<String> warnings) {
@@ -46,10 +46,12 @@ public class ImportService {
         if (request.text() == null || request.text().isBlank()) {
             throw ApiException.businessRule("Nothing to import.");
         }
-        String brandName = request.brand() == null || request.brand().isBlank() ? "Generic" : request.brand().trim();
+        if (request.categoryId() == null) {
+            throw ApiException.businessRule("Pick a part category for this list.");
+        }
+        String defaultBrand = request.brand() == null || request.brand().isBlank() ? null : request.brand().trim();
         int groups = 0;
         int devices = 0;
-        int aliases = 0;
         List<String> warnings = new ArrayList<>();
         List<List<String>> lines = parse(request.text(), warnings);
         for (List<String> names : lines) {
@@ -57,21 +59,31 @@ public class ImportService {
                 warnings.add("Skipped (need at least two models): " + String.join(" = ", names));
                 continue;
             }
-            Brand brand = brandService.findOrCreate(shopId, brandName);
+            List<UUID> deviceIds = new ArrayList<>();
             DeviceModel primary = null;
             for (String name : names) {
-                DeviceModel device = deviceService.findOrCreate(shopId, brand, name);
+                DeviceModel device = deviceService.findOrCreateFromText(shopId, name, defaultBrand);
                 devices++;
+                deviceIds.add(device.getId());
                 if (primary == null) {
                     primary = device;
-                } else if (!device.getId().equals(primary.getId())) {
-                    deviceService.saveAlias(shopId, primary.getId(), name, DeviceAlias.Source.IMPORT);
-                    aliases++;
                 }
             }
+            String groupName = trimName(primary == null
+                    ? names.get(0)
+                    : DeviceLabels.display(primary.getBrand().getName(), primary.getName(), primary.getVariant()));
+            compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
+                    null,
+                    groupName,
+                    request.categoryId(),
+                    "Imported",
+                    false,
+                    true,
+                    deviceIds,
+                    null));
             groups++;
         }
-        ImportResult result = new ImportResult(groups, devices, aliases, warnings);
+        ImportResult result = new ImportResult(groups, devices, 0, warnings);
         ImportJob job = new ImportJob();
         job.setShopId(shopId);
         job.setKind("COMPATIBILITY");
@@ -105,10 +117,11 @@ public class ImportService {
             if (line.isBlank() || line.startsWith("#")) {
                 continue;
             }
+            line = line.replaceFirst("^\\d+[.)]\\s*", "");
             String[] parts = line.contains(",") && !line.contains("=") ? line.split(",") : line.split("=");
             Set<String> names = new LinkedHashSet<>();
             for (String part : parts) {
-                String name = part.trim();
+                String name = part.trim().replaceAll("[✅✔]\\s*$", "").trim();
                 if (!name.isBlank()) {
                     names.add(name);
                 }
@@ -141,5 +154,12 @@ public class ImportService {
             warnings.add("Could not parse JSON: " + ex.getMessage());
         }
         return List.of();
+    }
+
+    private static String trimName(String name) {
+        if (name.length() <= 160) {
+            return name;
+        }
+        return name.substring(0, 160);
     }
 }

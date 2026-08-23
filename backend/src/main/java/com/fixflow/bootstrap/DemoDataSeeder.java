@@ -209,48 +209,48 @@ public class DemoDataSeeder implements ApplicationRunner {
                 display,
                 "Same 6.5\" IPS panel and 24-pin connector. Confirmed on the bench.",
                 true, true,
-                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()))).id();
+                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()), null)).id();
 
         UUID realmeGlassGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "REALME_GLASS_GROUP_001",
                 "Realme 6 family glass",
                 glass, null, true, true,
-                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()))).id();
+                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()), null)).id();
 
         UUID realmeBatteryGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "REALME_BATTERY_GROUP_001",
                 "Realme 6 / 7 4300 mAh battery",
                 battery, "Narzo 20 takes a different cell.", true, true,
-                List.of(realme6.getId(), realme7.getId()))).id();
+                List.of(realme6.getId(), realme7.getId()), null)).id();
 
         UUID realmeBackGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "REALME_BACK_GROUP_001",
                 "Realme 6 back cover",
                 back, "Realme 7 has a different camera island — do not mix.", true, true,
-                List.of(realme6.getId()))).id();
+                List.of(realme6.getId()), null)).id();
 
         UUID iphone11DisplayGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "IPHONE_11_DISPLAY_GROUP",
                 "iPhone 11 display",
                 display, null, true, true,
-                List.of(iphone11.getId()))).id();
+                List.of(iphone11.getId()), null)).id();
 
         UUID iphone11GlassGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "IPHONE_11_GLASS_GROUP",
                 "iPhone 11 glass",
                 glass, null, true, true,
-                List.of(iphone11.getId()))).id();
+                List.of(iphone11.getId()), null)).id();
 
         // Unused in links but present so the catalog is not a single-brand shop.
         compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "S21_DISPLAY_GROUP", "Galaxy S21 display", display, null, true, true,
-                List.of(s21.getId())));
+                List.of(s21.getId()), null));
         compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "NOTE10_DISPLAY_GROUP", "Redmi Note 10 display", display, null, true, true,
-                List.of(redmiNote10.getId())));
+                List.of(redmiNote10.getId()), null));
         compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
                 "Y20_DISPLAY_GROUP", "Vivo Y20 display", display, null, true, true,
-                List.of(vivoY20.getId())));
+                List.of(vivoY20.getId()), null));
 
         Supplier a1 = supplierRepository.findByShopIdAndName(shopId, "A1 Mobile Parts").orElseThrow();
         Supplier gz = supplierRepository.findByShopIdAndName(shopId, "Guangzhou Display Hub").orElseThrow();

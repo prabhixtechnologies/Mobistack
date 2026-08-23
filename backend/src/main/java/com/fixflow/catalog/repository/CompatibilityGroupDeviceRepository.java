@@ -24,6 +24,8 @@ public interface CompatibilityGroupDeviceRepository extends JpaRepository<Compat
 
     void deleteByCompatibilityGroupIdAndDeviceModelId(UUID groupId, UUID deviceModelId);
 
+    void deleteByCompatibilityGroupId(UUID compatibilityGroupId);
+
     @Query("select count(d) from CompatibilityGroupDevice d where d.compatibilityGroupId = :groupId")
     long countDevices(@Param("groupId") UUID groupId);
 }

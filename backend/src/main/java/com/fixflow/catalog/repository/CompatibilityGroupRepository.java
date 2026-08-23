@@ -23,7 +23,149 @@ public interface CompatibilityGroupRepository extends JpaRepository<Compatibilit
 
     Page<CompatibilityGroup> findByShopIdAndCategoryId(UUID shopId, UUID categoryId, Pageable pageable);
 
+    Page<CompatibilityGroup> findByShopIdAndActiveTrueOrderByCreatedAtAsc(UUID shopId, Pageable pageable);
+
+    Page<CompatibilityGroup> findByShopIdAndCategoryIdAndActiveTrueOrderByCreatedAtAsc(
+            UUID shopId, UUID categoryId, Pageable pageable);
+
     long countByShopId(UUID shopId);
+
+    long countByShopIdAndActiveTrue(UUID shopId);
+
+    @Query("""
+            select g.categoryId as categoryId, count(g) as groupCount
+            from CompatibilityGroup g
+            where g.shopId = :shopId and g.active = true
+            group by g.categoryId
+            """)
+    List<CategoryGroupCount> countActiveByCategory(@Param("shopId") UUID shopId);
+
+    @Query(
+            value = """
+                    select distinct g from CompatibilityGroup g
+                    where g.shopId = :shopId
+                      and g.active = true
+                      and (
+                            lower(g.name) like concat('%', :q, '%')
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceModel m
+                                where d.compatibilityGroupId = g.id
+                                  and m.id = d.deviceModelId
+                                  and m.shopId = :shopId
+                                  and (
+                                        lower(m.name) like concat('%', :q, '%')
+                                        or lower(coalesce(m.variant, '')) like concat('%', :q, '%')
+                                        or lower(m.brand.name) like concat('%', :q, '%')
+                                        or lower(concat(m.brand.name, ' ', m.name, ' ', coalesce(m.variant, ''))) like concat('%', :q, '%')
+                                      )
+                            )
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceAlias a
+                                where d.compatibilityGroupId = g.id
+                                  and a.deviceModelId = d.deviceModelId
+                                  and lower(a.alias) like concat('%', :q, '%')
+                            )
+                          )
+                    order by g.createdAt asc, g.name asc
+                    """,
+            countQuery = """
+                    select count(distinct g) from CompatibilityGroup g
+                    where g.shopId = :shopId
+                      and g.active = true
+                      and (
+                            lower(g.name) like concat('%', :q, '%')
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceModel m
+                                where d.compatibilityGroupId = g.id
+                                  and m.id = d.deviceModelId
+                                  and m.shopId = :shopId
+                                  and (
+                                        lower(m.name) like concat('%', :q, '%')
+                                        or lower(coalesce(m.variant, '')) like concat('%', :q, '%')
+                                        or lower(m.brand.name) like concat('%', :q, '%')
+                                        or lower(concat(m.brand.name, ' ', m.name, ' ', coalesce(m.variant, ''))) like concat('%', :q, '%')
+                                      )
+                            )
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceAlias a
+                                where d.compatibilityGroupId = g.id
+                                  and a.deviceModelId = d.deviceModelId
+                                  and lower(a.alias) like concat('%', :q, '%')
+                            )
+                          )
+                    """
+    )
+    Page<CompatibilityGroup> search(@Param("shopId") UUID shopId,
+                                    @Param("q") String q,
+                                    Pageable pageable);
+
+    @Query(
+            value = """
+                    select distinct g from CompatibilityGroup g
+                    where g.shopId = :shopId
+                      and g.active = true
+                      and g.categoryId = :categoryId
+                      and (
+                            lower(g.name) like concat('%', :q, '%')
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceModel m
+                                where d.compatibilityGroupId = g.id
+                                  and m.id = d.deviceModelId
+                                  and m.shopId = :shopId
+                                  and (
+                                        lower(m.name) like concat('%', :q, '%')
+                                        or lower(coalesce(m.variant, '')) like concat('%', :q, '%')
+                                        or lower(m.brand.name) like concat('%', :q, '%')
+                                        or lower(concat(m.brand.name, ' ', m.name, ' ', coalesce(m.variant, ''))) like concat('%', :q, '%')
+                                      )
+                            )
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceAlias a
+                                where d.compatibilityGroupId = g.id
+                                  and a.deviceModelId = d.deviceModelId
+                                  and lower(a.alias) like concat('%', :q, '%')
+                            )
+                          )
+                    order by g.createdAt asc, g.name asc
+                    """,
+            countQuery = """
+                    select count(distinct g) from CompatibilityGroup g
+                    where g.shopId = :shopId
+                      and g.active = true
+                      and g.categoryId = :categoryId
+                      and (
+                            lower(g.name) like concat('%', :q, '%')
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceModel m
+                                where d.compatibilityGroupId = g.id
+                                  and m.id = d.deviceModelId
+                                  and m.shopId = :shopId
+                                  and (
+                                        lower(m.name) like concat('%', :q, '%')
+                                        or lower(coalesce(m.variant, '')) like concat('%', :q, '%')
+                                        or lower(m.brand.name) like concat('%', :q, '%')
+                                        or lower(concat(m.brand.name, ' ', m.name, ' ', coalesce(m.variant, ''))) like concat('%', :q, '%')
+                                      )
+                            )
+                            or exists (
+                                select 1 from CompatibilityGroupDevice d, DeviceAlias a
+                                where d.compatibilityGroupId = g.id
+                                  and a.deviceModelId = d.deviceModelId
+                                  and lower(a.alias) like concat('%', :q, '%')
+                            )
+                          )
+                    """
+    )
+    Page<CompatibilityGroup> searchInCategory(@Param("shopId") UUID shopId,
+                                              @Param("categoryId") UUID categoryId,
+                                              @Param("q") String q,
+                                              Pageable pageable);
+
+    interface CategoryGroupCount {
+        UUID getCategoryId();
+
+        long getGroupCount();
+    }
 
     /** Groups the given device belongs to, used to render its compatibility card. */
     @Query("""

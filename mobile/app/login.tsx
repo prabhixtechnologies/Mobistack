@@ -1,44 +1,74 @@
-import { useEffect, useState } from "react";
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
 import { useAuth } from "../lib/auth";
 import { api, selectedWorkspaceId, type AuthResponse, type AuthUser } from "../lib/api";
 import { BRAND, copyrightLine } from "../lib/brand";
 import { getDeviceId } from "../lib/device";
 import { useTheme } from "../lib/theme";
 
-type Method = "password" | "magic" | "email" | "phone" | "whatsapp" | "sso" | "register" | "shop" | "forgot";
+type Method = "password" | "magic" | "email" | "phone" | "whatsapp" | "register" | "forgot";
 
-const METHODS: { id: Method; label: string }[] = [
-  { id: "password", label: "Password" },
-  { id: "magic", label: "Magic" },
-  { id: "email", label: "Email code" },
-  { id: "phone", label: "Phone" },
-  { id: "whatsapp", label: "WhatsApp" },
-  { id: "sso", label: "SSO" },
-  { id: "register", label: "New user" },
-  { id: "shop", label: "Open a shop" },
-  { id: "forgot", label: "Forgot" },
-];
+const REMEMBER_KEY = "mobistack.remember-email";
 
 export default function LoginScreen() {
-  const { login, acceptSession, registerShop } = useAuth();
-  const { colors, toggle, mode } = useTheme();
+  const { login, acceptSession } = useAuth();
+  const { toggle, mode } = useTheme();
   const params = useLocalSearchParams<{ code?: string; sso?: string }>();
   const [method, setMethod] = useState<Method>("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [fullName, setFullName] = useState("");
-  const [shopName, setShopName] = useState("");
-  const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const styles = makeStyles(mode === "dark");
+
+  useEffect(() => {
+    void SecureStore.getItemAsync(REMEMBER_KEY).then((stored) => {
+      if (stored) {
+        setEmail(stored);
+        setRemember(true);
+      }
+    });
+  }, []);
+
+  function choose(next: Method) {
+    setMethod(next);
+    setError(null);
+    setNotice(null);
+    setCode("");
+  }
 
   async function go(user: AuthUser) {
     router.replace(selectedWorkspaceId(user) ? "/(tabs)/home" : "/workspaces");
+  }
+
+  async function persistRemember() {
+    if (remember) {
+      await SecureStore.setItemAsync(REMEMBER_KEY, email);
+    } else {
+      await SecureStore.deleteItemAsync(REMEMBER_KEY);
+    }
   }
 
   async function onContinue() {
@@ -47,6 +77,7 @@ export default function LoginScreen() {
     setNotice(null);
     try {
       if (method === "password") {
+        await persistRemember();
         await go(await login(email, password));
       } else if (method === "magic") {
         await api("/api/v1/auth/magic-link", {
@@ -83,24 +114,16 @@ export default function LoginScreen() {
           });
           await go(await acceptSession(auth));
         }
-      } else if (method === "sso") {
-        setError("Use Continue with Google to sign in with your company account.");
       } else if (method === "forgot") {
         await api("/api/v1/auth/forgot-password", {
           method: "POST",
           body: JSON.stringify({ email }),
         });
         setNotice("If that email is registered, a reset link was sent.");
-      } else if (method === "shop") {
-        await go(await registerShop({
-          shopName: shopName.trim(),
-          ownerName: fullName.trim(),
-          email: email.trim(),
-          password,
-          phone: phone.trim() || undefined,
-          city: city.trim() || undefined,
-        }));
       } else {
+        if (!acceptedTerms) {
+          throw new Error("Accept the terms to create an account.");
+        }
         const auth = await api<AuthResponse>("/api/v1/auth/register", {
           method: "POST",
           body: JSON.stringify({ fullName, email, password, phone }),
@@ -114,203 +137,407 @@ export default function LoginScreen() {
     }
   }
 
+  async function startGoogle() {
+    setError(null);
+    setNotice(null);
+    try {
+      const start = await api<{ status: string; authorizationUrl?: string; hint?: string }>(
+        `/api/v1/auth/sso/google/start?redirectUri=${encodeURIComponent("mobistack://login?sso=google")}`,
+      );
+      if (start.status === "READY" && start.authorizationUrl) {
+        await Linking.openURL(start.authorizationUrl);
+        return;
+      }
+      setNotice("Google sign-in is not configured for this environment.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start Google");
+    }
+  }
+
   useEffect(() => {
-    const code = typeof params.code === "string" ? params.code : undefined;
-    if (params.sso !== "google" || !code) {
+    const googleCode = typeof params.code === "string" ? params.code : undefined;
+    if (params.sso !== "google" || !googleCode) {
       return;
     }
     setBusy(true);
-    void getDeviceId().then((deviceId) =>
-      api<AuthResponse>("/api/v1/auth/sso/google", {
-      method: "POST",
-      body: JSON.stringify({
-        code,
-        redirectUri: "mobistack://login?sso=google",
-        deviceId,
-      }),
-    }))
+    void getDeviceId()
+      .then((deviceId) =>
+        api<AuthResponse>("/api/v1/auth/sso/google", {
+          method: "POST",
+          body: JSON.stringify({
+            code: googleCode,
+            redirectUri: "mobistack://login?sso=google",
+            deviceId,
+          }),
+        }),
+      )
       .then(async (auth) => {
         await go(await acceptSession(auth));
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Google sign-in failed");
-        setMethod("sso");
       })
       .finally(() => setBusy(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.code, params.sso]);
 
-  const styles = makeStyles(colors);
+  const heading =
+    method === "register"
+      ? "Create your account"
+      : method === "forgot"
+        ? "Forgot password"
+        : method === "magic"
+          ? "Sign in with a link"
+          : method === "email"
+            ? "Sign in with email code"
+            : method === "phone"
+              ? "Sign in with SMS"
+              : method === "whatsapp"
+                ? "Sign in with WhatsApp"
+                : "Welcome back";
+
+  const subtitle =
+    method === "register"
+      ? "Join an existing shop after an owner approves you."
+      : method === "forgot"
+        ? "We will email reset instructions if that account exists."
+        : "Please sign in to continue.";
+
+  const submitLabel = busy
+    ? "Working…"
+    : method === "magic"
+      ? "Send magic link"
+      : method === "register"
+        ? "Create account"
+        : method === "forgot"
+          ? "Send reset"
+          : code
+            ? "Verify and sign in"
+            : method === "email" || method === "phone" || method === "whatsapp"
+              ? "Send code"
+              : "Sign in →";
+
+  const showEmail = method === "password" || method === "magic" || method === "email" || method === "register" || method === "forgot";
+  const showPasswordField = method === "password" || method === "register";
+  const showPhone = method === "phone" || method === "whatsapp" || method === "register";
+  const showCode = method === "email" || method === "phone" || method === "whatsapp";
+  const showAlts = method !== "register" && method !== "forgot";
+  const showCreateUser = method !== "register" && method !== "forgot";
+  const legal = (path: string) => void Linking.openURL(`${BRAND.publicOrigin}${path}`);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={styles.wrap}>
+    <SafeAreaView style={styles.screen}>
+      <StatusBar style="light" />
       <View style={styles.top}>
-        <View style={styles.brand}>
-          <Image source={require("../assets/logo.png")} style={styles.logo} />
-          <Text style={styles.mark}>{BRAND.product}</Text>
+        <Pressable style={styles.iconBtn} onPress={toggle} accessibilityLabel="Toggle color theme">
+          <Text style={styles.iconBtnText}>{mode === "light" ? "☾" : "☀"}</Text>
+        </Pressable>
+        <View style={styles.tls}>
+          <Text style={styles.tlsText}>TLS</Text>
         </View>
-        <Pressable onPress={toggle}>
-          <Text style={styles.ghostText}>{mode === "light" ? "Dark" : "Light"}</Text>
-        </Pressable>
       </View>
-      <Text style={styles.title}>Open the counter.</Text>
-      <Text style={styles.sub}>{BRAND.tagline}</Text>
-      <View style={styles.chips}>
-        {METHODS.map((item) => (
-          <Pressable
-            key={item.id}
-            style={[styles.chip, method === item.id && styles.chipOn]}
-            onPress={() => {
-              setMethod(item.id);
-              setError(null);
-              setNotice(null);
-            }}
-          >
-            <Text style={method === item.id ? styles.chipOnText : styles.chipText}>{item.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {(method === "password" ||
-        method === "magic" ||
-        method === "email" ||
-        method === "sso" ||
-        method === "register" ||
-        method === "shop" ||
-        method === "forgot") && (
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="you@prabhixtechnologies.com"
-          placeholderTextColor={colors.faint}
-        />
-      )}
-      {(method === "password" || method === "register" || method === "shop") && (
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholder="Password"
-          placeholderTextColor={colors.faint}
-        />
-      )}
-      {(method === "sso" || method === "register" || method === "shop") && (
-        <TextInput
-          style={styles.input}
-          value={fullName}
-          onChangeText={setFullName}
-          placeholder={method === "shop" ? "Owner name" : "Full name"}
-          placeholderTextColor={colors.faint}
-        />
-      )}
-      {method === "shop" && (
-        <>
-          <TextInput
-            style={styles.input}
-            value={shopName}
-            onChangeText={setShopName}
-            placeholder="Shop name"
-            placeholderTextColor={colors.faint}
-          />
-          <TextInput
-            style={styles.input}
-            value={city}
-            onChangeText={setCity}
-            placeholder="City"
-            placeholderTextColor={colors.faint}
-          />
-        </>
-      )}
-      {(method === "phone" || method === "whatsapp" || method === "register" || method === "shop") && (
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          placeholder={method === "whatsapp" ? "WhatsApp number" : "Mobile number"}
-          placeholderTextColor={colors.faint}
-        />
-      )}
-      {(method === "email" || method === "phone" || method === "whatsapp") && (
-        <TextInput
-          style={styles.input}
-          value={code}
-          onChangeText={setCode}
-          keyboardType="number-pad"
-          placeholder="Code (blank to request)"
-          placeholderTextColor={colors.faint}
-        />
-      )}
-      {notice ? <Text style={styles.sub}>{notice}</Text> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {method === "sso" && (
-        <Pressable
-          style={styles.btn}
-          onPress={async () => {
-            setError(null);
-            try {
-              const start = await api<{ status: string; authorizationUrl?: string; hint?: string }>(
-                `/api/v1/auth/sso/google/start?redirectUri=${encodeURIComponent("mobistack://login?sso=google")}`,
-              );
-              if (start.status === "READY" && start.authorizationUrl) {
-                await Linking.openURL(start.authorizationUrl);
-                return;
-              }
-              setNotice("Google sign-in is not configured for this environment.");
-            } catch (err) {
-              setError(err instanceof Error ? err.message : "Could not start Google");
-            }
-          }}
-        >
-          <Text style={styles.btnText}>Continue with Google</Text>
-        </Pressable>
-      )}
-      <Pressable style={styles.btn} onPress={() => void onContinue()}>
-        <Text style={styles.btnText}>
-          {busy ? "Working…" : method === "forgot" ? "Send reset link" : method === "shop" ? "Create shop" : "Continue"}
-        </Text>
-      </Pressable>
-      <Text style={styles.legal}>{copyrightLine()}</Text>
-    </ScrollView>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
+          <View style={styles.card}>
+            <View style={styles.brand}>
+              <Image source={require("../assets/logo.png")} style={styles.logo} />
+              <Text style={styles.brandName}>{BRAND.product}</Text>
+            </View>
+            <Text style={styles.heading}>{heading}</Text>
+            <Text style={styles.welcome}>{subtitle}</Text>
+
+            {method === "register" && (
+              <Field label="Full name">
+                <TextInput
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Your name"
+                  placeholderTextColor={styles.placeholder.color}
+                  autoComplete="name"
+                />
+              </Field>
+            )}
+            {showEmail && (
+              <Field label="Email">
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  placeholder="you@prabhixtechnologies.com"
+                  placeholderTextColor={styles.placeholder.color}
+                  autoComplete="email"
+                />
+              </Field>
+            )}
+            {showPasswordField && (
+              <Field label="Password">
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, marginBottom: 0, borderWidth: 0, backgroundColor: "transparent" }]}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!passwordVisible}
+                    placeholder="Enter your password"
+                    placeholderTextColor={styles.placeholder.color}
+                    autoComplete={method === "register" ? "new-password" : "password"}
+                  />
+                  <Pressable onPress={() => setPasswordVisible((open) => !open)} hitSlop={8}>
+                    <Text style={styles.link}>{passwordVisible ? "Hide" : "Show"}</Text>
+                  </Pressable>
+                </View>
+              </Field>
+            )}
+            {showPhone && (
+              <Field label={method === "whatsapp" ? "WhatsApp number" : "Mobile number"}>
+                <TextInput
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
+                  placeholder="+91 98XXXXXXXX"
+                  placeholderTextColor={styles.placeholder.color}
+                />
+              </Field>
+            )}
+            {showCode && (
+              <Field label="One-time code">
+                <TextInput
+                  style={styles.input}
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  placeholder="Leave blank to request a code"
+                  placeholderTextColor={styles.placeholder.color}
+                />
+              </Field>
+            )}
+
+            {method === "password" && (
+              <View style={styles.row}>
+                <Pressable style={styles.remember} onPress={() => setRemember((value) => !value)}>
+                  <View style={[styles.check, remember && styles.checkOn]} />
+                  <Text style={styles.rememberText}>Remember me</Text>
+                </Pressable>
+                <Pressable onPress={() => choose("forgot")}>
+                  <Text style={styles.link}>Forgot password?</Text>
+                </Pressable>
+              </View>
+            )}
+            {method === "forgot" && (
+              <Pressable onPress={() => choose("password")}>
+                <Text style={styles.link}>Back to sign in</Text>
+              </Pressable>
+            )}
+            {method === "register" && (
+              <Pressable style={styles.remember} onPress={() => setAcceptedTerms((value) => !value)}>
+                <View style={[styles.check, acceptedTerms && styles.checkOn]} />
+                <Text style={styles.rememberText}>
+                  I agree to the Terms, Privacy Policy, and Refunds. An owner must approve you before you can work in a
+                  shop.
+                </Text>
+              </Pressable>
+            )}
+
+            {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <View style={styles.actions}>
+              <Pressable style={[styles.btn, styles.btnPrimary, showCreateUser || method === "register" ? styles.btnHalf : undefined]} onPress={() => void onContinue()}>
+                <Text style={styles.btnPrimaryText}>{submitLabel}</Text>
+              </Pressable>
+              {showCreateUser && (
+                <Pressable style={[styles.btn, styles.btnSecondary, styles.btnHalf]} onPress={() => choose("register")}>
+                  <Text style={styles.btnSecondaryText}>Create user</Text>
+                </Pressable>
+              )}
+              {method === "register" && (
+                <Pressable style={[styles.btn, styles.btnSecondary, styles.btnHalf]} onPress={() => choose("password")}>
+                  <Text style={styles.btnSecondaryText}>Sign in</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {showAlts && (
+              <>
+                <View style={styles.rule}>
+                  <View style={styles.ruleLine} />
+                  <Text style={styles.ruleText}>Or continue with</Text>
+                  <View style={styles.ruleLine} />
+                </View>
+                <View style={styles.alts}>
+                  <Alt label="Google" on={false} onPress={() => void startGoogle()} />
+                  <Alt label="Magic link" on={method === "magic"} onPress={() => choose("magic")} />
+                  <Alt label="Email code" on={method === "email"} onPress={() => choose("email")} />
+                  <Alt label="Phone" on={method === "phone" || method === "whatsapp"} onPress={() => choose(method === "whatsapp" ? "whatsapp" : "phone")} />
+                </View>
+                {(method === "phone" || method === "whatsapp") && (
+                  <View style={styles.channel}>
+                    <Pressable style={[styles.channelBtn, method === "phone" && styles.channelOn]} onPress={() => choose("phone")}>
+                      <Text style={method === "phone" ? styles.channelOnText : styles.channelText}>SMS</Text>
+                    </Pressable>
+                    <Pressable style={[styles.channelBtn, method === "whatsapp" && styles.channelOn]} onPress={() => choose("whatsapp")}>
+                      <Text style={method === "whatsapp" ? styles.channelOnText : styles.channelText}>WhatsApp</Text>
+                    </Pressable>
+                  </View>
+                )}
+                {(method === "magic" || method === "email" || method === "phone" || method === "whatsapp") && (
+                  <Pressable onPress={() => choose("password")}>
+                    <Text style={[styles.link, styles.center]}>Use email and password</Text>
+                  </Pressable>
+                )}
+              </>
+            )}
+
+            <Text style={styles.legal}>{copyrightLine()}</Text>
+            <View style={styles.legalLinks}>
+              <Pressable onPress={() => legal("/privacy")}><Text style={styles.legalLink}>Privacy</Text></Pressable>
+              <Pressable onPress={() => legal("/terms")}><Text style={styles.legalLink}>Terms</Text></Pressable>
+              <Pressable onPress={() => legal("/refunds")}><Text style={styles.legalLink}>Refunds</Text></Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  const { mode } = useTheme();
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <Text style={{ fontSize: 13, fontWeight: "600", color: mode === "dark" ? "#C8C2B6" : "#3F3A47", marginBottom: 6 }}>
+        {label}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
+function Alt({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const { mode } = useTheme();
+  const dark = mode === "dark";
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        flexBasis: "48%",
+        flexGrow: 1,
+        minHeight: 40,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: on ? "#7C3AED" : dark ? "rgba(244,241,234,0.1)" : "#ECE7F3",
+        backgroundColor: on ? "#F5F0FF" : dark ? "#241F2C" : "#FFF",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Text style={{ fontWeight: "600", fontSize: 13, color: dark ? "#F4F1EA" : "#2D2836" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function makeStyles(dark: boolean) {
+  const ink = dark ? "#F4F1EA" : "#16131C";
+  const faint = dark ? "#B7B2A4" : "#7A7384";
+  const field = dark ? "#141218" : "#F7F5FA";
+  const line = dark ? "rgba(244,241,234,0.12)" : "#E6E0EE";
   return StyleSheet.create({
-    wrap: { padding: 28, paddingTop: 72, paddingBottom: 48 },
-    top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
-    brand: { flexDirection: "row", alignItems: "center", gap: 10 },
-    logo: { width: 36, height: 36, borderRadius: 10 },
-    mark: { fontSize: 18, fontWeight: "700", color: colors.ink },
-    title: { fontSize: 40, lineHeight: 44, fontWeight: "500", letterSpacing: -1, marginBottom: 8, color: colors.ink },
-    sub: { color: colors.soft, fontSize: 16, marginBottom: 22 },
-    chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
-    chip: {
-      borderColor: colors.line,
+    screen: { flex: 1, backgroundColor: "#1A0B2E" },
+    wrap: { padding: 16, paddingBottom: 28, flexGrow: 1, justifyContent: "center" },
+    top: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingTop: 4 },
+    iconBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
       borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.18)",
+      backgroundColor: "rgba(255,255,255,0.08)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconBtnText: { color: "#F8F5FF", fontSize: 16 },
+    tls: {
+      minHeight: 40,
+      paddingHorizontal: 12,
       borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
+      backgroundColor: "rgba(52,211,153,0.12)",
+      alignItems: "center",
+      justifyContent: "center",
     },
-    chipOn: { backgroundColor: colors.ink, borderColor: colors.ink },
-    chipText: { fontWeight: "600", color: colors.soft, fontSize: 13 },
-    chipOnText: { fontWeight: "600", color: colors.bg, fontSize: 13 },
-    input: {
-      backgroundColor: colors.card,
-      borderColor: colors.line,
+    tlsText: { color: "#86EFAC", fontSize: 11, fontWeight: "700", letterSpacing: 1 },
+    card: {
+      backgroundColor: dark ? "#1A1622" : "#FFF",
+      borderRadius: 24,
+      padding: 22,
       borderWidth: 1,
-      borderRadius: 14,
-      padding: 14,
-      marginBottom: 12,
-      color: colors.ink,
+      borderColor: dark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.55)",
     },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8 },
-    btnText: { color: colors.bg, fontWeight: "700" },
-    ghostText: { fontWeight: "700", color: colors.soft },
-    error: { color: colors.bad, marginBottom: 8 },
-    legal: { color: colors.faint, fontSize: 12, marginTop: 28, lineHeight: 18 },
+    brand: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 14 },
+    logo: { width: 36, height: 36, borderRadius: 11 },
+    brandName: { fontSize: 17, fontWeight: "700", color: dark ? "#DDD6FE" : "#4C1D95", letterSpacing: -0.4 },
+    heading: { fontSize: 26, fontWeight: "700", letterSpacing: -0.6, color: ink, textAlign: "center" },
+    welcome: { color: faint, fontSize: 13, textAlign: "center", marginTop: 4, marginBottom: 16 },
+    input: {
+      backgroundColor: field,
+      borderColor: line,
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      color: ink,
+      fontSize: 15,
+      marginBottom: 0,
+    },
+    placeholder: { color: "#A8A1B3" },
+    passwordRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      backgroundColor: field,
+      borderColor: line,
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingRight: 12,
+    },
+    row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+    remember: { flexDirection: "row", alignItems: "flex-start", gap: 8, flex: 1, paddingRight: 12 },
+    check: { width: 16, height: 16, borderRadius: 5, borderWidth: 1.5, borderColor: "#C9C0D6", backgroundColor: dark ? "#141218" : "#FFF", marginTop: 2 },
+    checkOn: { backgroundColor: "#6D28D9", borderColor: "#6D28D9" },
+    rememberText: { color: faint, fontSize: 13, flex: 1, lineHeight: 18 },
+    link: { color: "#6D28D9", fontWeight: "600", fontSize: 13 },
+    center: { textAlign: "center", marginTop: 8 },
+    notice: { color: "#166534", backgroundColor: "#F0FDF4", padding: 10, borderRadius: 10, overflow: "hidden", marginBottom: 8 },
+    error: { color: "#991B1B", backgroundColor: "#FEF2F2", padding: 10, borderRadius: 10, overflow: "hidden", marginBottom: 8 },
+    actions: { flexDirection: "row", gap: 10, marginTop: 8 },
+    btn: { borderRadius: 12, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 12 },
+    btnHalf: { flex: 1 },
+    btnPrimary: { backgroundColor: "#6D28D9" },
+    btnPrimaryText: { color: "#FFF", fontWeight: "700", fontSize: 14 },
+    btnSecondary: { backgroundColor: dark ? "rgba(196,181,253,0.08)" : "#F4F0FB" },
+    btnSecondaryText: { color: dark ? "#DDD6FE" : "#5B21B6", fontWeight: "700", fontSize: 14 },
+    rule: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16, marginBottom: 12 },
+    ruleLine: { flex: 1, height: 1, backgroundColor: dark ? "rgba(244,241,234,0.1)" : "#EEEAF4" },
+    ruleText: { color: "#9A93A3", fontSize: 11, fontWeight: "700", letterSpacing: 0.8, textTransform: "uppercase" },
+    alts: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    channel: { flexDirection: "row", gap: 8, marginTop: 8 },
+    channelBtn: {
+      flex: 1,
+      minHeight: 38,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: dark ? "rgba(244,241,234,0.12)" : "#ECE7F3",
+      backgroundColor: dark ? "#141218" : "#F7F5FA",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    channelOn: { backgroundColor: "#5B21B6", borderColor: "#5B21B6" },
+    channelText: { fontWeight: "700", color: ink, fontSize: 13 },
+    channelOnText: { fontWeight: "700", color: "#FFF", fontSize: 13 },
+    legal: { color: "#9A93A3", fontSize: 12, textAlign: "center", marginTop: 18, lineHeight: 18 },
+    legalLinks: { flexDirection: "row", justifyContent: "center", gap: 14, marginTop: 6 },
+    legalLink: { color: faint, fontSize: 12 },
   });
 }

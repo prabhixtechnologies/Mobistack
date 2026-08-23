@@ -10,7 +10,7 @@ import { storeGet, storeRemove, storeSet } from "../lib/storage";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { LogoMark } from "../ui/LogoMark";
 
-type Method = "password" | "magic" | "email-otp" | "phone" | "whatsapp" | "register" | "shop";
+type Method = "password" | "magic" | "email-otp" | "phone" | "whatsapp" | "register";
 
 const REMEMBER_KEY = "remember-email";
 
@@ -45,9 +45,6 @@ export function LoginPage() {
   const [code, setCode] = useState("");
   const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
-  const [shopName, setShopName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [city, setCity] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -203,16 +200,6 @@ export function LoginPage() {
             body: JSON.stringify({ fullName, email, password, phone }),
           }),
         );
-      } else {
-        if (!acceptedTerms) {
-          throw new Error("Accept the terms to open a shop.");
-        }
-        finish(
-          await api<AuthResponse>("/api/v1/auth/register-shop", {
-            method: "POST",
-            body: JSON.stringify({ shopName, ownerName, email, password, phone, city: city.trim() || undefined }),
-          }),
-        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not continue");
@@ -239,130 +226,81 @@ export function LoginPage() {
   }
 
   const heading =
-    method === "shop"
-      ? "Open a shop"
-      : method === "register"
-        ? "Create your account"
-        : recover === "forgot"
-          ? "Forgot password"
-          : recover === "reset"
-            ? "Set a new password"
-            : method === "magic"
-              ? "Sign in with a link"
-              : method === "email-otp"
-                ? "Sign in with email code"
-                : method === "phone"
-                  ? "Sign in with SMS"
-                  : method === "whatsapp"
-                    ? "Sign in with WhatsApp"
-                    : "Welcome back";
+    method === "register"
+      ? "Create your account"
+      : recover === "forgot"
+        ? "Forgot password"
+        : recover === "reset"
+          ? "Set a new password"
+          : method === "magic"
+            ? "Sign in with a link"
+            : method === "email-otp"
+              ? "Sign in with email code"
+              : method === "phone"
+                ? "Sign in with SMS"
+                : method === "whatsapp"
+                  ? "Sign in with WhatsApp"
+                  : "Welcome back";
 
   const subtitle =
-    method === "shop"
-      ? "Create the workspace, then invite the counter."
-      : method === "register"
-        ? "Join an existing shop after an owner approves you."
-        : recover !== "signin"
-          ? "We will email reset instructions if that account exists."
-          : "Please sign in to continue.";
+    method === "register"
+      ? "Join an existing shop after an owner approves you."
+      : recover !== "signin"
+        ? "We will email reset instructions if that account exists."
+        : "Please sign in to continue.";
 
   const submitLabel = busy
     ? "Working…"
     : method === "magic"
       ? "Send magic link"
-      : method === "shop"
-        ? "Create shop"
-        : method === "register"
-          ? "Create account"
-          : recover === "forgot"
-            ? "Send reset"
-            : recover === "reset"
-              ? "Set password"
-              : code
-                ? "Verify and sign in"
-                : method === "email-otp" || method === "phone" || method === "whatsapp"
-                  ? "Send code"
-                  : "Sign in →";
+      : method === "register"
+        ? "Create account"
+        : recover === "forgot"
+          ? "Send reset"
+          : recover === "reset"
+            ? "Set password"
+            : code
+              ? "Verify and sign in"
+              : method === "email-otp" || method === "phone" || method === "whatsapp"
+                ? "Send code"
+                : "Sign in →";
 
   const showEmail =
     method === "password" ||
     method === "magic" ||
     method === "email-otp" ||
-    method === "register" ||
-    method === "shop";
+    method === "register";
   const showPasswordField =
-    (method === "password" && recover !== "forgot") || method === "register" || method === "shop";
-  const showPhone =
-    method === "phone" || method === "whatsapp" || method === "register" || method === "shop";
+    (method === "password" && recover !== "forgot") || method === "register";
+  const showPhone = method === "phone" || method === "whatsapp" || method === "register";
   const showCode = method === "email-otp" || method === "phone" || method === "whatsapp";
-  const showAlts = method !== "register" && method !== "shop" && recover === "signin";
+  const showAlts = method !== "register" && recover === "signin";
+  const showCreateUser = method !== "register" && recover === "signin";
 
   return (
     <div className="auth-screen">
       <div className="auth-screen__glow" aria-hidden />
       <header className="auth-top">
-        <ThemeToggle compact />
+        <ThemeToggle icon />
         <span className="auth-secure">
           <IconShield />
-          TLS secured
+          TLS
         </span>
       </header>
 
       <div className="auth-layout">
         <form className="auth-panel" onSubmit={onSubmit}>
           <div className="auth-brand">
-            <div className="auth-brand__mark">
-              <LogoMark size={40} />
-            </div>
+            <span className="auth-brand__mark">
+              <LogoMark size={36} />
+            </span>
             <div className="auth-brand__name">{BRAND.product}</div>
-            <p className="auth-brand__welcome">{subtitle}</p>
           </div>
 
-          <h1 className="auth-heading">{heading}</h1>
-
-          {method === "shop" && (
-            <>
-              <label className="auth-label">
-                Shop name
-                <span className="auth-field">
-                  <IconShop />
-                  <input
-                    className="auth-input"
-                    value={shopName}
-                    onChange={(e) => setShopName(e.target.value)}
-                    placeholder="Your shop name"
-                    required
-                  />
-                </span>
-              </label>
-              <label className="auth-label">
-                Owner name
-                <span className="auth-field">
-                  <IconUser />
-                  <input
-                    className="auth-input"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="Owner full name"
-                    required
-                  />
-                </span>
-              </label>
-              <label className="auth-label">
-                City
-                <span className="auth-field">
-                  <IconShop />
-                  <input
-                    className="auth-input"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="City"
-                    required
-                  />
-                </span>
-              </label>
-            </>
-          )}
+          <div className="auth-intro">
+            <h1 className="auth-heading">{heading}</h1>
+            <p className="auth-brand__welcome">{subtitle}</p>
+          </div>
 
           {method === "register" && (
             <label className="auth-label">
@@ -407,7 +345,7 @@ export function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={recover === "reset" || method === "register" || method === "shop" ? "new-password" : "current-password"}
+                  autoComplete={recover === "reset" || method === "register" ? "new-password" : "current-password"}
                   placeholder="Enter your password"
                 />
                 <button
@@ -487,7 +425,7 @@ export function LoginPage() {
             </button>
           )}
 
-          {(method === "register" || method === "shop") && (
+          {method === "register" && (
             <label className="auth-remember">
               <input
                 type="checkbox"
@@ -497,8 +435,7 @@ export function LoginPage() {
               />
               <span>
                 I agree to the <Link to="/terms">Terms</Link>, <Link to="/privacy">Privacy Policy</Link>,
-                and <Link to="/refunds">Refunds</Link>. Opening a shop asks for payment before the
-                counter unlocks.
+                and <Link to="/refunds">Refunds</Link>. An owner must approve you before you can work in a shop.
               </span>
             </label>
           )}
@@ -506,9 +443,21 @@ export function LoginPage() {
           {notice && <div className="auth-notice">{notice}</div>}
           {error && <div className="auth-error">{error}</div>}
 
-          <button className="auth-submit" type="submit" disabled={busy}>
-            {submitLabel}
-          </button>
+          <div className="auth-actions">
+            <button className="auth-submit" type="submit" disabled={busy}>
+              {submitLabel}
+            </button>
+            {showCreateUser && (
+              <button className="auth-submit auth-submit--secondary" type="button" onClick={() => choose("register")}>
+                Create user
+              </button>
+            )}
+            {method === "register" && (
+              <button className="auth-submit auth-submit--secondary" type="button" onClick={() => choose("password")}>
+                Sign in
+              </button>
+            )}
+          </div>
 
           {showAlts && (
             <>
@@ -571,31 +520,17 @@ export function LoginPage() {
             </>
           )}
 
-          <div className="auth-footer-links">
-            {method === "register" || method === "shop" ? (
-              <button className="auth-link" type="button" onClick={() => choose("password")}>
-                Already have an account? Sign in
-              </button>
-            ) : (
-              <>
-                <button className="auth-link" type="button" onClick={() => choose("register")}>
-                  Create user
-                </button>
-                <span aria-hidden>·</span>
-                <button className="auth-link" type="button" onClick={() => choose("shop")}>
-                  Open a shop
-                </button>
-              </>
-            )}
+          <div className="auth-legal-block">
+            <p className="auth-legal">{copyrightLine()}</p>
+            <nav className="auth-legal-links" aria-label="App and legal">
+              <Link to="/app">Get the app</Link>
+              <a href="/download/android">Android</a>
+              <a href="/download/ios">iOS</a>
+              <Link to="/privacy">Privacy</Link>
+              <Link to="/terms">Terms</Link>
+              <Link to="/refunds">Refunds</Link>
+            </nav>
           </div>
-
-          <p className="auth-legal">
-            {copyrightLine()}{" "}
-            <Link to="/app">Get the app</Link> ·{" "}
-            <a href="/download/android">Android</a> · <a href="/download/ios">iOS</a> ·{" "}
-            <Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link> ·{" "}
-            <Link to="/refunds">Refunds</Link>
-          </p>
         </form>
 
         <aside className="auth-showcase">
@@ -696,17 +631,6 @@ function IconLink() {
       <path
         fill="currentColor"
         d="M10.6 13.4a4 4 0 0 1 0-5.66l2.12-2.12a4 4 0 0 1 5.66 5.66l-1.06 1.06-1.41-1.41 1.06-1.06a2 2 0 1 0-2.83-2.83l-2.12 2.12a2 2 0 0 0 0 2.83Zm2.8-2.8a4 4 0 0 1 0 5.66l-2.12 2.12a4 4 0 1 1-5.66-5.66l1.06-1.06 1.41 1.41-1.06 1.06a2 2 0 1 0 2.83 2.83l2.12-2.12a2 2 0 0 0 0-2.83Z"
-      />
-    </svg>
-  );
-}
-
-function IconShop() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden>
-      <path
-        fill="currentColor"
-        d="M4 6h16l-1 5H5Zm1 7h14v7H5Zm2 2v3h10v-3Z"
       />
     </svg>
   );

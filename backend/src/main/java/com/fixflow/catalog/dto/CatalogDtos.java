@@ -77,6 +77,7 @@ public final class CatalogDtos {
             @NotNull UUID brandId,
             @NotBlank @Size(max = 120) String name,
             @Size(max = 60) String modelCode,
+            @Size(max = 40) String variant,
             Integer releaseYear,
             @Schema(description = "Alternate names created alongside the model")
             List<String> aliases,
@@ -91,11 +92,19 @@ public final class CatalogDtos {
             UUID brandId,
             String brandName,
             String modelCode,
+            String variant,
             Integer releaseYear,
             int popularity,
             boolean active,
             List<AliasResponse> aliases,
             int compatibilityGroupCount
+    ) {
+    }
+
+    @Schema(name = "ResolveDeviceRequest")
+    public record ResolveDeviceRequest(
+            @NotBlank @Size(max = 160) String text,
+            @Size(max = 80) String defaultBrand
     ) {
     }
 
@@ -118,7 +127,9 @@ public final class CatalogDtos {
             Boolean verified,
             Boolean active,
             @Schema(description = "Device models to place in the group on creation")
-            List<UUID> deviceModelIds
+            List<UUID> deviceModelIds,
+            @Schema(description = "Counter strings such as Samsung A32 4G; resolved on create")
+            List<String> deviceTexts
     ) {
     }
 
@@ -133,7 +144,8 @@ public final class CatalogDtos {
             boolean verified,
             boolean active,
             List<GroupDeviceResponse> devices,
-            long linkedProductCount
+            long linkedProductCount,
+            Instant createdAt
     ) {
     }
 
@@ -142,6 +154,7 @@ public final class CatalogDtos {
             UUID deviceModelId,
             String deviceName,
             String brandName,
+            String variant,
             boolean primaryDevice
     ) {
     }
@@ -151,6 +164,39 @@ public final class CatalogDtos {
             @NotNull UUID deviceModelId,
             Boolean primaryDevice,
             @Size(max = 255) String note
+    ) {
+    }
+
+    @Schema(name = "CopyGroupRequest")
+    public record CopyGroupRequest(
+            UUID categoryId,
+            @Size(max = 160) String name
+    ) {
+    }
+
+    @Schema(name = "GroupMembershipRequest")
+    public record GroupMembershipRequest(
+            List<UUID> deviceModelIds,
+            List<String> deviceTexts
+    ) {
+    }
+
+    @Schema(name = "CompatibilityOverviewResponse")
+    public record CompatibilityOverviewResponse(
+            List<CategoryOverview> categories,
+            long totalGroups
+    ) {
+    }
+
+    @Schema(name = "CategoryOverview")
+    public record CategoryOverview(
+            UUID id,
+            String code,
+            String name,
+            String icon,
+            String color,
+            int sortOrder,
+            long groupCount
     ) {
     }
 

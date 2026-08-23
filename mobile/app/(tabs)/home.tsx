@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { cachedDashboard, cachedDevices, cachedVariants, searchDevices, searchVariants, syncNow, type CachedDashboard, type CachedVariant } from "../../lib/offline";
+import { CompatibilityHub } from "../../components/CompatibilityHub";
 import { money, useTheme } from "../../lib/theme";
 
 interface SearchHit {
@@ -77,6 +78,10 @@ export default function HomeScreen() {
     return () => clearTimeout(handle);
   }, [query]);
 
+  if (user?.catalogOnly) {
+    return <CompatibilityHub greeting={`Good evening, ${user.fullName.split(" ")[0]}.`} />;
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={styles.page}>
@@ -92,6 +97,10 @@ export default function HomeScreen() {
           </Text>
         ) : null}
         {offline ? <Text style={styles.banner}>Working offline from the last snapshot.</Text> : null}
+        <Pressable style={styles.hit} onPress={() => router.push("/compatibility")}>
+          <Text style={styles.hitTitle}>Universal lists</Text>
+          <Text style={styles.hitSub}>Tempered glass, OCA, displays, and the rest</Text>
+        </Pressable>
         <TextInput
           style={styles.search}
           placeholder="Search Realme 6…"

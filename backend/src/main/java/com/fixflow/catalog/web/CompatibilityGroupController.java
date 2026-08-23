@@ -3,7 +3,10 @@ package com.fixflow.catalog.web;
 import com.fixflow.billing.service.BillingService;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupRequest;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupResponse;
+import com.fixflow.catalog.dto.CatalogDtos.CompatibilityOverviewResponse;
+import com.fixflow.catalog.dto.CatalogDtos.CopyGroupRequest;
 import com.fixflow.catalog.dto.CatalogDtos.GroupDeviceRequest;
+import com.fixflow.catalog.dto.CatalogDtos.GroupMembershipRequest;
 import com.fixflow.catalog.service.CompatibilityGroupService;
 import com.fixflow.common.web.PageResponse;
 import com.fixflow.security.Authorize;
@@ -37,12 +40,20 @@ public class CompatibilityGroupController {
     private final CompatibilityGroupService compatibilityGroupService;
     private final BillingService billingService;
 
+    @GetMapping("/overview")
+    @PreAuthorize(Authorize.CATALOG_READ)
+    public CompatibilityOverviewResponse overview() {
+        billingService.requireCatalog(CurrentUser.shopId());
+        return compatibilityGroupService.overview(CurrentUser.shopId());
+    }
+
     @GetMapping
     @PreAuthorize(Authorize.CATALOG_READ)
     public PageResponse<CompatibilityGroupResponse> list(@RequestParam(required = false) UUID categoryId,
+                                                         @RequestParam(required = false) String q,
                                                          @PageableDefault(size = 50) Pageable pageable) {
         billingService.requireCatalog(CurrentUser.shopId());
-        return PageResponse.of(compatibilityGroupService.list(CurrentUser.shopId(), categoryId, pageable));
+        return PageResponse.of(compatibilityGroupService.list(CurrentUser.shopId(), categoryId, q, pageable));
     }
 
     @GetMapping("/{id}")
@@ -58,11 +69,26 @@ public class CompatibilityGroupController {
         return compatibilityGroupService.create(CurrentUser.shopId(), request);
     }
 
+    @PostMapping("/{id}/copy")
+    @PreAuthorize(Authorize.CATALOG_WRITE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public CompatibilityGroupResponse copy(@PathVariable UUID id,
+                                           @RequestBody(required = false) CopyGroupRequest request) {
+        return compatibilityGroupService.copy(CurrentUser.shopId(), id, request);
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize(Authorize.CATALOG_WRITE)
     public CompatibilityGroupResponse update(@PathVariable UUID id,
                                              @Valid @RequestBody CompatibilityGroupRequest request) {
         return compatibilityGroupService.update(CurrentUser.shopId(), id, request);
+    }
+
+    @PutMapping("/{id}/membership")
+    @PreAuthorize(Authorize.CATALOG_WRITE)
+    public CompatibilityGroupResponse replaceMembership(@PathVariable UUID id,
+                                                        @RequestBody GroupMembershipRequest request) {
+        return compatibilityGroupService.replaceMembership(CurrentUser.shopId(), id, request);
     }
 
     @PostMapping("/{id}/devices")
@@ -76,6 +102,13 @@ public class CompatibilityGroupController {
     @PreAuthorize(Authorize.CATALOG_WRITE)
     public CompatibilityGroupResponse removeDevice(@PathVariable UUID id, @PathVariable UUID deviceId) {
         return compatibilityGroupService.removeDevice(CurrentUser.shopId(), id, deviceId);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize(Authorize.CATALOG_WRITE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID id) {
+        compatibilityGroupService.delete(CurrentUser.shopId(), id);
     }
 
     @GetMapping("/{id}/history")

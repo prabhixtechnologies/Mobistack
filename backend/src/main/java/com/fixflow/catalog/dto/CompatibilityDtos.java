@@ -24,6 +24,7 @@ public final class CompatibilityDtos {
             UUID brandId,
             String brandName,
             String modelCode,
+            String variant,
             List<String> aliases
     ) {
     }
@@ -102,6 +103,7 @@ public final class CompatibilityDtos {
             UUID brandId,
             String brandName,
             String modelCode,
+            String variant,
             List<String> matchedAliases,
             int partsInStock,
             double score
