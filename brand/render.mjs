@@ -70,9 +70,6 @@ async function main() {
   for (const [density, launcherSize, foreground] of launcher) {
     const dir = join(androidRes, `mipmap-${density}`);
     ensure(dir);
-    await raster(iconSvg, join(dir, "ic_launcher.png"), launcherSize);
-    await raster(iconSvg, join(dir, "ic_launcher_round.png"), launcherSize);
-    await raster(iconSvg, join(dir, "ic_launcher_foreground.png"), foreground);
     await sharp(iconSvg, { density: 384 }).resize(launcherSize, launcherSize).webp({ quality: 92 }).toFile(join(dir, "ic_launcher.webp"));
     await sharp(iconSvg, { density: 384 }).resize(launcherSize, launcherSize).webp({ quality: 92 }).toFile(join(dir, "ic_launcher_round.webp"));
     await sharp(iconSvg, { density: 384 }).resize(foreground, foreground).webp({ quality: 92 }).toFile(join(dir, "ic_launcher_foreground.webp"));
