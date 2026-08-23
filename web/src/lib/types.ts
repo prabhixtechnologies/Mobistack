@@ -243,6 +243,59 @@ export interface InventoryTransaction {
   createdByName?: string;
 }
 
+/** `GET /api/v1/users` — mirrors `UserDtos.UserResponse`. */
+export interface WorkspaceUser {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  avatarUrl?: string;
+  active: boolean;
+  mustChangePassword: boolean;
+  lastLoginAt?: string;
+  roles: string[];
+  permissions: string[];
+}
+
+/** `GET /api/v1/roles` — mirrors `UserDtos.RoleResponse`. */
+export interface WorkspaceRole {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  systemRole: boolean;
+  seniority: number;
+  permissions: string[];
+}
+
+/** `GET /api/v1/auth/sessions` — mirrors `DeviceSessionService.SessionCard`. */
+export interface DeviceSession {
+  id: string;
+  deviceId: string;
+  userAgent?: string;
+  ipAddress?: string;
+  createdAt: string;
+  expiresAt: string;
+  current: boolean;
+}
+
+/** `GET /api/v1/system/health` — mirrors `SystemHealthController.SystemStatus`. */
+export interface SystemStatus {
+  status: string;
+  components: { name: string; status: string; detail?: string }[];
+  runtime: {
+    uptimeSeconds: number;
+    cpuUsage: number;
+    heapUsedBytes: number;
+    heapMaxBytes: number;
+    dbPoolActive: number;
+    dbPoolMax: number;
+    requestCount: number;
+    serverErrorCount: number;
+    meanRequestMillis: number;
+  };
+}
+
 export interface ApiError {
   code: string;
   message: string;

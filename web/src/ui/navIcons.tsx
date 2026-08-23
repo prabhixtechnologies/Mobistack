@@ -21,7 +21,23 @@ export type NavIconName =
   | "search"
   | "sun"
   | "moon"
-  | "logout";
+  | "logout"
+  | "lock"
+  | "key"
+  | "user"
+  | "chevronRight"
+  | "chevronDown"
+  | "panelLeft"
+  | "plus"
+  | "close"
+  | "check"
+  | "alert"
+  | "info"
+  | "refresh"
+  | "trash"
+  | "edit"
+  | "pulse"
+  | "server";
 
 export function NavIcon({ name }: { name: NavIconName }) {
   switch (name) {
@@ -71,6 +87,38 @@ export function NavIcon({ name }: { name: NavIconName }) {
       return <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5Z" />;
     case "logout":
       return <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4m4 10 5-5-5-5m5 5H10" />;
+    case "lock":
+      return <path d="M6 11h12v9a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1Zm2 0V8a4 4 0 0 1 8 0v3m-4 4v3" />;
+    case "key":
+      return <path d="M15 7a3 3 0 1 1-2.4 4.8L11 13H9v2H7v2H4v-3l5.2-5.2A3 3 0 0 1 15 7Z" />;
+    case "user":
+      return <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 9v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1" />;
+    case "chevronRight":
+      return <path d="m9 6 6 6-6 6" />;
+    case "chevronDown":
+      return <path d="m6 9 6 6 6-6" />;
+    case "panelLeft":
+      return <path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Zm6-1v16" />;
+    case "plus":
+      return <path d="M12 5v14M5 12h14" />;
+    case "close":
+      return <path d="M6 6l12 12M18 6 6 18" />;
+    case "check":
+      return <path d="m5 13 4 4L19 7" />;
+    case "alert":
+      return <path d="M12 9v4m0 3h.01M10.3 4.3 2.6 17.6A1.5 1.5 0 0 0 3.9 20h16.2a1.5 1.5 0 0 0 1.3-2.4L13.7 4.3a1.5 1.5 0 0 0-2.6 0Z" />;
+    case "info":
+      return <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-13h.01M11 12h1v5h1" />;
+    case "refresh":
+      return <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4" />;
+    case "trash":
+      return <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />;
+    case "edit":
+      return <path d="M4 20h4L20 8l-4-4L4 16Zm10-14 4 4" />;
+    case "pulse":
+      return <path d="M3 12h4l2-6 3 12 2.5-6H21" />;
+    case "server":
+      return <path d="M4 5h16v5H4Zm0 9h16v5H4Zm3-6.5h.01M7 16.5h.01" />;
   }
 }
 
