@@ -22,6 +22,14 @@ if (fs.existsSync(sdk)) {
   fs.writeFileSync(path.join(androidDir, "local.properties"), `sdk.dir=${sdkDir.replace(/:/g, "\\:")}\n`);
 }
 
+if (process.platform !== "win32") {
+  try {
+    fs.chmodSync(path.join(androidDir, "gradlew"), 0o755);
+  } catch {
+    /* best effort; git file mode is the real fix */
+  }
+}
+
 const result = spawnSync(gradlew, [variant], {
   cwd: androidDir,
   stdio: "inherit",
