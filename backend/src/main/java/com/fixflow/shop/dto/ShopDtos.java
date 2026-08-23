@@ -33,6 +33,9 @@ public final class ShopDtos {
             String joinCode,
             boolean requireCompatibilityApproval,
             int maxDevicesPerUser,
+            int extraScreens,
+            int screenSeats,
+            int screensInUse,
             Map<String, Object> settings
     ) {
     }

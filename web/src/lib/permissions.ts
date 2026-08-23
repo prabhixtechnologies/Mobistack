@@ -93,6 +93,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   "/users": "USER_READ",
   "/billing": "WORKSPACE_BILLING",
   "/health": "SETTINGS_READ",
+  "/settings": "SETTINGS_READ",
 };
 
 /**
@@ -100,7 +101,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
  * under a workspace is expected to declare a permission in `ROUTE_PERMISSIONS`;
  * see `routePermission`.
  */
-const OPEN_ROUTES = new Set(["/", "/settings", "/profile", "/notifications", "/support", "/workspaces", "/search"]);
+const OPEN_ROUTES = new Set(["/", "/profile", "/notifications", "/support", "/workspaces", "/search"]);
 
 /** `/admin` is platform-staff only and is gated on the `systemAdmin` flag, not a permission. */
 export const PLATFORM_ADMIN_ROUTES = new Set(["/admin"]);
@@ -135,6 +136,7 @@ const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   COMPATIBILITY_APPROVE: "Approve compatibility changes",
   WORKSPACE_BILLING: "Manage billing",
   USER_INVITE: "Invite people",
+  USER_WRITE: "Add, edit, and approve people",
   REPORT_EXPORT: "Export reports",
 };
 

@@ -33,6 +33,33 @@ public final class WorkspaceDtos {
     ) {
     }
 
+    @Schema(name = "JoinCheckoutResponse")
+    public record JoinCheckoutResponse(
+            UUID id,
+            @com.fasterxml.jackson.annotation.JsonProperty("order_id") String orderId,
+            long amount,
+            String currency,
+            String keyId,
+            String priceCode,
+            String gateway,
+            String shopName,
+            boolean alreadyPaid
+    ) {
+        public static JoinCheckoutResponse alreadyPaid(String shopName) {
+            return new JoinCheckoutResponse(null, null, 0, "INR", null, "WORKSPACE_JOIN", "PAID", shopName, true);
+        }
+    }
+
+    @Schema(name = "CompleteJoinRequest")
+    public record CompleteJoinRequest(
+            @NotBlank @Size(max = 16) String joinCode,
+            @com.fasterxml.jackson.annotation.JsonAlias({"razorpay_order_id", "order_id"}) String razorpayOrderId,
+            @com.fasterxml.jackson.annotation.JsonAlias({"razorpay_payment_id", "payment_id"}) String razorpayPaymentId,
+            @com.fasterxml.jackson.annotation.JsonAlias({"razorpay_signature", "signature"}) String razorpaySignature,
+            UUID orderId
+    ) {
+    }
+
     @Schema(name = "WorkspaceCard", description = "One tile on the My Workspaces screen")
     public record WorkspaceCard(
             UUID id,

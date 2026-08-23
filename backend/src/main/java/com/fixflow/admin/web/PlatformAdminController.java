@@ -3,8 +3,8 @@ package com.fixflow.admin.web;
 import com.fixflow.admin.service.PlatformAdminService;
 import com.fixflow.admin.service.PlatformAdminService.WorkspaceAdminCard;
 import com.fixflow.auth.service.DeviceSessionService;
-import com.fixflow.billing.domain.BillingOrder;
 import com.fixflow.billing.repository.BillingOrderRepository;
+import com.fixflow.billing.service.PlanService;
 import com.fixflow.flags.service.FeatureFlagService;
 import com.fixflow.flags.service.FeatureFlagService.FlagCard;
 import com.fixflow.presence.PresenceService;
@@ -42,6 +42,7 @@ public class PlatformAdminController {
     private final SupportService supportService;
     private final AppReleaseService appReleaseService;
     private final ShopRepository shopRepository;
+    private final PlanService planService;
 
     @GetMapping("/workspaces")
     public List<WorkspaceAdminCard> workspaces() {
@@ -76,9 +77,58 @@ public class PlatformAdminController {
     }
 
     @GetMapping("/billing/orders")
-    public List<BillingOrder> orders() {
+    public List<Map<String, Object>> orders() {
         platformAdminService.requireAdmin();
-        return billingOrderRepository.findAll(PageRequest.of(0, 80)).getContent();
+        return billingOrderRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 200)).stream()
+                .map(order -> {
+                    var shop = shopRepository.findById(order.getWorkspaceId()).orElse(null);
+                    return Map.<String, Object>ofEntries(
+                            Map.entry("id", order.getId()),
+                            Map.entry("shopId", order.getWorkspaceId()),
+                            Map.entry("shopName", shop == null ? "Unknown shop" : shop.getName()),
+                            Map.entry("priceCode", order.getPriceCode()),
+                            Map.entry("amount", order.getAmount()),
+                            Map.entry("currency", order.getCurrency()),
+                            Map.entry("status", order.getStatus().name()),
+                            Map.entry("gateway", order.getGateway()),
+                            Map.entry("createdAt", order.getCreatedAt()),
+                            Map.entry("paidAt", order.getUpdatedAt())
+                    );
+                })
+                .toList();
+    }
+
+    @GetMapping("/plan-features")
+    public List<PlanService.FeatureCard> planFeatures() {
+        platformAdminService.requireAdmin();
+        return planService.catalog();
+    }
+
+    @GetMapping("/plans")
+    public List<PlanService.PlanCard> plans() {
+        platformAdminService.requireAdmin();
+        return planService.listAll();
+    }
+
+    @PostMapping("/plans")
+    public PlanService.PlanCard createPlan(@RequestBody PlanService.PlanWrite body) {
+        platformAdminService.requireAdmin();
+        return planService.create(body);
+    }
+
+    @PutMapping("/plans/{id}")
+    public PlanService.PlanCard updatePlan(@PathVariable UUID id, @RequestBody PlanService.PlanWrite body) {
+        platformAdminService.requireAdmin();
+        return planService.update(id, body);
+    }
+
+    @PostMapping("/workspaces/{id}/plan")
+    public Map<String, Object> assignPlan(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+        platformAdminService.requireAdmin();
+        UUID planId = UUID.fromString(String.valueOf(body.get("planId")));
+        boolean complimentary = Boolean.parseBoolean(String.valueOf(body.getOrDefault("complimentary", false)));
+        planService.assign(id, planId, complimentary);
+        return Map.of("assigned", true);
     }
 
     @GetMapping("/live")
@@ -106,13 +156,15 @@ public class PlatformAdminController {
         return Map.of("revoked", deviceSessionService.revokeAll(userId));
     }
 
-    @PostMapping("/workspaces/{id}/device-limit")
+    @PostMapping({"/workspaces/{id}/screens", "/workspaces/{id}/device-limit"})
     public Shop deviceLimit(@PathVariable UUID id, @RequestBody Map<String, Integer> body) {
         platformAdminService.requireAdmin();
-        Shop shop = shopRepository.findById(id).orElseThrow();
-        int cap = Math.max(1, Math.min(20, body.getOrDefault("maxDevicesPerUser", 3)));
-        shop.setMaxDevicesPerUser(cap);
-        return shopRepository.save(shop);
+        Integer extra = body.get("extraScreens");
+        if (extra == null && body.get("maxDevicesPerUser") != null) {
+            extra = Math.max(0, body.get("maxDevicesPerUser") - 1);
+        }
+        deviceSessionService.setExtraScreens(id, extra == null ? 0 : extra);
+        return shopRepository.findById(id).orElseThrow();
     }
 
     @GetMapping("/support")

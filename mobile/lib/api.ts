@@ -50,6 +50,10 @@ export interface AuthUser {
   roles: string[];
   permissions: string[];
   paymentRequired?: boolean;
+  catalogOnly?: boolean;
+  features?: string[];
+  planName?: string | null;
+  periodEnd?: string | null;
   emailVerified?: boolean;
   phoneVerified?: boolean;
 }
@@ -121,6 +125,19 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   let response = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (response.status === 401 && path !== "/api/v1/auth/refresh") {
+    try {
+      const payload = (await response.clone().json()) as { code?: string };
+      if (payload.code === "SESSION_REPLACED") {
+        await clearSession();
+        throw new Error(payload.code === "SESSION_REPLACED"
+          ? "This account signed in on another screen."
+          : "Session ended");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("another screen")) {
+        throw error;
+      }
+    }
     const refreshToken = await readStore(REFRESH, LEGACY_REFRESH);
     if (refreshToken) {
       const refreshed = await fetch(`${API_BASE}/api/v1/auth/refresh`, {

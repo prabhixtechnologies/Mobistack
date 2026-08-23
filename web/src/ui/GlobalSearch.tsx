@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { useMediaQuery } from "../lib/media";
 import type { GlobalSearchResponse } from "../lib/types";
 import { Icon } from "./navIcons";
 
@@ -11,6 +12,7 @@ export function GlobalSearch() {
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const compact = useMediaQuery("(max-width: 720px)");
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -51,7 +53,7 @@ export function GlobalSearch() {
       <input
         ref={input}
         value={query}
-        placeholder="Search a phone, SKU, barcode…"
+        placeholder={compact ? "Search…" : "Search a phone, SKU, barcode…"}
         onChange={(event) => setQuery(event.target.value)}
         onFocus={() => result && setOpen(true)}
       />

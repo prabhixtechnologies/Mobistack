@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, clearSession, getRefreshToken, getStoredUser, getStoredWorkspaces, persistSession, persistUser, persistWorkspaces } from "./api";
 import { getDeviceId } from "./device";
+import { afterAuthPath } from "./plan";
 import type { AuthResponse, AuthenticatedUser, MyWorkspacesResponse, WorkspaceCard } from "./types";
 
 interface AuthContextValue {
@@ -98,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: "POST",
         });
         applySession(auth, setUser, setWorkspaces);
-        window.location.assign(auth.user.paymentRequired ? "/billing?activate=1" : "/");
+        window.location.assign(afterAuthPath(auth.user));
       },
       async createWorkspace(name, city) {
         const auth = await api<AuthResponse>("/api/v1/workspaces", {
@@ -106,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ name, city }),
         });
         applySession(auth, setUser, setWorkspaces);
-        window.location.assign(auth.user.paymentRequired ? "/billing?activate=1" : "/");
+        window.location.assign(afterAuthPath(auth.user));
       },
       async joinWorkspace(joinCode) {
         const card = await api<WorkspaceCard>("/api/v1/workspaces/join", {

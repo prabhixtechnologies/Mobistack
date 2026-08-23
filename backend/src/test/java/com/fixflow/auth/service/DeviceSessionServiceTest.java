@@ -1,12 +1,11 @@
 package com.fixflow.auth.service;
 
-import com.fixflow.auth.domain.RefreshToken;
 import com.fixflow.auth.repository.RefreshTokenRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
-import com.fixflow.config.FixFlowProperties;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.workspace.domain.MembershipStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +13,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,50 +33,83 @@ class DeviceSessionServiceTest {
     private ShopRepository shopRepository;
 
     private DeviceSessionService service;
-    private FixFlowProperties properties;
     private UUID userId;
     private UUID shopId;
 
     @BeforeEach
     void setUp() {
-        properties = new FixFlowProperties();
-        properties.getDevices().setDefaultMaxPerUser(2);
-        properties.getDevices().setOverLimit("revoke-oldest");
-        service = new DeviceSessionService(refreshTokenRepository, shopRepository, properties);
+        service = new DeviceSessionService(refreshTokenRepository, shopRepository);
         userId = UUID.randomUUID();
         shopId = UUID.randomUUID();
     }
 
     @Test
-    void reusesTheClientDeviceId() {
-        when(refreshTokenRepository.findByUserIdAndRevokedAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(eq(userId), any()))
-                .thenReturn(List.of());
-        String deviceId = service.register(userId, shopId, new AuthService.ClientInfo("tablet-1", "FixFlow", "10.0.0.4"));
+    void reusesTheClientDeviceIdAndEndsEveryOtherSession() {
+        when(refreshTokenRepository.existsByUserIdAndRevokedAtIsNullAndExpiresAtAfter(eq(userId), any()))
+                .thenReturn(true);
+        String deviceId = service.register(userId, shopId, new AuthService.ClientInfo("tablet-1", "MobiStack", "10.0.0.4"), false);
         assertThat(deviceId).isEqualTo("tablet-1");
-        verify(refreshTokenRepository).revokeByUserAndDevice(eq(userId), eq("tablet-1"), any());
+        verify(refreshTokenRepository).revokeAllForUser(eq(userId), any());
+        assertThat(service.isLive(userId, "tablet-1")).isTrue();
+        assertThat(service.isLive(userId, "phone-2")).isFalse();
     }
 
     @Test
-    void rejectsAFourthDeviceWhenPolicyIsReject() {
-        properties.getDevices().setOverLimit("reject");
+    void rejectsANewPersonWhenTheOnlyScreenIsTaken() {
         Shop shop = new Shop();
-        shop.setMaxDevicesPerUser(2);
+        shop.setExtraScreens(0);
         when(shopRepository.findById(shopId)).thenReturn(Optional.of(shop));
-        when(refreshTokenRepository.findByUserIdAndRevokedAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(eq(userId), any()))
-                .thenReturn(List.of(token("phone-a"), token("phone-b")));
+        when(refreshTokenRepository.existsByUserIdAndRevokedAtIsNullAndExpiresAtAfter(eq(userId), any()))
+                .thenReturn(false);
+        when(refreshTokenRepository.countOtherSeatedUsers(eq(shopId), eq(userId), eq(MembershipStatus.ACTIVE), any()))
+                .thenReturn(1L);
 
         assertThatThrownBy(() -> service.register(userId, shopId,
-                new AuthService.ClientInfo("phone-c", "FixFlow", "10.0.0.8")))
+                new AuthService.ClientInfo("phone-c", "MobiStack", "10.0.0.8"), false))
                 .isInstanceOf(ApiException.class)
                 .extracting(ex -> ((ApiException) ex).getCode())
                 .isEqualTo(ErrorCode.DEVICE_LIMIT_REACHED);
+        verify(refreshTokenRepository, never()).revokeAllForUser(eq(userId), any());
     }
 
-    private RefreshToken token(String deviceId) {
-        RefreshToken token = new RefreshToken();
-        token.setUserId(userId);
-        token.setDeviceId(deviceId);
-        token.setExpiresAt(Instant.now().plusSeconds(3600));
-        return token;
+    @Test
+    void letsTheSameUserMoveToAnotherScreen() {
+        when(refreshTokenRepository.existsByUserIdAndRevokedAtIsNullAndExpiresAtAfter(eq(userId), any()))
+                .thenReturn(true);
+
+        String deviceId = service.register(userId, shopId,
+                new AuthService.ClientInfo("counter-2", "MobiStack", "10.0.0.2"), false);
+
+        assertThat(deviceId).isEqualTo("counter-2");
+        verify(refreshTokenRepository).revokeAllForUser(eq(userId), any());
+        verify(refreshTokenRepository, never()).countOtherSeatedUsers(any(), any(), any(), any());
+    }
+
+    @Test
+    void lapsedExtraScreensDoNotCountAsSeats() {
+        Shop shop = new Shop();
+        shop.setExtraScreens(2);
+        shop.setExtraScreensPeriodEnd(Instant.now().minusSeconds(90));
+        when(shopRepository.findById(shopId)).thenReturn(Optional.of(shop));
+        when(refreshTokenRepository.countSeatedUsers(eq(shopId), eq(MembershipStatus.ACTIVE), any()))
+                .thenReturn(1L);
+
+        var capacity = service.capacity(shopId);
+        assertThat(capacity.subscribed()).isEqualTo(2);
+        assertThat(capacity.extra()).isEqualTo(0);
+        assertThat(capacity.seats()).isEqualTo(1);
+        assertThat(capacity.live()).isFalse();
+    }
+
+    @Test
+    void platformStaffBypassTheShopSeatCap() {
+        when(refreshTokenRepository.existsByUserIdAndRevokedAtIsNullAndExpiresAtAfter(eq(userId), any()))
+                .thenReturn(false);
+
+        String deviceId = service.register(userId, shopId,
+                new AuthService.ClientInfo("admin-laptop", "MobiStack", "10.0.0.9"), true);
+
+        assertThat(deviceId).isEqualTo("admin-laptop");
+        verify(refreshTokenRepository).revokeAllForUser(eq(userId), any());
     }
 }

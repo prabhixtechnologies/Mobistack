@@ -20,7 +20,7 @@ import java.util.UUID;
 public class PlatformAdminService {
 
     public record WorkspaceAdminCard(UUID id, String name, String city, boolean active, long members,
-                                    int maxDevicesPerUser) {
+                                    int extraScreens, int screenSeats) {
     }
 
     private final UserRepository userRepository;
@@ -40,7 +40,7 @@ public class PlatformAdminService {
         return shopRepository.findAll().stream()
                 .map(shop -> new WorkspaceAdminCard(shop.getId(), shop.getName(), shop.getCity(), shop.isActive(),
                         membershipRepository.countByWorkspaceIdAndStatus(shop.getId(), MembershipStatus.ACTIVE),
-                        shop.getMaxDevicesPerUser()))
+                        shop.getExtraScreens(), shop.screenSeats()))
                 .toList();
     }
 

@@ -37,6 +37,11 @@ export default function MoreScreen() {
           <Text style={styles.ghostText}>Pay on the web console</Text>
         </Pressable>
       ) : null}
+      {user?.catalogOnly ? (
+        <Pressable style={styles.ghost} onPress={() => void Linking.openURL(`${BRAND.publicOrigin}/billing`)}>
+          <Text style={styles.ghostText}>Upgrade to the full shop</Text>
+        </Pressable>
+      ) : null}
 
       {active.length > 1 && (
         <View style={styles.block}>

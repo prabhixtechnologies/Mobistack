@@ -58,6 +58,10 @@ class BillingServiceTest {
     private UserRepository userRepository;
     @Mock
     private MailGateway mailGateway;
+    @Mock
+    private PlanService planService;
+    @Mock
+    private com.fixflow.auth.service.DeviceSessionService deviceSessionService;
 
     private BillingService billingService;
 
@@ -65,7 +69,7 @@ class BillingServiceTest {
     void setUp() {
         billingService = new BillingService(priceRepository, orderRepository, entitlementRepository,
                 webhookEventRepository, auditService, environment, razorpayGateway, notificationService,
-                shopRepository, userRepository, mailGateway);
+                shopRepository, userRepository, mailGateway, planService, deviceSessionService);
     }
 
     @Test
@@ -109,20 +113,79 @@ class BillingServiceTest {
 
         assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
         assertThat(captured.getGatewayPaymentId()).isEqualTo("pay_1");
-        verify(entitlementRepository, org.mockito.Mockito.atLeastOnce()).save(any());
+        verify(planService).activateFromOrder(captured);
+        verify(deviceSessionService, never()).addExtraScreen(any());
+    }
+
+    @Test
+    void extraScreenPaymentAddsASeatWithoutChangingThePlan() {
+        UUID workspaceId = UUID.randomUUID();
+        BillingOrder order = pendingRazorpayOrder(workspaceId, "order_screen");
+        order.setPriceCode("EXTRA_SCREEN");
+        order.setPurpose("EXTRA_SCREEN");
+        when(orderRepository.findByGatewayOrderIdAndWorkspaceId("order_screen", workspaceId))
+                .thenReturn(Optional.of(order));
+        when(razorpayGateway.verifyCheckoutSignature("order_screen", "pay_1", "good-sig")).thenReturn(true);
+        when(deviceSessionService.addExtraScreen(workspaceId)).thenReturn(1);
+
+        BillingOrder captured = billingService.verifyPayment(workspaceId,
+                new BillingService.VerifyPaymentRequest("order_screen", "pay_1", "good-sig"));
+
+        assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        verify(deviceSessionService).addExtraScreen(workspaceId);
+        verify(planService, never()).activateFromOrder(any());
+    }
+
+    @Test
+    void extraScreenRenewalExtendsTheMonthWithoutAddingASeat() {
+        UUID workspaceId = UUID.randomUUID();
+        BillingOrder order = pendingRazorpayOrder(workspaceId, "order_renew");
+        order.setPriceCode("EXTRA_SCREEN_RENEW");
+        order.setPurpose("EXTRA_SCREEN_RENEW");
+        when(orderRepository.findByGatewayOrderIdAndWorkspaceId("order_renew", workspaceId))
+                .thenReturn(Optional.of(order));
+        when(razorpayGateway.verifyCheckoutSignature("order_renew", "pay_1", "good-sig")).thenReturn(true);
+        when(deviceSessionService.renewExtraScreens(workspaceId)).thenReturn(2);
+
+        BillingOrder captured = billingService.verifyPayment(workspaceId,
+                new BillingService.VerifyPaymentRequest("order_renew", "pay_1", "good-sig"));
+
+        assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
+        verify(deviceSessionService).renewExtraScreens(workspaceId);
+        verify(deviceSessionService, never()).addExtraScreen(any());
+        verify(planService, never()).activateFromOrder(any());
     }
 
     @Test
     void requireBlocksWhenSalesEntitlementIsMissing() {
         UUID workspaceId = UUID.randomUUID();
-        when(entitlementRepository.findByWorkspaceIdAndCode(workspaceId, "SALES"))
+        when(entitlementRepository.findByWorkspaceIdAndCode(any(), any()))
                 .thenReturn(Optional.empty());
+        when(planService.hasLiveAccess(workspaceId)).thenReturn(false);
+        when(planService.hasFeature(any(), any())).thenReturn(false);
 
         assertThat(billingService.paymentRequired(workspaceId)).isTrue();
+        assertThat(billingService.catalogOnly(workspaceId)).isFalse();
         assertThatThrownBy(() -> billingService.require(workspaceId, "SALES"))
                 .isInstanceOf(ApiException.class)
                 .extracting(ex -> ((ApiException) ex).getCode())
                 .isEqualTo(ErrorCode.ENTITLEMENT_DENIED);
+    }
+
+    @Test
+    void catalogPlanUnlocksLookupWithoutTheFullShop() {
+        UUID workspaceId = UUID.randomUUID();
+        when(entitlementRepository.findByWorkspaceIdAndCode(workspaceId, "SALES"))
+                .thenReturn(Optional.empty());
+        when(planService.hasLiveAccess(workspaceId)).thenReturn(true);
+        when(planService.hasFeature(workspaceId, "COMPATIBILITY")).thenReturn(true);
+        when(planService.hasFeature(workspaceId, "SALES")).thenReturn(false);
+        when(planService.hasFeature(workspaceId, "DASHBOARD")).thenReturn(false);
+
+        assertThat(billingService.paymentRequired(workspaceId)).isFalse();
+        assertThat(billingService.catalogOnly(workspaceId)).isTrue();
+        assertThatThrownBy(() -> billingService.require(workspaceId, "SALES"))
+                .isInstanceOf(ApiException.class);
     }
 
     @Test

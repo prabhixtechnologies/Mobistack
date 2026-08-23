@@ -56,7 +56,40 @@ export function DataTable<T>({
 
   if (loading && !rows) {
     return (
-      <table className="table">
+      <div className="table-scroll">
+        <table className="table">
+          <thead>
+            <tr>
+              {visible.map((column) => (
+                <th key={column.key} style={{ width: column.width, textAlign: column.align }}>
+                  {column.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: skeletonRows }, (_, index) => (
+              <tr key={index}>
+                {visible.map((column) => (
+                  <td key={column.key}>
+                    <div className="skeleton" />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (!rows?.length) {
+    return <EmptyState icon={empty?.icon} title={empty?.title ?? "Nothing here yet"} hint={empty?.hint} action={empty?.action} />;
+  }
+
+  return (
+    <div className="table-scroll">
+      <table className={`table${loading ? " table--refreshing" : ""}`}>
         <thead>
           <tr>
             {visible.map((column) => (
@@ -67,50 +100,21 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: skeletonRows }, (_, index) => (
-            <tr key={index}>
+          {rows.map((row) => (
+            <tr
+              key={rowKey(row)}
+              className={onRowClick ? "table__row--clickable" : undefined}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+            >
               {visible.map((column) => (
-                <td key={column.key}>
-                  <div className="skeleton" />
+                <td key={column.key} style={{ textAlign: column.align }}>
+                  {column.render(row)}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-    );
-  }
-
-  if (!rows?.length) {
-    return <EmptyState icon={empty?.icon} title={empty?.title ?? "Nothing here yet"} hint={empty?.hint} action={empty?.action} />;
-  }
-
-  return (
-    <table className={`table${loading ? " table--refreshing" : ""}`}>
-      <thead>
-        <tr>
-          {visible.map((column) => (
-            <th key={column.key} style={{ width: column.width, textAlign: column.align }}>
-              {column.header}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr
-            key={rowKey(row)}
-            className={onRowClick ? "table__row--clickable" : undefined}
-            onClick={onRowClick ? () => onRowClick(row) : undefined}
-          >
-            {visible.map((column) => (
-              <td key={column.key} style={{ textAlign: column.align }}>
-                {column.render(row)}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    </div>
   );
 }

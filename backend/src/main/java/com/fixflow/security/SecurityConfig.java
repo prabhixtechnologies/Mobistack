@@ -53,6 +53,7 @@ public class SecurityConfig {
             "/api/v1/auth/sso/google/start",
             "/api/v1/auth/sso/google",
             "/api/v1/public/**",
+            "/download/**",
             "/actuator/health/**"
     };
 

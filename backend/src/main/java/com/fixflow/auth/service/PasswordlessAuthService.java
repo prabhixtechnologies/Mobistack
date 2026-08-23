@@ -9,6 +9,7 @@ import com.fixflow.auth.dto.AuthDtos.EmailStartRequest;
 import com.fixflow.auth.dto.AuthDtos.MagicLinkConsumeRequest;
 import com.fixflow.auth.dto.AuthDtos.RegisterUserRequest;
 import com.fixflow.auth.dto.AuthDtos.SsoDevRequest;
+import com.fixflow.auth.repository.RefreshTokenRepository;
 import com.fixflow.auth.repository.UserIdentityRepository;
 import com.fixflow.auth.repository.UserTokenRepository;
 import com.fixflow.common.error.ApiException;
@@ -17,6 +18,7 @@ import com.fixflow.config.FixFlowProperties;
 import com.fixflow.security.jwt.JwtService;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
+import com.fixflow.workspace.repository.WorkspaceMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,8 @@ import java.util.UUID;
 public class PasswordlessAuthService {
 
     private final UserRepository userRepository;
+    private final WorkspaceMembershipRepository membershipRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final UserTokenRepository userTokenRepository;
     private final UserIdentityRepository identityRepository;
     private final JwtService jwtService;
@@ -67,8 +71,12 @@ public class PasswordlessAuthService {
 
     @Transactional
     public AuthResponse registerUser(RegisterUserRequest request, AuthService.ClientInfo client) {
-        if (userRepository.existsByEmail(request.email())) {
-            throw ApiException.alreadyExists("An account with this email already exists.");
+        User existing = userRepository.findWithRolesByEmail(request.email()).orElse(null);
+        if (existing != null) {
+            if (existing.isSystemAdmin() || membershipRepository.existsByUserId(existing.getId())) {
+                throw ApiException.alreadyExists("This email already has an account. Sign in instead.");
+            }
+            return recycleOrphanAccount(existing, request, client);
         }
         User user = new User();
         user.setFullName(request.fullName().trim());
@@ -77,6 +85,26 @@ public class PasswordlessAuthService {
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setEmailVerified(true);
         userRepository.save(user);
+        return authService.sessionFor(user, client);
+    }
+
+    /**
+     * A shop deleted their last membership but the login row was left behind.
+     * Creating an account with that email reuses the row with the new password.
+     */
+    private AuthResponse recycleOrphanAccount(User user, RegisterUserRequest request, AuthService.ClientInfo client) {
+        user.setFullName(request.fullName().trim());
+        user.setPhone(request.phone());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setActive(true);
+        user.setFailedLogins(0);
+        user.setLockedUntil(null);
+        user.setShopId(null);
+        user.setMustChangePassword(false);
+        user.setEmailVerified(true);
+        user.getRoles().clear();
+        userRepository.save(user);
+        refreshTokenRepository.revokeAllForUser(user.getId(), Instant.now());
         return authService.sessionFor(user, client);
     }
 

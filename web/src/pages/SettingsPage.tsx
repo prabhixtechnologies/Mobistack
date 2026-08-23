@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { BRAND, copyrightLine } from "../lib/brand";
+import { Link } from "react-router-dom";
 import { PageHeader } from "../ui/PageHeader";
 
 interface Shop {
@@ -16,7 +17,9 @@ interface Shop {
   timezone: string;
   joinCode?: string;
   requireCompatibilityApproval?: boolean;
-  maxDevicesPerUser?: number;
+  extraScreens?: number;
+  screenSeats?: number;
+  screensInUse?: number;
 }
 
 export function SettingsPage() {
@@ -76,17 +79,18 @@ export function SettingsPage() {
           <span className="faint">Join code</span>
           <input className="field" value={shop.joinCode ?? ""} readOnly />
         </label>
-        <label className="stack">
-          <span className="faint">Max devices per user</span>
-          <input
-            className="field"
-            type="number"
-            min={1}
-            max={20}
-            value={shop.maxDevicesPerUser ?? 3}
-            onChange={(e) => setShop({ ...shop, maxDevicesPerUser: Number(e.target.value) })}
-          />
-        </label>
+        <div className="stack">
+          <span className="faint">Screens</span>
+          <div>
+            {shop.screensInUse ?? 0} of {shop.screenSeats ?? 1} in use
+            {(shop.extraScreens ?? 0) > 0
+              ? (shop.screenSeats ?? 1) > 1
+                ? ` · ${shop.extraScreens} extra this month`
+                : ` · ${shop.extraScreens} extra lapsed this month`
+              : ""}
+          </div>
+          <Link to="/billing" className="auth-link">Extra screens are ₹50 each per month</Link>
+        </div>
         <label className="row">
           <input
             type="checkbox"

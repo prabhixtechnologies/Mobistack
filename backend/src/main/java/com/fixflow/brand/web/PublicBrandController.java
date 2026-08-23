@@ -1,6 +1,7 @@
 package com.fixflow.brand.web;
 
 import com.fixflow.config.FixFlowProperties;
+import com.fixflow.updates.service.AppBinaryService;
 import com.fixflow.updates.service.AppReleaseService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,6 +22,7 @@ public class PublicBrandController {
 
     private final FixFlowProperties properties;
     private final AppReleaseService appReleaseService;
+    private final AppBinaryService appBinaryService;
 
     @GetMapping("/brand")
     @SecurityRequirements
@@ -45,6 +47,11 @@ public class PublicBrandController {
         body.put("supportEmail", platform.getSupportEmail());
         body.put("supportPhone", platform.getSupportPhone());
         body.put("httpsRequired", platform.isRequireHttps());
+        var downloads = appBinaryService.catalog();
+        body.put("androidDownloadUrl", downloads.android().url());
+        body.put("iosDownloadUrl", downloads.ios().url());
+        body.put("androidDownloadAvailable", downloads.android().available());
+        body.put("iosDownloadAvailable", downloads.ios().available());
         return body;
     }
 

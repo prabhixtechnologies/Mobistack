@@ -56,6 +56,12 @@ web-build/
 .DS_Store
 Thumbs.db
 
+# ---- Published app packages (drop onto the server, do not commit) ----
+downloads/*.apk
+downloads/*.ipa
+downloads/*.aab
+!downloads/.gitkeep
+
 # ---- Logs & local data ----
 logs/
 *.log

@@ -89,10 +89,13 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
         if ("/api/v1/workspaces".equals(path) && ("GET".equals(method) || "POST".equals(method))) {
             return true;
         }
-        if ("/api/v1/workspaces/join".equals(path) && "POST".equals(method)) {
+        if (path.startsWith("/api/v1/workspaces/join") && "POST".equals(method)) {
             return true;
         }
-        return path.matches("/api/v1/workspaces/[0-9a-fA-F-]{36}/select") && "POST".equals(method);
+        if (path.matches("/api/v1/workspaces/[0-9a-fA-F-]{36}/select") && "POST".equals(method)) {
+            return true;
+        }
+        return path.matches("/api/v1/workspaces/[0-9a-fA-F-]{36}/join/cancel") && "POST".equals(method);
     }
 
     private static String pathOf(HttpServletRequest request) {

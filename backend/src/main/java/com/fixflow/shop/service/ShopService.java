@@ -6,6 +6,7 @@ import com.fixflow.common.error.ApiException;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.dto.ShopDtos.ShopResponse;
 import com.fixflow.shop.dto.ShopDtos.UpdateShopRequest;
+import com.fixflow.auth.service.DeviceSessionService;
 import com.fixflow.shop.repository.ShopRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class ShopService {
 
     private final ShopRepository shopRepository;
     private final AuditService auditService;
+    private final DeviceSessionService deviceSessionService;
 
     @Transactional(readOnly = true)
     public ShopResponse get(UUID shopId) {
@@ -53,10 +55,6 @@ public class ShopService {
         if (request.requireCompatibilityApproval() != null) {
             shop.setRequireCompatibilityApproval(request.requireCompatibilityApproval());
         }
-        if (request.maxDevicesPerUser() != null) {
-            int cap = Math.max(1, Math.min(20, request.maxDevicesPerUser()));
-            shop.setMaxDevicesPerUser(cap);
-        }
         if (request.settings() != null) {
             shop.setSettings(request.settings());
         }
@@ -73,10 +71,12 @@ public class ShopService {
     }
 
     private ShopResponse toResponse(Shop shop) {
+        var screens = deviceSessionService.capacity(shop.getId());
         return new ShopResponse(shop.getId(), shop.getName(), shop.getLegalName(), shop.getPhone(),
                 shop.getEmail(), shop.getAddressLine1(), shop.getAddressLine2(), shop.getCity(),
                 shop.getState(), shop.getPostalCode(), shop.getCountry(), shop.getGstNumber(),
                 shop.getCurrencyCode(), shop.getTimezone(), shop.getInvoicePrefix(), shop.getJoinCode(),
-                shop.isRequireCompatibilityApproval(), shop.getMaxDevicesPerUser(), shop.getSettings());
+                shop.isRequireCompatibilityApproval(), 1, screens.subscribed(), screens.seats(),
+                screens.inUse(), shop.getSettings());
     }
 }

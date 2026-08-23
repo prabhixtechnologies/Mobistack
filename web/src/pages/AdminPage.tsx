@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { api, money } from "../lib/api";
 import { PageHeader } from "../ui/PageHeader";
 
 interface Workspace {
@@ -8,7 +8,8 @@ interface Workspace {
   city?: string;
   active: boolean;
   members: number;
-  maxDevicesPerUser?: number;
+  extraScreens?: number;
+  screenSeats?: number;
 }
 
 interface Flag {
@@ -47,29 +48,81 @@ interface Release {
   notes?: string;
 }
 
+interface Plan {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  interval: string;
+  sortOrder: number;
+  active: boolean;
+  features: string[];
+}
+
+interface FeatureDef {
+  code: string;
+  label: string;
+  help: string;
+}
+
+interface PaymentRow {
+  id: string;
+  shopName: string;
+  priceCode: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+  paidAt?: string;
+}
+
+type AdminTab = "shops" | "plans" | "payments" | "live" | "support" | "releases";
+
+const emptyPlan = {
+  code: "",
+  name: "",
+  description: "",
+  amount: 50,
+  interval: "MONTHLY",
+  features: [] as string[],
+};
+
 export function AdminPage() {
-  const [tab, setTab] = useState<"shops" | "live" | "support" | "releases">("shops");
+  const [tab, setTab] = useState<AdminTab>("shops");
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [flags, setFlags] = useState<Flag[]>([]);
   const [live, setLive] = useState<LiveUser[]>([]);
   const [tickets, setTickets] = useState<Conversation[]>([]);
   const [releases, setReleases] = useState<Release[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [featureDefs, setFeatureDefs] = useState<FeatureDef[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [draft, setDraft] = useState(emptyPlan);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const [shopRows, flagRows, liveRows, ticketRows, releaseRows] = await Promise.all([
+    const [shopRows, flagRows, liveRows, ticketRows, releaseRows, planRows, featureRows, paymentRows] = await Promise.all([
       api<Workspace[]>("/api/v1/admin/workspaces"),
       api<Flag[]>("/api/v1/admin/feature-flags"),
       api<LiveUser[]>("/api/v1/admin/live"),
       api<Conversation[]>("/api/v1/admin/support"),
       api<Release[]>("/api/v1/admin/app-releases"),
+      api<Plan[]>("/api/v1/admin/plans"),
+      api<FeatureDef[]>("/api/v1/admin/plan-features"),
+      api<PaymentRow[]>("/api/v1/admin/billing/orders"),
     ]);
     setWorkspaces(shopRows);
     setFlags(flagRows);
     setLive(liveRows);
     setTickets(ticketRows);
     setReleases(releaseRows);
+    setPlans(planRows);
+    setFeatureDefs(featureRows);
+    setPayments(paymentRows);
   }
 
   useEffect(() => {
@@ -98,10 +151,10 @@ export function AdminPage() {
       <PageHeader
         kicker="Platform"
         title="Platform"
-        subtitle="Live users, device caps, support, and the native/OTA release gate."
+        subtitle="Plans, payments, live users, support, and the native/OTA release gate."
         actions={
         <div className="method-tabs">
-          {(["shops", "live", "support", "releases"] as const).map((id) => (
+          {(["shops", "plans", "payments", "live", "support", "releases"] as const).map((id) => (
             <button key={id} className={`method-tab ${tab === id ? "on" : ""}`} type="button" onClick={() => setTab(id)}>
               {id}
             </button>
@@ -123,18 +176,18 @@ export function AdminPage() {
                   </div>
                 </div>
                 <label className="row">
-                  Devices
+                  Extra screens
                   <input
                     className="field"
                     style={{ width: 72 }}
                     type="number"
-                    min={1}
-                    max={20}
-                    defaultValue={workspace.maxDevicesPerUser ?? 3}
+                    min={0}
+                    max={49}
+                    defaultValue={workspace.extraScreens ?? 0}
                     onBlur={(event) => {
-                      void api(`/api/v1/admin/workspaces/${workspace.id}/device-limit`, {
+                      void api(`/api/v1/admin/workspaces/${workspace.id}/screens`, {
                         method: "POST",
-                        body: JSON.stringify({ maxDevicesPerUser: Number(event.target.value) }),
+                        body: JSON.stringify({ extraScreens: Number(event.target.value) }),
                       });
                     }}
                   />
@@ -160,6 +213,143 @@ export function AdminPage() {
             ))}
           </div>
         </>
+      )}
+
+      {tab === "plans" && (
+        <div className="stack">
+          <form
+            className="card stack"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const body = {
+                code: draft.code,
+                name: draft.name,
+                description: draft.description,
+                amount: Number(draft.amount),
+                interval: draft.interval,
+                features: draft.features,
+                active: true,
+              };
+              const path = editingId ? `/api/v1/admin/plans/${editingId}` : "/api/v1/admin/plans";
+              void api(path, {
+                method: editingId ? "PUT" : "POST",
+                body: JSON.stringify(body),
+              })
+                .then(() => {
+                  setDraft(emptyPlan);
+                  setEditingId(null);
+                  return load();
+                })
+                .catch((err: Error) => setError(err.message));
+            }}
+          >
+            <strong>{editingId ? "Edit plan" : "Create a plan"}</strong>
+            <div className="grid-2">
+              <label className="stack">
+                <span className="faint">Name</span>
+                <input className="field" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required />
+              </label>
+              <label className="stack">
+                <span className="faint">Code</span>
+                <input className="field" value={draft.code} disabled={Boolean(editingId)} onChange={(event) => setDraft({ ...draft, code: event.target.value })} placeholder="FULL_SHOP" />
+              </label>
+              <label className="stack">
+                <span className="faint">Amount (₹)</span>
+                <input className="field" type="number" min={0} value={draft.amount} onChange={(event) => setDraft({ ...draft, amount: Number(event.target.value) })} />
+              </label>
+              <label className="stack">
+                <span className="faint">Interval</span>
+                <select className="select" value={draft.interval} onChange={(event) => setDraft({ ...draft, interval: event.target.value })}>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="ANNUAL">Annual</option>
+                  <option value="ONE_TIME">One time (31 days)</option>
+                </select>
+              </label>
+            </div>
+            <label className="stack">
+              <span className="faint">What the shop sees on this plan</span>
+              <p className="faint">Tick every screen this plan should unlock. Unticked features stay hidden.</p>
+            </label>
+            <div className="chips">
+              {featureDefs.map((feature) => {
+                const on = draft.features.includes(feature.code);
+                return (
+                  <button
+                    key={feature.code}
+                    className={`chip ${on ? "on" : ""}`}
+                    type="button"
+                    title={feature.help}
+                    onClick={() =>
+                      setDraft({
+                        ...draft,
+                        features: on
+                          ? draft.features.filter((code) => code !== feature.code)
+                          : [...draft.features, feature.code],
+                      })
+                    }
+                  >
+                    {feature.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="row">
+              <button className="btn" type="submit">{editingId ? "Save plan" : "Create plan"}</button>
+              {editingId && (
+                <button className="btn ghost" type="button" onClick={() => { setEditingId(null); setDraft(emptyPlan); }}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+          <div className="card tight">
+            {plans.filter((plan) => plan.features.length > 0).map((plan) => (
+              <div className="category-row" key={plan.id}>
+                <div>
+                  <div style={{ fontWeight: 650 }}>{plan.name} · {money.format(plan.amount)}</div>
+                  <div className="faint">{plan.code} · {plan.interval} · {plan.features.join(", ").toLowerCase()}</div>
+                </div>
+                <span className={`badge ${plan.active ? "GREEN" : "RED"}`}>{plan.active ? "ON" : "OFF"}</span>
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={() => {
+                    setEditingId(plan.id);
+                    setDraft({
+                      code: plan.code,
+                      name: plan.name,
+                      description: plan.description ?? "",
+                      amount: plan.amount,
+                      interval: plan.interval,
+                      features: plan.features,
+                    });
+                    setTab("plans");
+                  }}
+                >
+                  Edit
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "payments" && (
+        <div className="card tight">
+          {payments.length === 0 && <div className="muted">No payments across the platform yet.</div>}
+          {payments.map((payment) => (
+            <div className="category-row" key={payment.id}>
+              <div>
+                <div style={{ fontWeight: 650 }}>{payment.shopName}</div>
+                <div className="faint">
+                  {payment.priceCode.replaceAll("_", " ")} · {new Date(payment.paidAt ?? payment.createdAt).toLocaleString("en-IN")}
+                </div>
+              </div>
+              <span>{money.format(payment.amount)}</span>
+              <span className={`badge ${payment.status === "CAPTURED" ? "GREEN" : "ORANGE"}`}>{payment.status}</span>
+            </div>
+          ))}
+        </div>
       )}
 
       {tab === "live" && (

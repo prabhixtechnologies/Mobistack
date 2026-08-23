@@ -86,9 +86,9 @@ public class SupportBotService {
                     + "Google works when it is configured. Reset instructions go to your email.";
         }
         if (containsAny(lower, "device limit", "too many device", "signed in", "tablet", "session")) {
-            return "Each account has a device cap (default 3). Signing in on a new phone drops the oldest session "
-                    + "unless the shop is set to reject extras. Owners can change the cap in Settings. "
-                    + "Platform admins can revoke any session.";
+            return "The same login can only be open on one screen. Signing in somewhere else ends the first session. "
+                    + "Each shop includes one screen. Extra screens are ₹50 each per month on Billing. "
+                    + "Miss a month and those extra screens turn off. Platform admins can revoke any session.";
         }
         if (containsAny(lower, "update", "ota", "apk", "ipa", "version")) {
             return "JavaScript fixes go out over OTA on the production channel. When the native build is too old, "

@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAccess } from "../lib/access";
 import { useAuth } from "../lib/auth";
 import { allowedWhileUnpaid } from "../lib/navigation";
+import { afterAuthPath, allowedOnPlan } from "../lib/plan";
 import type { Permission } from "../lib/permissions";
 import { routePermission } from "../lib/permissions";
 import { ForbiddenPage } from "../pages/ForbiddenPage";
@@ -58,6 +59,10 @@ export function RequirePermission({ need }: { need?: Permission }) {
     ) : (
       <ForbiddenPage reason="unpaid" />
     );
+  }
+
+  if (user && !user.paymentRequired && !allowedOnPlan(pathname, user.features)) {
+    return <Navigate to={afterAuthPath(user)} replace />;
   }
 
   const required = need ?? routePermission(pathname);

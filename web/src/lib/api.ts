@@ -79,9 +79,19 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     let sessionExpired = true;
     try {
       const payload = (await response.clone().json()) as ApiError;
+      if (payload.code === "SESSION_REPLACED") {
+        clearSession();
+        if (!window.location.pathname.startsWith("/login")) {
+          window.location.assign("/login?reason=session");
+        }
+        await parseError(response);
+      }
       sessionExpired = !payload.code || payload.code === "UNAUTHENTICATED"
         || payload.code === "TOKEN_EXPIRED" || payload.code === "TOKEN_INVALID";
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && "code" in error) {
+        throw error;
+      }
       sessionExpired = true;
     }
     if (!sessionExpired) {

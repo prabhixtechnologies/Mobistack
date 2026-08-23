@@ -146,11 +146,11 @@ public class FixFlowProperties {
     @Getter
     @Setter
     public static class Devices {
-        private int defaultMaxPerUser = 3;
+        private int defaultMaxPerUser = 1;
         @Positive
-        private int absoluteMaxPerUser = 20;
-        /** revoke-oldest keeps the shop working; reject forces the user to drop a device. */
-        private String overLimit = "revoke-oldest";
+        private int absoluteMaxPerUser = 1;
+        /** Kept for config compatibility. Same-user overlap is always rejected. */
+        private String overLimit = "reject";
     }
 
     @Getter
@@ -189,7 +189,11 @@ public class FixFlowProperties {
     @Setter
     public static class Updates {
         private String expoUpdatesUrl = "";
-        private String androidDownloadUrl = "https://mobistack.prabhixtechnologies.com/app/android";
-        private String iosDownloadUrl = "https://mobistack.prabhixtechnologies.com/app/ios";
+        private String androidDownloadUrl = "https://mobistack.prabhixtechnologies.com/download/android";
+        private String iosDownloadUrl = "https://mobistack.prabhixtechnologies.com/download/ios";
+        /** File served at /download/android. Directory is also accepted. */
+        private String androidApkPath = "/var/mobistack/downloads/MobiStack.apk";
+        /** File served at /download/ios. Directory is also accepted. */
+        private String iosIpaPath = "/var/mobistack/downloads/MobiStack.ipa";
     }
 }

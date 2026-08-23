@@ -103,7 +103,13 @@ public class AppReleaseService {
     private AppRelease defaults(String platform) {
         AppRelease row = new AppRelease();
         row.setPlatform(platform);
-        row.setStoreUrl(properties.getPlatform().getPublicOrigin());
+        if ("ANDROID".equals(platform)) {
+            row.setStoreUrl(properties.getUpdates().getAndroidDownloadUrl());
+        } else if ("IOS".equals(platform)) {
+            row.setStoreUrl(properties.getUpdates().getIosDownloadUrl());
+        } else {
+            row.setStoreUrl(properties.getPlatform().getPublicOrigin());
+        }
         return row;
     }
 }

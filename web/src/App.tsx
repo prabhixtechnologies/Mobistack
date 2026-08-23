@@ -3,9 +3,10 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth";
 import { selectedWorkspaceId } from "./lib/types";
 import { AppShell } from "./ui/AppShell";
-import { BrandMark } from "./ui/BrandMark";
+import { BrandFooter, BrandMark } from "./ui/BrandMark";
 import { ThemeToggle } from "./ui/ThemeToggle";
 import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
+import { CompatibilityPage } from "./pages/CompatibilityPage";
 import { LoginPage } from "./pages/LoginPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
 
@@ -29,7 +30,6 @@ const DashboardPage = page(() => import("./pages/DashboardPage"), "DashboardPage
 const SearchPage = page(() => import("./pages/SearchPage"), "SearchPage");
 const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
 const InventoryPage = page(() => import("./pages/InventoryPage"), "InventoryPage");
-const CompatibilityPage = page(() => import("./pages/CompatibilityPage"), "CompatibilityPage");
 const MovementsPage = page(() => import("./pages/MovementsPage"), "MovementsPage");
 const SettingsPage = page(() => import("./pages/SettingsPage"), "SettingsPage");
 const SalesPage = page(() => import("./pages/SalesPage"), "SalesPage");
@@ -82,6 +82,7 @@ function LegalRoutes() {
       <Route path="/privacy" element={<LegalPage kind="privacy" />} />
       <Route path="/terms" element={<LegalPage kind="terms" />} />
       <Route path="/refunds" element={<LegalPage kind="refunds" />} />
+      <Route path="/app" element={<AppDownloadPage />} />
       <Route path="/app/:platform" element={<AppDownloadPage />} />
     </>
   );
@@ -90,7 +91,7 @@ function LegalRoutes() {
 function UnscopedWorkspaces() {
   const { logout } = useAuth();
   return (
-    <div>
+    <div className="workspaces-shell">
       <header className="app-header">
         <BrandMark compact inverse />
         <div className="app-header__actions">
@@ -100,7 +101,10 @@ function UnscopedWorkspaces() {
           </button>
         </div>
       </header>
-      <WorkspacesPage />
+      <div className="workspaces-shell__body">
+        <WorkspacesPage />
+      </div>
+      <BrandFooter />
     </div>
   );
 }

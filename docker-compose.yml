@@ -83,6 +83,10 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_AUTH: ${SMTP_AUTH:-true}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      FIXFLOW_ANDROID_APK_PATH: ${FIXFLOW_ANDROID_APK_PATH:-/var/mobistack/downloads/MobiStack.apk}
+      FIXFLOW_IOS_IPA_PATH: ${FIXFLOW_IOS_IPA_PATH:-/var/mobistack/downloads/MobiStack.ipa}
+    volumes:
+      - ${MOBISTACK_DOWNLOADS:-./downloads}:/var/mobistack/downloads:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/liveness | grep -q UP"]
       interval: 15s

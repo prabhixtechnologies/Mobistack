@@ -205,7 +205,7 @@ export function AccessControlPage() {
       <PageHeader
         kicker="Access control"
         title="Who can do what"
-        subtitle="Accounts in this workspace, the roles they hold, and the permissions each role carries."
+        subtitle="Assign Admin to let someone approve paid join requests. Admins have People edit permission; managers do not."
         actions={
           <PermissionGate need="USER_WRITE">
             <button className="btn" type="button" onClick={openCreate}>

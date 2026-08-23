@@ -4,9 +4,9 @@ import com.fixflow.auth.domain.RefreshToken;
 import com.fixflow.auth.repository.RefreshTokenRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
-import com.fixflow.config.FixFlowProperties;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.workspace.domain.MembershipStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,15 +14,21 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 public class DeviceSessionService {
+
+    public static final int INCLUDED_SCREENS = 1;
+    public static final int MAX_EXTRA_SCREENS = 49;
+    public static final String EXTRA_SCREEN_PRICE = "EXTRA_SCREEN";
+    public static final String EXTRA_SCREEN_RENEW = "EXTRA_SCREEN_RENEW";
 
     public record SessionCard(
             UUID id,
@@ -35,9 +41,16 @@ public class DeviceSessionService {
     ) {
     }
 
+    public record ScreenCapacity(int included, int extra, int subscribed, int seats, int inUse,
+                                 boolean live, Instant periodEnd) {
+        public boolean full() {
+            return inUse >= seats;
+        }
+    }
+
     private final RefreshTokenRepository refreshTokenRepository;
     private final ShopRepository shopRepository;
-    private final FixFlowProperties properties;
+    private final Map<UUID, String> liveDeviceByUser = new ConcurrentHashMap<>();
 
     public String resolveDeviceId(AuthService.ClientInfo client) {
         if (client != null && client.deviceId() != null && !client.deviceId().isBlank()) {
@@ -48,35 +61,49 @@ public class DeviceSessionService {
     }
 
     /**
-     * One live refresh token per device. If the account is at the shop cap,
-     * either drop the oldest device or refuse the new sign-in.
+     * One live session per user. A second sign-in on another screen ends the
+     * first. A shop may only have as many different people signed in as it has
+     * paid screen seats (one included, plus ₹50 extras).
      */
     @Transactional
-    public String register(UUID userId, UUID shopId, AuthService.ClientInfo client) {
+    public String register(UUID userId, UUID shopId, AuthService.ClientInfo client, boolean bypassSeatLimit) {
         String deviceId = resolveDeviceId(client);
         Instant now = Instant.now();
-        refreshTokenRepository.revokeByUserAndDevice(userId, deviceId, now);
+        boolean alreadySeated = refreshTokenRepository
+                .existsByUserIdAndRevokedAtIsNullAndExpiresAtAfter(userId, now);
 
-        int max = resolveMax(shopId);
-        List<RefreshToken> active = refreshTokenRepository
-                .findByUserIdAndRevokedAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(userId, now);
-        Set<String> otherDevices = new LinkedHashSet<>();
-        for (RefreshToken token : active) {
-            String id = token.getDeviceId() == null || token.getDeviceId().isBlank() ? token.getId().toString()
-                    : token.getDeviceId();
-            if (!deviceId.equals(id)) {
-                otherDevices.add(id);
-            }
-        }
-        if (otherDevices.size() >= max) {
-            if ("reject".equalsIgnoreCase(properties.getDevices().getOverLimit())) {
+        if (shopId != null && !bypassSeatLimit && !alreadySeated) {
+            ScreenCapacity capacity = capacity(shopId);
+            long others = refreshTokenRepository.countOtherSeatedUsers(
+                    shopId, userId, MembershipStatus.ACTIVE, now);
+            if (others >= capacity.seats()) {
                 throw new ApiException(ErrorCode.DEVICE_LIMIT_REACHED,
-                        "This account is already signed in on " + max + " devices. Sign out one of them first.");
+                        "This shop has " + capacity.seats() + " screen"
+                                + (capacity.seats() == 1 ? "" : "s")
+                                + " and they are all signed in. Buy another screen for ₹50/month on Billing.");
             }
-            String oldest = otherDevices.iterator().next();
-            refreshTokenRepository.revokeByUserAndDevice(userId, oldest, now);
         }
+
+        refreshTokenRepository.revokeAllForUser(userId, now);
+        liveDeviceByUser.put(userId, deviceId);
         return deviceId;
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isLive(UUID userId, String deviceId) {
+        if (userId == null || deviceId == null || deviceId.isBlank()) {
+            return true;
+        }
+        String known = liveDeviceByUser.get(userId);
+        if (known != null) {
+            return known.equals(deviceId);
+        }
+        boolean live = refreshTokenRepository.existsByUserIdAndDeviceIdAndRevokedAtIsNullAndExpiresAtAfter(
+                userId, deviceId, Instant.now());
+        if (live) {
+            liveDeviceByUser.put(userId, deviceId);
+        }
+        return live;
     }
 
     @Transactional(readOnly = true)
@@ -100,29 +127,91 @@ public class DeviceSessionService {
         }
         token.setRevokedAt(Instant.now());
         refreshTokenRepository.save(token);
+        forgetIfMatch(userId, token.getDeviceId());
     }
 
     @Transactional
     public int revokeUserDevice(UUID userId, String deviceId) {
-        return refreshTokenRepository.revokeByUserAndDevice(userId, deviceId, Instant.now());
+        int revoked = refreshTokenRepository.revokeByUserAndDevice(userId, deviceId, Instant.now());
+        forgetIfMatch(userId, deviceId);
+        return revoked;
     }
 
     @Transactional
     public int revokeAll(UUID userId) {
+        liveDeviceByUser.remove(userId);
         return refreshTokenRepository.revokeAllForUser(userId, Instant.now());
     }
 
-    public int resolveMax(UUID shopId) {
-        int fallback = properties.getDevices().getDefaultMaxPerUser();
-        int absolute = properties.getDevices().getAbsoluteMaxPerUser();
-        int resolved = fallback;
-        if (shopId != null) {
-            resolved = shopRepository.findById(shopId).map(Shop::getMaxDevicesPerUser).orElse(fallback);
+    @Transactional(readOnly = true)
+    public ScreenCapacity capacity(UUID shopId) {
+        if (shopId == null) {
+            return new ScreenCapacity(INCLUDED_SCREENS, 0, 0, INCLUDED_SCREENS, 0, false, null);
         }
-        if (resolved < 1) {
-            resolved = 1;
+        Shop shop = shopRepository.findById(shopId).orElse(null);
+        int subscribed = shop == null ? 0 : Math.max(0, shop.getExtraScreens());
+        int extra = shop == null ? 0 : shop.liveExtraScreens();
+        int seats = INCLUDED_SCREENS + extra;
+        int inUse = (int) refreshTokenRepository.countSeatedUsers(shopId, MembershipStatus.ACTIVE, Instant.now());
+        Instant periodEnd = shop == null ? null : shop.getExtraScreensPeriodEnd();
+        return new ScreenCapacity(INCLUDED_SCREENS, extra, subscribed, seats, inUse, extra > 0, periodEnd);
+    }
+
+    @Transactional
+    public int addExtraScreen(UUID shopId) {
+        Shop shop = requireShop(shopId);
+        if (!shop.extraScreensLive() && shop.getExtraScreens() > 0) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "This month's extra screens have lapsed. Pay this month to turn them back on, then add another.");
         }
-        return Math.min(resolved, absolute);
+        if (shop.getExtraScreens() >= MAX_EXTRA_SCREENS) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "This shop already has the maximum number of screens.");
+        }
+        shop.setExtraScreens(shop.getExtraScreens() + 1);
+        shop.setMaxDevicesPerUser(1);
+        if (shop.getExtraScreensPeriodEnd() == null || !shop.getExtraScreensPeriodEnd().isAfter(Instant.now())) {
+            shop.setExtraScreensPeriodEnd(Instant.now().plus(31, ChronoUnit.DAYS));
+        }
+        shopRepository.save(shop);
+        return shop.getExtraScreens();
+    }
+
+    @Transactional
+    public int renewExtraScreens(UUID shopId) {
+        Shop shop = requireShop(shopId);
+        if (shop.getExtraScreens() < 1) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "This shop has no extra screens to renew. Add one first.");
+        }
+        Instant now = Instant.now();
+        Instant current = shop.getExtraScreensPeriodEnd();
+        Instant base = current != null && current.isAfter(now) ? current : now;
+        shop.setExtraScreensPeriodEnd(base.plus(31, ChronoUnit.DAYS));
+        shop.setMaxDevicesPerUser(1);
+        shopRepository.save(shop);
+        return shop.getExtraScreens();
+    }
+
+    @Transactional
+    public int setExtraScreens(UUID shopId, int extraScreens) {
+        Shop shop = requireShop(shopId);
+        int extra = Math.max(0, Math.min(MAX_EXTRA_SCREENS, extraScreens));
+        shop.setExtraScreens(extra);
+        shop.setMaxDevicesPerUser(1);
+        if (extra == 0) {
+            shop.setExtraScreensPeriodEnd(null);
+        }
+        shopRepository.save(shop);
+        return extra;
+    }
+
+    private Shop requireShop(UUID shopId) {
+        return shopRepository.findById(shopId)
+                .orElseThrow(() -> ApiException.notFound("Shop", shopId));
+    }
+
+    private void forgetIfMatch(UUID userId, String deviceId) {
+        liveDeviceByUser.compute(userId, (id, current) ->
+                current != null && current.equals(deviceId) ? null : current);
     }
 
     private static String sha256(String value) {

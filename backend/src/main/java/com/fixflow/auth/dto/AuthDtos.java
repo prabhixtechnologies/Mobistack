@@ -137,7 +137,12 @@ public final class AuthDtos {
             boolean systemAdmin,
             boolean emailVerified,
             boolean phoneVerified,
-            boolean paymentRequired
+            boolean paymentRequired,
+            boolean catalogOnly,
+            java.util.List<String> features,
+            String planCode,
+            String planName,
+            java.time.Instant periodEnd
     ) {
     }
 

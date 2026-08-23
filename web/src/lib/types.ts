@@ -37,6 +37,11 @@ export interface AuthenticatedUser {
   emailVerified?: boolean;
   phoneVerified?: boolean;
   paymentRequired?: boolean;
+  catalogOnly?: boolean;
+  features?: string[];
+  planCode?: string | null;
+  planName?: string | null;
+  periodEnd?: string | null;
 }
 
 export interface AuthResponse {

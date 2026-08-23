@@ -308,8 +308,9 @@ public class AuthService {
     }
 
     private AuthResponse issueTokens(User user, UserPrincipal principal, ClientInfo client) {
-        String deviceId = deviceSessionService.register(user.getId(), principal.getShopId(), client);
-        String accessToken = jwtService.createAccessToken(principal);
+        String deviceId = deviceSessionService.register(
+                user.getId(), principal.getShopId(), client, user.isSystemAdmin());
+        String accessToken = jwtService.createAccessToken(principal, deviceId);
 
         String rawRefresh = jwtService.generateRefreshToken();
         RefreshToken refreshToken = new RefreshToken();
@@ -345,11 +346,20 @@ public class AuthService {
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
         UUID workspaceId = shop == null ? null : shop.getId();
         String workspaceName = shop == null ? null : shop.getName();
+        boolean admin = user.isSystemAdmin();
+        boolean paymentRequired = workspaceId != null && !admin && billingService.paymentRequired(workspaceId);
+        boolean catalogOnly = workspaceId != null && !admin && billingService.catalogOnly(workspaceId);
+        java.util.List<String> features = admin
+                ? java.util.List.copyOf(com.fixflow.billing.domain.PlanCatalog.CODES)
+                : java.util.List.copyOf(billingService.features(workspaceId));
+        var plan = workspaceId == null || admin ? null : billingService.currentPlan(workspaceId);
+        var sub = workspaceId == null || admin ? null : billingService.subscription(workspaceId);
         return new AuthenticatedUser(user.getId(), workspaceId, workspaceName, workspaceId, workspaceName,
                 user.getFullName(), user.getEmail(), user.getPhone(), user.getAvatarUrl(),
                 principal.getRoles(), permissions, user.isMustChangePassword(), user.isSystemAdmin(),
-                user.isEmailVerified(), user.isPhoneVerified(),
-                workspaceId != null && !user.isSystemAdmin() && billingService.paymentRequired(workspaceId));
+                user.isEmailVerified(), user.isPhoneVerified(), paymentRequired, catalogOnly, features,
+                plan == null ? null : plan.code(), plan == null ? null : plan.name(),
+                sub == null ? null : sub.getPeriodEnd());
     }
 
     private static String truncate(String value, int max) {

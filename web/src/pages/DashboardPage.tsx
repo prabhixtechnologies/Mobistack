@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api, money, qty } from "../lib/api";
 import type { DashboardResponse } from "../lib/types";
@@ -17,6 +18,9 @@ function greeting(): string {
 export function DashboardPage() {
   const { user } = useAuth();
   const firstName = user?.fullName?.split(/\s+/)[0] ?? "there";
+  if (user && !user.features?.includes("DASHBOARD") && !user.systemAdmin) {
+    return <Navigate to={user.features?.includes("COMPATIBILITY") ? "/compatibility" : "/billing"} replace />;
+  }
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 

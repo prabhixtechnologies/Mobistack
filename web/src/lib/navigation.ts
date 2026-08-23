@@ -16,6 +16,8 @@ export interface NavItem {
   end?: boolean;
   /** Still reachable while the workspace subscription is unpaid. */
   allowUnpaid?: boolean;
+  /** Product feature that must be on the shop's paid plan. */
+  feature?: string;
 }
 
 export interface NavSection {
@@ -34,35 +36,35 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Counter",
     items: [
-      { to: "/", label: "Dashboard", icon: "home", tint: "rose", end: true },
-      { to: "/sales", label: "Sales", icon: "cart", tint: "green", need: "SALES_READ" },
-      { to: "/repairs", label: "Repairs", icon: "wrench", tint: "amber", need: "REPAIR_READ" },
-      { to: "/inventory", label: "Inventory", icon: "box", tint: "blue", need: "INVENTORY_READ" },
-      { to: "/purchases", label: "Purchases", icon: "truck", tint: "orange", need: "PURCHASE_READ" },
+      { to: "/", label: "Dashboard", icon: "home", tint: "rose", end: true, feature: "DASHBOARD" },
+      { to: "/sales", label: "Sales", icon: "cart", tint: "green", need: "SALES_READ", feature: "SALES" },
+      { to: "/repairs", label: "Repairs", icon: "wrench", tint: "amber", need: "REPAIR_READ", feature: "REPAIRS" },
+      { to: "/inventory", label: "Inventory", icon: "box", tint: "blue", need: "INVENTORY_READ", feature: "INVENTORY" },
+      { to: "/purchases", label: "Purchases", icon: "truck", tint: "orange", need: "PURCHASE_READ", feature: "PURCHASES" },
     ],
   },
   {
     label: "People",
     items: [
-      { to: "/customers", label: "Customers", icon: "users", tint: "violet", need: "CUSTOMER_READ" },
-      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan", need: "SUPPLIER_READ" },
-      { to: "/members", label: "Members", icon: "people", tint: "blue", need: "USER_READ" },
-      { to: "/users", label: "Access control", icon: "key", tint: "rose", need: "USER_READ" },
+      { to: "/customers", label: "Customers", icon: "users", tint: "violet", need: "CUSTOMER_READ", feature: "CUSTOMERS" },
+      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan", need: "SUPPLIER_READ", feature: "SUPPLIERS" },
+      { to: "/members", label: "Members", icon: "people", tint: "blue", need: "USER_READ", feature: "MEMBERS" },
+      { to: "/users", label: "Access control", icon: "key", tint: "rose", need: "USER_READ", feature: "MEMBERS" },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { to: "/compatibility", label: "Compatibility", icon: "link", tint: "violet", need: "CATALOG_READ" },
-      { to: "/import", label: "Import", icon: "upload", tint: "slate", need: "CATALOG_WRITE" },
+      { to: "/compatibility", label: "Compatibility", icon: "link", tint: "violet", need: "CATALOG_READ", feature: "COMPATIBILITY" },
+      { to: "/import", label: "Import", icon: "upload", tint: "slate", need: "CATALOG_WRITE", feature: "IMPORT" },
     ],
   },
   {
     label: "Insights",
     items: [
-      { to: "/reports", label: "Reports", icon: "chart", tint: "green", need: "REPORT_READ" },
-      { to: "/movements", label: "Movements", icon: "move", tint: "amber", need: "INVENTORY_READ" },
-      { to: "/audit", label: "Audit", icon: "shield", tint: "slate", need: "AUDIT_READ" },
+      { to: "/reports", label: "Reports", icon: "chart", tint: "green", need: "REPORT_READ", feature: "REPORTS" },
+      { to: "/movements", label: "Movements", icon: "move", tint: "amber", need: "INVENTORY_READ", feature: "MOVEMENTS" },
+      { to: "/audit", label: "Audit", icon: "shield", tint: "slate", need: "AUDIT_READ", feature: "AUDIT" },
     ],
   },
   {
@@ -70,8 +72,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: "/workspaces", label: "Workspaces", icon: "grid", tint: "violet", allowUnpaid: true },
       { to: "/billing", label: "Billing", icon: "card", tint: "green", need: "WORKSPACE_BILLING", allowUnpaid: true },
-      { to: "/health", label: "System health", icon: "pulse", tint: "cyan", need: "SETTINGS_READ" },
-      { to: "/settings", label: "Settings", icon: "settings", tint: "slate", allowUnpaid: true },
+      { to: "/health", label: "System health", icon: "pulse", tint: "cyan", need: "SETTINGS_READ", feature: "AUDIT" },
+      { to: "/settings", label: "Settings", icon: "settings", tint: "slate", need: "SETTINGS_READ", allowUnpaid: true },
     ],
   },
   {
@@ -130,13 +132,22 @@ export interface Crumb {
  * supplied by the page, so `/devices/9f3c…` reads "Dashboard / Devices / iPhone 13"
  * rather than leaking a raw key into the UI.
  */
-export function breadcrumbsFor(pathname: string, detailLabel?: string): Crumb[] {
-  if (pathname === "/") {
-    return [{ label: "Dashboard" }];
+export function breadcrumbsFor(
+  pathname: string,
+  detailLabel?: string,
+  options?: { homeTo?: string; homeLabel?: string },
+): Crumb[] {
+  const home = {
+    label: options?.homeLabel ?? "Dashboard",
+    to: options?.homeTo ?? "/",
+  };
+
+  if (pathname === home.to) {
+    return [{ label: home.label }];
   }
 
   const segments = pathname.split("/").filter(Boolean);
-  const crumbs: Crumb[] = [{ label: "Dashboard", to: "/" }];
+  const crumbs: Crumb[] = [{ label: home.label, to: home.to }];
   let accumulated = "";
 
   segments.forEach((segment, index) => {

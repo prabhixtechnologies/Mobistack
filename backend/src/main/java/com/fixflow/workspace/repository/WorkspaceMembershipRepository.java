@@ -32,9 +32,14 @@ public interface WorkspaceMembershipRepository extends JpaRepository<WorkspaceMe
     @EntityGraph(attributePaths = {"role"})
     Page<WorkspaceMembership> findByWorkspaceId(UUID workspaceId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"role", "role.permissions"})
+    List<WorkspaceMembership> findAllByWorkspaceIdAndStatus(UUID workspaceId, MembershipStatus status);
+
     long countByWorkspaceIdAndStatus(UUID workspaceId, MembershipStatus status);
 
     boolean existsByWorkspaceIdAndUserId(UUID workspaceId, UUID userId);
+
+    boolean existsByUserId(UUID userId);
 
     @Query("""
             select m from WorkspaceMembership m

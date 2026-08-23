@@ -29,6 +29,9 @@ export default function HomeScreen() {
         setDash(cached);
       }
       try {
+        if (user?.catalogOnly) {
+          return;
+        }
         const live = await api<CachedDashboard>("/api/v1/dashboard");
         if (!cancelled) {
           setDash(live);
@@ -44,7 +47,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [user?.workspaceId, user?.shopId]);
+  }, [user?.workspaceId, user?.shopId, user?.catalogOnly]);
 
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -83,6 +86,11 @@ export default function HomeScreen() {
             Payment is pending. Open the web console Billing page to activate this shop. Sales, repairs, and stock stay locked until then.
           </Text>
         ) : null}
+        {user?.catalogOnly ? (
+          <Text style={styles.banner}>
+            Compatibility plan. Search a phone to see parts that fit. The full shop unlocks on the monthly plan.
+          </Text>
+        ) : null}
         {offline ? <Text style={styles.banner}>Working offline from the last snapshot.</Text> : null}
         <TextInput
           style={styles.search}
@@ -110,32 +118,42 @@ export default function HomeScreen() {
           </View>
         ))}
 
+        {!user?.catalogOnly && (
         <View style={styles.grid}>
           <Tile label="Today’s sales" value={money(dash?.sales.todaySales ?? 0)} colors={colors} />
           <Tile label="Profit" value={money(dash?.sales.todayProfit ?? 0)} colors={colors} />
           <Tile label="Stock value" value={money(dash?.inventory.stockValueAtCost ?? 0)} colors={colors} />
           <Tile label="Low / out" value={`${dash?.inventory.lowStockCount ?? 0} / ${dash?.inventory.outOfStockCount ?? 0}`} colors={colors} />
         </View>
+        )}
 
-        <Text style={styles.section}>Alerts</Text>
-        {(dash?.alerts ?? []).map((alert) => (
-          <View key={alert.id} style={styles.card}>
-            <Text style={styles.hitTitle}>{alert.productName}</Text>
-            <Text style={styles.hitSub}>{alert.message}</Text>
-          </View>
-        ))}
-        {dash && dash.alerts.length === 0 && <Text style={styles.hitSub}>No stock emergencies this morning.</Text>}
+        {!user?.catalogOnly && (
+          <>
+            <Text style={styles.section}>Alerts</Text>
+            {(dash?.alerts ?? []).map((alert) => (
+              <View key={alert.id} style={styles.card}>
+                <Text style={styles.hitTitle}>{alert.productName}</Text>
+                <Text style={styles.hitSub}>{alert.message}</Text>
+              </View>
+            ))}
+            {dash && dash.alerts.length === 0 && <Text style={styles.hitSub}>No stock emergencies this morning.</Text>}
+          </>
+        )}
       </ScrollView>
 
-      <Pressable style={styles.fab} onPress={() => setFabOpen(!fabOpen)}>
-        <Text style={styles.fabPlus}>{fabOpen ? "×" : "+"}</Text>
-      </Pressable>
-      {fabOpen && (
-        <View style={styles.fabMenu}>
-          <FabAction label="Add stock" onPress={() => router.push("/inventory")} colors={colors} />
-          <FabAction label="New sale" onPress={() => router.push("/(tabs)/sales")} colors={colors} />
-          <FabAction label="New repair" onPress={() => router.push("/(tabs)/repairs")} colors={colors} />
-        </View>
+      {!user?.catalogOnly && (
+        <>
+          <Pressable style={styles.fab} onPress={() => setFabOpen(!fabOpen)}>
+            <Text style={styles.fabPlus}>{fabOpen ? "×" : "+"}</Text>
+          </Pressable>
+          {fabOpen && (
+            <View style={styles.fabMenu}>
+              <FabAction label="Add stock" onPress={() => router.push("/inventory")} colors={colors} />
+              <FabAction label="New sale" onPress={() => router.push("/(tabs)/sales")} colors={colors} />
+              <FabAction label="New repair" onPress={() => router.push("/(tabs)/repairs")} colors={colors} />
+            </View>
+          )}
+        </>
       )}
     </View>
   );

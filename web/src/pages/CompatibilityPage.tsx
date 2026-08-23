@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { useAccess } from "../lib/access";
 import { PageHeader } from "../ui/PageHeader";
-import type { DeviceSearchHit, GlobalSearchResponse, PageResponse } from "../lib/types";
+import type { DeviceSearchHit, GlobalSearchResponse, PageResponse, PartSearchHit } from "../lib/types";
 
 interface Group {
   id: string;
   name: string;
   categoryName?: string;
-  deviceCount?: number;
-  devices?: { deviceName: string }[];
+  devices?: { brandName?: string; deviceName: string }[];
 }
 
 interface ChangeRequest {
@@ -20,24 +20,34 @@ interface ChangeRequest {
 }
 
 export function CompatibilityPage() {
-  const [query, setQuery] = useState("realme 6");
+  const access = useAccess();
+  const canApprove = access.has("COMPATIBILITY_APPROVE");
+  const [query, setQuery] = useState("");
   const [hits, setHits] = useState<DeviceSearchHit[]>([]);
+  const [parts, setParts] = useState<PartSearchHit[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (query.trim().length < 2) {
       setHits([]);
+      setParts([]);
+      setSearching(false);
       return;
     }
     const handle = window.setTimeout(async () => {
+      setSearching(true);
       try {
         const result = await api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(query)}`);
-        setHits(result.devices);
+        setHits(result.devices ?? []);
+        setParts(result.parts ?? []);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Search failed");
+      } finally {
+        setSearching(false);
       }
     }, 140);
     return () => window.clearTimeout(handle);
@@ -45,12 +55,15 @@ export function CompatibilityPage() {
 
   useEffect(() => {
     api<PageResponse<Group>>("/api/v1/compatibility-groups?size=40")
-      .then((page) => setGroups(page.content))
-      .catch((err: Error) => setError(err.message));
+      .then((page) => setGroups(page.content ?? []))
+      .catch(() => undefined);
+    if (!canApprove) {
+      return;
+    }
     api<ChangeRequest[]>("/api/v1/compatibility-requests")
       .then(setRequests)
-      .catch((err: Error) => setError(err.message));
-  }, []);
+      .catch(() => undefined);
+  }, [canApprove]);
 
   async function decide(id: string, action: "approve" | "reject") {
     try {
@@ -63,9 +76,19 @@ export function CompatibilityPage() {
 
   return (
     <div className="page">
-      <PageHeader kicker="Catalog" title="Compatibility" subtitle="Type the phone the customer put on the counter. Everything that fits comes back with it." />
+      <PageHeader
+        kicker="Catalog"
+        title="Compatibility"
+        subtitle="Type the phone on the counter. Open it to see every part that fits, with stock and price."
+      />
       {error && <div className="error">{error}</div>}
-      <input className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Realme 6, iPhone 11, RMX2002…" />
+      <input
+        className="field"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Realme 6, iPhone 11, RMX2002…"
+        autoFocus
+      />
       <div className="card tight">
         {hits.map((device) => (
           <Link key={device.id} to={`/devices/${device.id}`} className="category-row">
@@ -76,12 +99,32 @@ export function CompatibilityPage() {
               <div className="faint">
                 {device.modelCode ?? "No factory code"}
                 {device.matchedAliases.length > 0 ? ` · ${device.matchedAliases.join(", ")}` : ""}
+                {device.partsInStock > 0 ? ` · ${device.partsInStock} in stock` : ""}
               </div>
             </div>
             <span className="badge neutral">Open</span>
           </Link>
         ))}
-        {hits.length === 0 && <div className="empty">Keep typing. Two characters is enough.</div>}
+        {parts.map((part) => (
+          <div key={part.variantId} className="category-row">
+            <div>
+              <div style={{ fontWeight: 650 }}>{part.productName}</div>
+              <div className="faint">
+                {[part.variantName, part.sku, part.categoryName].filter(Boolean).join(" · ")}
+              </div>
+            </div>
+            <span className="badge neutral">{part.availableQty} in stock</span>
+          </div>
+        ))}
+        {hits.length === 0 && parts.length === 0 && (
+          <div className="empty">
+            {searching
+              ? "Searching…"
+              : query.trim().length < 2
+                ? "Keep typing. Two characters is enough."
+                : "No matching phone or part in this shop yet."}
+          </div>
+        )}
       </div>
       {requests.length > 0 && (
         <section className="card tight">
@@ -97,16 +140,23 @@ export function CompatibilityPage() {
           ))}
         </section>
       )}
-      <section className="card tight">
-        {groups.map((group) => (
-          <div className="category-row" key={group.id}>
-            <div>
-              <div style={{ fontWeight: 650 }}>{group.name}</div>
-              <div className="faint">{group.categoryName} · {(group.devices ?? []).map((device) => device.deviceName).join(", ")}</div>
+      {groups.length > 0 && (
+        <section className="card tight">
+          {groups.map((group) => (
+            <div className="category-row" key={group.id}>
+              <div>
+                <div style={{ fontWeight: 650 }}>{group.name}</div>
+                <div className="faint">
+                  {[group.categoryName, (group.devices ?? [])
+                    .map((device) => [device.brandName, device.deviceName].filter(Boolean).join(" "))
+                    .filter(Boolean)
+                    .join(", ")].filter(Boolean).join(" · ")}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
-      </section>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

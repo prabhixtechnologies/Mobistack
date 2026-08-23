@@ -60,8 +60,22 @@ public class WorkspaceController {
         return authService.switchWorkspace(CurrentUser.userId(), card.id(), ClientRequests.clientInfo(http, null));
     }
 
+    @PostMapping("/join/checkout")
+    @Operation(summary = "Start the ₹50 join payment for one shop. Each shop is a separate payment.")
+    public com.fixflow.workspace.dto.WorkspaceDtos.JoinCheckoutResponse joinCheckout(
+            @Valid @RequestBody JoinWorkspaceRequest request) {
+        return workspaceAccessService.beginPaidJoin(CurrentUser.userId(), request.joinCode());
+    }
+
+    @PostMapping("/join/complete")
+    @Operation(summary = "Verify the join payment and file the request. Stays PENDING until an owner approves.")
+    public WorkspaceCard joinComplete(
+            @Valid @RequestBody com.fixflow.workspace.dto.WorkspaceDtos.CompleteJoinRequest request) {
+        return workspaceAccessService.completePaidJoin(CurrentUser.userId(), request);
+    }
+
     @PostMapping("/join")
-    @Operation(summary = "Request to join by code. Stays PENDING until an owner approves.")
+    @Operation(summary = "Request to join by code after the join fee is paid. Stays PENDING until an owner approves.")
     public WorkspaceCard join(@Valid @RequestBody JoinWorkspaceRequest request) {
         return workspaceAccessService.requestJoin(CurrentUser.userId(), request.joinCode());
     }
@@ -70,6 +84,13 @@ public class WorkspaceController {
     @Operation(summary = "Switch the selected workspace and issue a new access token")
     public AuthResponse select(@PathVariable UUID id, HttpServletRequest http) {
         return authService.switchWorkspace(CurrentUser.userId(), id, ClientRequests.clientInfo(http, null));
+    }
+
+    @PostMapping("/{id}/join/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Withdraw your own pending join request. The ₹50 stays on this shop.")
+    public void cancelJoin(@PathVariable UUID id) {
+        workspaceAccessService.cancelJoinRequest(CurrentUser.userId(), id);
     }
 
     @GetMapping("/{id}/members")
@@ -103,6 +124,14 @@ public class WorkspaceController {
     @PreAuthorize(Authorize.USER_WRITE)
     public WorkspaceMember remove(@PathVariable UUID id, @PathVariable UUID membershipId) {
         return workspaceAccessService.remove(id, membershipId);
+    }
+
+    @PostMapping("/{id}/members/{membershipId}/purge")
+    @PreAuthorize(Authorize.USER_WRITE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete a removed or rejected membership from this shop. Does not delete their account.")
+    public void purge(@PathVariable UUID id, @PathVariable UUID membershipId) {
+        workspaceAccessService.purge(id, membershipId);
     }
 
     @GetMapping("/{id}/invitations")

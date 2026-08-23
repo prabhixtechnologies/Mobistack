@@ -15,6 +15,10 @@ mobistack.prabhixtechnologies.com {
 		Content-Security-Policy "default-src 'self'; script-src 'self' https://*.razorpay.com https://*.rzp.io; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.razorpay.com https://*.rzp.io wss://*.razorpay.com; frame-src https: http:; child-src https: blob:; worker-src 'self' blob: https://*.razorpay.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://*.razorpay.com https://*.rzp.io"
 	}
 
+	handle /download/* {
+		encode off
+		reverse_proxy backend:8080
+	}
 	handle /api/* {
 		reverse_proxy backend:8080
 	}

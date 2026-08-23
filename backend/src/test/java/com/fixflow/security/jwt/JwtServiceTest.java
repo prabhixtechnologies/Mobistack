@@ -68,6 +68,13 @@ class JwtServiceTest {
     }
 
     @Test
+    void embedsTheDeviceIdSoAReplacedSessionCanBeRejected() {
+        String token = jwtService.createAccessToken(principal, "counter-1");
+        assertThat(jwtService.deviceIdFrom(token)).isEqualTo("counter-1");
+        assertThat(jwtService.parseAccessToken(token).getId()).isEqualTo(principal.getId());
+    }
+
+    @Test
     void hashesRefreshTokensConsistently() {
         String raw = jwtService.generateRefreshToken();
         assertThat(jwtService.hashRefreshToken(raw)).isEqualTo(jwtService.hashRefreshToken(raw));

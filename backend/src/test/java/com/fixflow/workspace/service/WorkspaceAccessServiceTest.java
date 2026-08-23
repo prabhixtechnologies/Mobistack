@@ -6,6 +6,9 @@ import com.fixflow.catalog.repository.ProductRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.UserPrincipal;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
 import com.fixflow.shop.service.ShopProvisioningService;
@@ -55,6 +58,8 @@ class WorkspaceAccessServiceTest {
     private AuditService auditService;
     @Mock
     private BillingService billingService;
+    @Mock
+    private com.fixflow.notify.NotificationService notificationService;
 
     @InjectMocks
     private WorkspaceAccessService service;
@@ -87,6 +92,11 @@ class WorkspaceAccessServiceTest {
         user.setShopId(workspaceA);
 
         shopA = shop(workspaceA, "Mobile Care Hub");
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -138,6 +148,7 @@ class WorkspaceAccessServiceTest {
     void joinByCodeStaysPendingAndDoesNotGrantAccess() {
         when(shopRepository.findByJoinCodeIgnoreCase("HUB-7K2P")).thenReturn(Optional.of(shopA));
         when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId)).thenReturn(Optional.empty());
+        when(billingService.consumeJoinPayment(userId, workspaceA)).thenReturn(true);
         when(roleRepository.findSystemRoleByCode("VIEWER")).thenReturn(Optional.of(viewerRole));
         when(membershipRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
@@ -150,6 +161,69 @@ class WorkspaceAccessServiceTest {
         assertThat(card.status()).isEqualTo(MembershipStatus.PENDING);
         assertThat(card.selected()).isFalse();
         assertThat(card.role()).isEqualTo("VIEWER");
+    }
+
+    @Test
+    void joinByCodeNotifiesActiveOwnersAndAdmins() {
+        UUID ownerId = UUID.randomUUID();
+        User owner = new User();
+        owner.setId(ownerId);
+        owner.setFullName("Shop Owner");
+        owner.setEmail("owner@shop.test");
+
+        WorkspaceMembership ownerMembership = membership(workspaceA, MembershipStatus.ACTIVE, ownerRole);
+        ownerMembership.setUserId(ownerId);
+
+        when(shopRepository.findByJoinCodeIgnoreCase("HUB-7K2P")).thenReturn(Optional.of(shopA));
+        when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId)).thenReturn(Optional.empty());
+        when(billingService.consumeJoinPayment(userId, workspaceA)).thenReturn(true);
+        when(roleRepository.findSystemRoleByCode("VIEWER")).thenReturn(Optional.of(viewerRole));
+        when(membershipRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.findById(ownerId)).thenReturn(Optional.of(owner));
+        when(shopRepository.findById(workspaceA)).thenReturn(Optional.of(shopA));
+        when(membershipRepository.countByWorkspaceIdAndStatus(workspaceA, MembershipStatus.ACTIVE)).thenReturn(1L);
+        when(productRepository.countByShopIdAndActiveTrue(workspaceA)).thenReturn(0L);
+        when(membershipRepository.findAllByWorkspaceIdAndStatus(workspaceA, MembershipStatus.ACTIVE))
+                .thenReturn(List.of(ownerMembership));
+
+        service.requestJoin(userId, "HUB-7K2P");
+
+        verify(notificationService).emit(
+                workspaceA,
+                ownerId,
+                "JOIN_REQUEST",
+                "owner@shop.test",
+                "Abhishek Sharma asked to join Mobile Care Hub",
+                "Abhishek Sharma (owner@prabhixtechnologies.com) paid and requested access. Switch to this shop, then open People to approve or reject.");
+    }
+
+    @Test
+    void cancelJoinRequestDeletesAPendingMembershipAndReleasesTheFee() {
+        WorkspaceMembership pending = membership(workspaceA, MembershipStatus.PENDING, viewerRole);
+        when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId)).thenReturn(Optional.of(pending));
+        when(shopRepository.findById(workspaceA)).thenReturn(Optional.of(shopA));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(membershipRepository.findAllByWorkspaceIdAndStatus(workspaceA, MembershipStatus.ACTIVE))
+                .thenReturn(List.of());
+
+        service.cancelJoinRequest(userId, workspaceA);
+
+        verify(membershipRepository).delete(pending);
+        verify(billingService).releaseJoinPayment(userId, workspaceA);
+    }
+
+    @Test
+    void cancelJoinRequestRejectsAnActiveMembership() {
+        when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId))
+                .thenReturn(Optional.of(membership(workspaceA, MembershipStatus.ACTIVE, ownerRole)));
+
+        assertThatThrownBy(() -> service.cancelJoinRequest(userId, workspaceA))
+                .isInstanceOf(ApiException.class)
+                .extracting(ex -> ((ApiException) ex).getCode())
+                .isEqualTo(ErrorCode.BUSINESS_RULE_VIOLATION);
+        verify(membershipRepository, never()).delete(any());
+        verify(billingService, never()).releaseJoinPayment(any(), any());
     }
 
     @Test
@@ -166,10 +240,24 @@ class WorkspaceAccessServiceTest {
     }
 
     @Test
+    void joinByCodeRequiresAPaidJoinFee() {
+        when(shopRepository.findByJoinCodeIgnoreCase("HUB-7K2P")).thenReturn(Optional.of(shopA));
+        when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId)).thenReturn(Optional.empty());
+        when(billingService.consumeJoinPayment(userId, workspaceA)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.requestJoin(userId, "HUB-7K2P"))
+                .isInstanceOf(ApiException.class)
+                .extracting(ex -> ((ApiException) ex).getCode())
+                .isEqualTo(ErrorCode.ENTITLEMENT_DENIED);
+        verify(membershipRepository, never()).save(any());
+    }
+
+    @Test
     void removedMemberCanRequestToJoinAgainAsPending() {
         WorkspaceMembership removed = membership(workspaceA, MembershipStatus.REMOVED, viewerRole);
         when(shopRepository.findByJoinCodeIgnoreCase("HUB-7K2P")).thenReturn(Optional.of(shopA));
         when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId)).thenReturn(Optional.of(removed));
+        when(billingService.consumeJoinPayment(userId, workspaceA)).thenReturn(true);
         when(membershipRepository.save(removed)).thenReturn(removed);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(shopRepository.findById(workspaceA)).thenReturn(Optional.of(shopA));
@@ -193,6 +281,73 @@ class WorkspaceAccessServiceTest {
         assertThat(principal.getShopId()).isEqualTo(workspaceA);
         assertThat(principal.getRoles()).containsExactly("STAFF");
         assertThat(principal.getRoles()).doesNotContain("OWNER");
+    }
+
+    @Test
+    void purgeDeletesTheLoginWhenTheyHaveNoOtherShop() {
+        UUID targetId = UUID.randomUUID();
+        User target = new User();
+        target.setId(targetId);
+        target.setFullName("Abhishek Singh");
+        target.setEmail("abhishek734891@gmail.com");
+        target.setShopId(workspaceA);
+
+        WorkspaceMembership removed = membership(workspaceA, MembershipStatus.REMOVED, staffRole);
+        removed.setUserId(targetId);
+        authenticateOwner();
+        when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId))
+                .thenReturn(Optional.of(membership(workspaceA, MembershipStatus.ACTIVE, ownerRole)));
+        when(shopRepository.findById(workspaceA)).thenReturn(Optional.of(shopA));
+        when(membershipRepository.findById(removed.getId())).thenReturn(Optional.of(removed));
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(membershipRepository.existsByUserId(targetId)).thenReturn(false);
+
+        service.purge(workspaceA, removed.getId());
+
+        verify(membershipRepository).delete(removed);
+        verify(userRepository).delete(target);
+    }
+
+    @Test
+    void purgeKeepsTheLoginWhenTheyStillBelongToAnotherShop() {
+        UUID targetId = UUID.randomUUID();
+        User target = new User();
+        target.setId(targetId);
+        target.setFullName("Abhishek Singh");
+        target.setEmail("abhishek734891@gmail.com");
+        target.setShopId(workspaceA);
+
+        WorkspaceMembership removed = membership(workspaceA, MembershipStatus.REMOVED, staffRole);
+        removed.setUserId(targetId);
+        authenticateOwner();
+        when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId))
+                .thenReturn(Optional.of(membership(workspaceA, MembershipStatus.ACTIVE, ownerRole)));
+        when(shopRepository.findById(workspaceA)).thenReturn(Optional.of(shopA));
+        when(membershipRepository.findById(removed.getId())).thenReturn(Optional.of(removed));
+        when(userRepository.findById(targetId)).thenReturn(Optional.of(target));
+        when(membershipRepository.existsByUserId(targetId)).thenReturn(true);
+
+        service.purge(workspaceA, removed.getId());
+
+        verify(membershipRepository).delete(removed);
+        verify(userRepository, never()).delete(any());
+        assertThat(target.getShopId()).isNull();
+    }
+
+    @Test
+    void purgeRejectsAnActiveMembership() {
+        WorkspaceMembership active = membership(workspaceA, MembershipStatus.ACTIVE, staffRole);
+        authenticateOwner();
+        when(membershipRepository.findByWorkspaceIdAndUserId(workspaceA, userId))
+                .thenReturn(Optional.of(membership(workspaceA, MembershipStatus.ACTIVE, ownerRole)));
+        when(shopRepository.findById(workspaceA)).thenReturn(Optional.of(shopA));
+        when(membershipRepository.findById(active.getId())).thenReturn(Optional.of(active));
+
+        assertThatThrownBy(() -> service.purge(workspaceA, active.getId()))
+                .isInstanceOf(ApiException.class)
+                .extracting(ex -> ((ApiException) ex).getCode())
+                .isEqualTo(ErrorCode.BUSINESS_RULE_VIOLATION);
+        verify(membershipRepository, never()).delete(any());
     }
 
     @Test
@@ -223,6 +378,13 @@ class WorkspaceAccessServiceTest {
         shop.setJoinCode("HUB-7K2P");
         shop.setActive(true);
         return shop;
+    }
+
+    private void authenticateOwner() {
+        UserPrincipal principal = new UserPrincipal(userId, workspaceA, user.getEmail(), user.getFullName(),
+                true, Set.of("OWNER"), Set.of());
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
     }
 
     private WorkspaceMembership membership(UUID workspaceId, MembershipStatus status, Role role) {

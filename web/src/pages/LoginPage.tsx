@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
+import { afterAuthPath } from "../lib/plan";
 import type { AuthResponse } from "../lib/types";
 import { BRAND, copyrightLine } from "../lib/brand";
 import { getDeviceId } from "../lib/device";
@@ -67,7 +68,7 @@ export function LoginPage() {
       })
         .then((auth) => {
           acceptRef.current(auth);
-          navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
+          navigate(afterAuthPath(auth.user));
         })
         .catch((err: unknown) => {
           setError(err instanceof Error ? err.message : "That magic link is no longer valid.");
@@ -75,6 +76,9 @@ export function LoginPage() {
         })
         .finally(() => setBusy(false));
       return;
+    }
+    if (params.get("reason") === "session") {
+      setNotice("This account signed in on another screen. Sign in here to continue — the other screen will be signed out.");
     }
     const reset = params.get("reset");
     if (reset) {
@@ -94,7 +98,7 @@ export function LoginPage() {
       })
         .then((auth) => {
           acceptRef.current(auth);
-          navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
+          navigate(afterAuthPath(auth.user));
         })
         .catch((err: unknown) => {
           setError(err instanceof Error ? err.message : "Google sign-in failed.");
@@ -105,7 +109,7 @@ export function LoginPage() {
 
   function afterAuth(auth: AuthResponse) {
     acceptSession(auth);
-    navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
+    navigate(afterAuthPath(auth.user));
   }
 
   function finish(auth?: AuthResponse) {
@@ -149,7 +153,7 @@ export function LoginPage() {
             storeRemove(REMEMBER_KEY);
           }
           const auth = await login(email, password);
-          navigate(auth.user.paymentRequired ? "/billing?activate=1" : "/");
+          navigate(afterAuthPath(auth.user));
         }
       } else if (method === "magic") {
         await api("/api/v1/auth/magic-link", {
@@ -584,6 +588,8 @@ export function LoginPage() {
 
           <p className="auth-legal">
             {copyrightLine()}{" "}
+            <Link to="/app">Get the app</Link> ·{" "}
+            <a href="/download/android">Android</a> · <a href="/download/ios">iOS</a> ·{" "}
             <Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link> ·{" "}
             <Link to="/refunds">Refunds</Link>
           </p>

@@ -9,6 +9,7 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -89,7 +90,34 @@ public class Shop extends AuditableEntity {
     @Column(name = "join_code", nullable = false, length = 16)
     private String joinCode;
 
-    /** Concurrent signed-in devices per user in this workspace. */
+    /** Legacy column. Same user is always one live session. */
     @Column(name = "max_devices_per_user", nullable = false)
-    private int maxDevicesPerUser = 3;
+    private int maxDevicesPerUser = 1;
+
+    /** Extra screens subscribed. They count only while the monthly period is live. */
+    @Column(name = "extra_screens", nullable = false)
+    private int extraScreens = 0;
+
+    /** When this month's extra-screen payment ends. Null with extras means complimentary. */
+    @Column(name = "extra_screens_period_end")
+    private Instant extraScreensPeriodEnd;
+
+    public int liveExtraScreens() {
+        int extra = Math.max(0, extraScreens);
+        if (extra == 0) {
+            return 0;
+        }
+        if (extraScreensPeriodEnd == null || extraScreensPeriodEnd.isAfter(Instant.now())) {
+            return extra;
+        }
+        return 0;
+    }
+
+    public int screenSeats() {
+        return 1 + liveExtraScreens();
+    }
+
+    public boolean extraScreensLive() {
+        return liveExtraScreens() > 0;
+    }
 }

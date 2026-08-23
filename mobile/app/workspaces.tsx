@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "../lib/auth";
-import { selectedWorkspaceId, type WorkspaceCard } from "../lib/api";
+import { api, selectedWorkspaceId, type WorkspaceCard } from "../lib/api";
 import { useTheme } from "../lib/theme";
 
 export default function WorkspacesScreen() {
@@ -48,6 +48,34 @@ export default function WorkspacesScreen() {
           busy={busy}
           colors={colors}
           onOpen={() => void openWorkspace(workspace.id)}
+          onCancel={() => {
+            Alert.alert(
+              "Cancel this request?",
+              `Withdraw your request to join ${workspace.name}? The ₹50 stays on this shop so you can ask again without paying twice.`,
+              [
+                { text: "Keep waiting", style: "cancel" },
+                {
+                  text: "Cancel request",
+                  style: "destructive",
+                  onPress: () => {
+                    void (async () => {
+                      setBusy(true);
+                      setError(null);
+                      try {
+                        await api(`/api/v1/workspaces/${workspace.id}/join/cancel`, { method: "POST" });
+                        await refreshWorkspaces();
+                        setNotice(`Cancelled the request to join ${workspace.name}.`);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Could not cancel");
+                      } finally {
+                        setBusy(false);
+                      }
+                    })();
+                  },
+                },
+              ],
+            );
+          }}
         />
       ))}
 
@@ -74,6 +102,7 @@ export default function WorkspacesScreen() {
       </Pressable>
 
       <Text style={styles.section}>Join with a code</Text>
+      <Text style={styles.sub}>Each shop join is a separate ₹50 payment on the web. Four shops = ₹200.</Text>
       <TextInput
         style={styles.input}
         placeholder="HUB-7K2P"
@@ -119,14 +148,17 @@ function WorkspaceRow({
   workspace,
   busy,
   onOpen,
+  onCancel,
   colors,
 }: {
   workspace: WorkspaceCard;
   busy: boolean;
   onOpen: () => void;
+  onCancel: () => void;
   colors: ReturnType<typeof useTheme>["colors"];
 }) {
   const canOpen = workspace.status === "ACTIVE" && !workspace.selected;
+  const waiting = workspace.status === "PENDING" || workspace.status === "INVITED";
   return (
     <View style={{ backgroundColor: colors.card, borderColor: colors.line, borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 10 }}>
       <Text style={{ fontWeight: "700", fontSize: 18, color: colors.ink }}>{workspace.name}</Text>
@@ -141,6 +173,14 @@ function WorkspaceRow({
           onPress={onOpen}
         >
           <Text style={{ color: colors.bg, fontWeight: "700" }}>Open</Text>
+        </Pressable>
+      ) : waiting ? (
+        <Pressable
+          style={{ borderColor: colors.line, borderWidth: 1, borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12, alignSelf: "flex-start" }}
+          disabled={busy}
+          onPress={onCancel}
+        >
+          <Text style={{ fontWeight: "700", color: colors.ink }}>Cancel request</Text>
         </Pressable>
       ) : (
         <Text style={{ color: colors.soft, marginTop: 4 }}>{workspace.selected ? "Selected" : "Waiting for approval"}</Text>

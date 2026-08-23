@@ -2,53 +2,67 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, money } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { BRAND } from "../lib/brand";
-import { checkoutContact, loadRazorpayCheckout, openRazorpayCheckout } from "../lib/razorpay";
+import { captureCheckoutOrder, type CheckoutOrder } from "../lib/payOrder";
 import { PageHeader } from "../ui/PageHeader";
 
+interface PlanCard {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  interval: string;
+  features: string[];
+  priceCode: string;
+}
+
 interface Overview {
-  prices: { code: string; amount: number; currency: string; interval: string; entitlement: string }[];
-  entitlements: string[];
-  orders: { id: string; priceCode: string; amount: number; status: string; createdAt: string }[];
+  plans: PlanCard[];
+  subscription?: {
+    planCode: string;
+    planName: string;
+    status: string;
+    periodEnd?: string | null;
+    features: string[];
+  } | null;
+  recentPayments: {
+    id: string;
+    planName: string;
+    priceCode: string;
+    amount: number;
+    currency: string;
+    status: string;
+    paidAt: string;
+  }[];
   razorpayKeyId?: string;
   razorpayEnabled?: boolean;
   paymentRequired?: boolean;
-  currentPeriodEnd?: string | null;
+  screens?: {
+    included: number;
+    extra: number;
+    subscribed: number;
+    seats: number;
+    inUse: number;
+    live: boolean;
+    periodEnd?: string | null;
+    amount: number;
+    renewAmount: number;
+    currency: string;
+    priceCode: string;
+    interval: string;
+  };
 }
 
-interface CheckoutOrder {
-  id: string;
-  order_id?: string;
-  orderId?: string;
-  amount: number;
-  currency: string;
-  keyId?: string;
-  priceCode: string;
-  gateway: string;
-}
-
-function razorpayOrderId(order: CheckoutOrder): string {
-  return (order.order_id || order.orderId || "").trim();
-}
-
-function priceTitle(code: string): string {
-  if (code === "WORKSPACE_ACTIVATION") {
-    return "Shop activation";
+function when(value?: string | null): string {
+  if (!value) {
+    return "No end date";
   }
-  if (code === "WORKSPACE_MONTHLY") {
-    return "Monthly plan";
-  }
-  return code.replaceAll("_", " ");
-}
-
-function priceHelp(code: string): string {
-  if (code === "WORKSPACE_ACTIVATION") {
-    return "Unlocks sales, repairs, stock, and staff for 31 days.";
-  }
-  if (code === "WORKSPACE_MONTHLY") {
-    return "Renews the shop for another 31 days. You will get a reminder before it ends.";
-  }
-  return "Recorded against this workspace after Razorpay confirms the payment.";
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function BillingPage() {
@@ -73,7 +87,7 @@ export function BillingPage() {
     || data?.razorpayKeyId
     || "";
 
-  async function buy(priceCode: string) {
+  async function payScreens(priceCode: "EXTRA_SCREEN" | "EXTRA_SCREEN_RENEW") {
     setError(null);
     setNotice(null);
     setPaying(priceCode);
@@ -82,79 +96,19 @@ export function BillingPage() {
         method: "POST",
         body: JSON.stringify({ priceCode }),
       });
-      const remoteOrderId = razorpayOrderId(order);
-      if (order.gateway === "DEV") {
-        await api(`/api/v1/billing/orders/${order.id}/confirm`, { method: "POST" });
-        await load();
-        await refreshUser();
-        setNotice("Payment recorded. The shop counter is unlocked.");
-        return;
-      }
-      if (!remoteOrderId.startsWith("order_")) {
-        throw new Error("The server did not return a Razorpay order. Try again.");
-      }
-      const key = (order.keyId || publishableKey).trim();
-      if (!key) {
-        throw new Error("Razorpay key is missing. Set VITE_RAZORPAY_KEY_ID or configure the server.");
-      }
-      await loadRazorpayCheckout();
-      const testMode = key.startsWith("rzp_test_");
-      await new Promise<void>((resolve, reject) => {
-        let settled = false;
-        const checkout = openRazorpayCheckout({
-          key,
-          amount: order.amount,
-          currency: order.currency,
-          name: BRAND.product,
-          description: priceTitle(priceCode),
-          order_id: remoteOrderId,
-          remember_customer: false,
-          retry: { enabled: true, max_count: 3 },
-          prefill: {
-            name: user?.fullName,
-            email: user?.email,
-            contact: checkoutContact(user?.phone),
-            method: testMode ? "card" : undefined,
-          },
-          method: testMode
-            ? { card: true, netbanking: true, wallet: true, upi: false, emi: false, paylater: false }
-            : undefined,
-          theme: { color: "#6d28d9" },
-          handler: (response) => {
-            void api("/api/v1/billing/verify", {
-              method: "POST",
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            })
-              .then(async () => {
-                settled = true;
-                await load();
-                await refreshUser();
-                setNotice("Payment received. The shop counter is unlocked.");
-                resolve();
-              })
-              .catch((err: Error) => {
-                settled = true;
-                reject(err);
-              });
-          },
-          modal: {
-            ondismiss: () => {
-              if (!settled) {
-                reject(new Error("Payment cancelled."));
-              }
-            },
-          },
-        });
-        checkout.on("payment.failed", (response) => {
-          settled = true;
-          reject(new Error(response.error?.description || "Payment failed."));
-        });
-        checkout.open();
-      });
+      await captureCheckoutOrder(
+        order,
+        user ?? undefined,
+        priceCode === "EXTRA_SCREEN_RENEW" ? "Extra screens this month" : "Extra screen",
+        publishableKey,
+      );
+      await load();
+      await refreshUser();
+      setNotice(
+        priceCode === "EXTRA_SCREEN_RENEW"
+          ? "This month's extra screens are on."
+          : "Extra screen added for this month. Pay again next month to keep it.",
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Payment failed");
     } finally {
@@ -163,72 +117,145 @@ export function BillingPage() {
     }
   }
 
-  const periodEnd = data?.currentPeriodEnd
-    ? new Date(data.currentPeriodEnd).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
-    : null;
+  async function buy(plan: PlanCard) {
+    setError(null);
+    setNotice(null);
+    setPaying(plan.code);
+    try {
+      const order = await api<CheckoutOrder>("/api/v1/billing/orders", {
+        method: "POST",
+        body: JSON.stringify({ planCode: plan.priceCode || plan.code }),
+      });
+      await captureCheckoutOrder(order, user ?? undefined, plan.name, publishableKey);
+      await load();
+      await refreshUser();
+      setNotice("Payment received. This month's plan is on.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Payment failed");
+    } finally {
+      document.body.classList.remove("rzp-checkout-open");
+      setPaying(null);
+    }
+  }
+
+  const current = data?.subscription;
 
   return (
     <div className="page">
       <PageHeader
         kicker="Workspace"
         title="Billing"
-        subtitle="Pay with Razorpay Checkout. The server creates the order and verifies the payment signature before anything is marked paid."
+        subtitle="Pick a plan. Pay each month. If a month is missed, the shop locks until you pay again."
       />
       {activating && (
         <div className="banner banner-warn">
-          Payment is pending. Complete shop activation or the monthly plan to unlock sales, repairs,
-          stock, and staff invites.
+          This shop has no live plan. Choose one below and pay to turn the features on.
+        </div>
+      )}
+      {current && current.status === "ACTIVE" && (
+        <div className="banner">
+          {current.planName} is on
+          {current.periodEnd
+            ? ` until ${when(current.periodEnd)}. Pay again before that date or the shop stops.`
+            : " with no end date."}
+        </div>
+      )}
+      {current && current.status === "PAST_DUE" && (
+        <div className="banner banner-warn">
+          {current.planName} lapsed. Pay this month to restore the features on that plan.
         </div>
       )}
       {(publishableKey.startsWith("rzp_test_") || data?.razorpayKeyId?.startsWith("rzp_test_")) && (
         <div className="banner">
-          Razorpay Test Mode cannot load a real UPI QR — that blur is expected, and scanning it
-          will never succeed. Stay on <strong>Cards</strong>, uncheck save-card if it appears,
-          click <strong>Continue</strong>, then enter OTP <strong>1234</strong>. Use card{" "}
-          <strong>4111 1111 1111 1111</strong> or <strong>4100 2800 0000 1007</strong> (any future
-          expiry, CVV 123). Cancel the browser sign-in popup if it appears — do not type your
-          Razorpay secret there.
+          Razorpay Test Mode: use card <strong>4111 1111 1111 1111</strong>, any future expiry, CVV
+          123, OTP <strong>1234</strong>.
         </div>
-      )}
-      {data && !data.paymentRequired && periodEnd && (
-        <div className="banner">Current plan is active until {periodEnd}.</div>
       )}
       {error && <div className="error">{error}</div>}
       {notice && <div className="muted">{notice}</div>}
       {data && (
         <>
-          <div className="muted">Active entitlements: {data.entitlements.join(", ") || "none"}</div>
-          <div className="grid-2">
-            {data.prices.map((price) => (
-              <article className="card stack" key={price.code}>
-                <strong>{priceTitle(price.code)}</strong>
-                <div className="metric-value">{money.format(price.amount)}</div>
-                <div className="faint">{price.interval} · {priceHelp(price.code)}</div>
+          {data.screens && (
+            <article className="card stack">
+              <strong>Screens</strong>
+              <div className="metric-value">
+                {data.screens.inUse} / {data.screens.seats}
+              </div>
+              <div className="faint">
+                One login, one screen. Each extra screen is {money.format(data.screens.amount)} every month.
+                This shop includes {data.screens.included} screen
+                {data.screens.subscribed > 0
+                  ? data.screens.live
+                    ? ` plus ${data.screens.subscribed} extra paid until ${when(data.screens.periodEnd)}.`
+                    : `. ${data.screens.subscribed} extra ${data.screens.subscribed === 1 ? "screen is" : "screens are"} off until this month is paid.`
+                  : "."}
+              </div>
+              {data.screens.subscribed > 0 && (
                 <button
                   className="btn"
                   type="button"
                   disabled={paying !== null}
-                  onClick={() => void buy(price.code)}
+                  onClick={() => void payScreens("EXTRA_SCREEN_RENEW")}
                 >
-                  {paying === price.code ? "Opening checkout…" : `Pay ${money.format(price.amount)}`}
+                  {paying === "EXTRA_SCREEN_RENEW"
+                    ? "Opening checkout…"
+                    : `Pay ${money.format(data.screens.renewAmount)} this month for ${data.screens.subscribed} extra screen${data.screens.subscribed === 1 ? "" : "s"}`}
+                </button>
+              )}
+              {(data.screens.live || data.screens.subscribed === 0) && (
+                <button
+                  className={data.screens.subscribed > 0 ? "btn ghost" : "btn"}
+                  type="button"
+                  disabled={paying !== null}
+                  onClick={() => void payScreens("EXTRA_SCREEN")}
+                >
+                  {paying === "EXTRA_SCREEN"
+                    ? "Opening checkout…"
+                    : `Add a screen for ${money.format(data.screens.amount)} / month`}
+                </button>
+              )}
+            </article>
+          )}
+          <div className="grid-2">
+            {data.plans.map((plan) => (
+              <article className="card stack" key={plan.id}>
+                <strong>{plan.name}</strong>
+                <div className="metric-value">{money.format(plan.amount)}</div>
+                <div className="faint">{plan.interval.toLowerCase()} · {plan.description}</div>
+                <div className="chips">
+                  {plan.features.map((feature) => (
+                    <span className="chip" key={feature}>{feature.replaceAll("_", " ").toLowerCase()}</span>
+                  ))}
+                </div>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={paying !== null}
+                  onClick={() => void buy(plan)}
+                >
+                  {paying === plan.code ? "Opening checkout…" : `Pay ${money.format(plan.amount)}`}
                 </button>
               </article>
             ))}
           </div>
-          <div className="card tight">
-            {data.orders.length === 0 && <div className="muted">No payments recorded yet.</div>}
-            {data.orders.map((order) => (
-              <div className="category-row" key={order.id}>
-                <div>{priceTitle(order.priceCode)}</div>
-                <span>{order.status}</span>
-                <span>{money.format(order.amount)}</span>
+          <section className="card tight">
+            <div className="spread" style={{ padding: "16px 18px" }}>
+              <strong>Your last 3 payments</strong>
+            </div>
+            {data.recentPayments.length === 0 && (
+              <div className="muted" style={{ padding: "0 18px 16px" }}>No payments recorded yet.</div>
+            )}
+            {data.recentPayments.map((payment) => (
+              <div className="category-row" key={payment.id}>
+                <div>
+                  <div style={{ fontWeight: 650 }}>{payment.planName}</div>
+                  <div className="faint">{when(payment.paidAt)}</div>
+                </div>
+                <span>{money.format(payment.amount)}</span>
+                <span className="badge GREEN">{payment.status}</span>
               </div>
             ))}
-          </div>
+          </section>
         </>
       )}
     </div>

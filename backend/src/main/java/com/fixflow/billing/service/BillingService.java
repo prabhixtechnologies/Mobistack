@@ -8,6 +8,7 @@ import com.fixflow.billing.domain.BillingOrder;
 import com.fixflow.billing.domain.BillingPrice;
 import com.fixflow.billing.domain.BillingWebhookEvent;
 import com.fixflow.billing.domain.WorkspaceEntitlement;
+import com.fixflow.billing.domain.WorkspaceSubscription;
 import com.fixflow.billing.razorpay.RazorpayGateway;
 import com.fixflow.billing.razorpay.RazorpayMoney;
 import com.fixflow.billing.repository.BillingOrderRepository;
@@ -19,6 +20,7 @@ import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.notify.NotificationService;
 import com.fixflow.security.CurrentUser;
+import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
 import com.fixflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,13 +40,23 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BillingService {
 
-    public record PriceCard(String code, java.math.BigDecimal amount, String currency, String interval,
-                            String entitlement) {
+    public record PaymentReceipt(UUID id, String planName, String priceCode, java.math.BigDecimal amount,
+                                 String currency, String status, Instant paidAt) {
     }
 
-    public record BillingOverview(List<PriceCard> prices, List<String> entitlements, List<BillingOrder> orders,
-                                  String razorpayKeyId, boolean razorpayEnabled, boolean paymentRequired,
-                                  Instant currentPeriodEnd) {
+    public record SubscriptionCard(String planCode, String planName, String status, Instant periodEnd,
+                                   List<String> features) {
+    }
+
+    public record ScreenCard(int included, int extra, int subscribed, int seats, int inUse,
+                             boolean live, Instant periodEnd, java.math.BigDecimal amount,
+                             java.math.BigDecimal renewAmount, String currency, String priceCode,
+                             String interval) {
+    }
+
+    public record BillingOverview(List<PlanService.PlanCard> plans, SubscriptionCard subscription,
+                                  List<PaymentReceipt> recentPayments, ScreenCard screens,
+                                  String razorpayKeyId, boolean razorpayEnabled, boolean paymentRequired) {
     }
 
     public record CheckoutOrderResponse(
@@ -76,40 +88,83 @@ public class BillingService {
     private final ShopRepository shopRepository;
     private final UserRepository userRepository;
     private final com.fixflow.notify.MailGateway mailGateway;
+    private final PlanService planService;
+    private final com.fixflow.auth.service.DeviceSessionService deviceSessionService;
 
+    public static final String CATALOG = "CATALOG";
+    public static final String SALES = "SALES";
+
+    /** ₹50 activation: look up which parts fit a phone. */
+    public static final List<String> CATALOG_PLAN = List.of("WORKSPACE_CREATE", CATALOG);
+
+    /** ₹199 monthly: the full shop counter. */
     public static final List<String> OPERATIONAL = List.of(
-            "WORKSPACE_CREATE", "MEMBER_ADD", "INVENTORY", "SALES", "REPAIRS", "MULTI_USER");
+            "WORKSPACE_CREATE", "MEMBER_ADD", "INVENTORY", SALES, "REPAIRS", "MULTI_USER", CATALOG);
 
     @Transactional(readOnly = true)
     public BillingOverview overview(UUID workspaceId) {
         boolean enabled = razorpayGateway.configured();
+        var current = planService.currentPlan(workspaceId);
+        var row = planService.subscription(workspaceId);
+        SubscriptionCard subscription = current == null ? null
+                : new SubscriptionCard(current.code(), current.name(),
+                row == null ? WorkspaceSubscription.NONE : row.getStatus(),
+                row == null ? null : row.getPeriodEnd(), current.features());
+        var capacity = deviceSessionService.capacity(workspaceId);
+        var screenPrice = priceRepository.findByCodeAndActiveTrue(com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE)
+                .orElse(null);
+        java.math.BigDecimal unit = screenPrice == null ? java.math.BigDecimal.valueOf(50) : screenPrice.getAmount();
+        int subscribed = capacity.subscribed();
         return new BillingOverview(
-                priceRepository.findByActiveTrue().stream()
-                        .map(p -> new PriceCard(p.getCode(), p.getAmount(), p.getCurrency(), p.getInterval(),
-                                p.getEntitlement()))
+                planService.listSellable(),
+                subscription,
+                orderRepository.findTop3ByWorkspaceIdAndStatusOrderByCreatedAtDesc(
+                                workspaceId, PaymentStatus.CAPTURED)
+                        .stream()
+                        .map(this::toReceipt)
                         .toList(),
-                entitlementRepository.findByWorkspaceIdAndActiveTrue(workspaceId).stream()
-                        .filter(this::live)
-                        .map(WorkspaceEntitlement::getCode).toList(),
-                orderRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId),
+                new ScreenCard(capacity.included(), capacity.extra(), subscribed, capacity.seats(), capacity.inUse(),
+                        capacity.live(), capacity.periodEnd(), unit,
+                        unit.multiply(java.math.BigDecimal.valueOf(Math.max(subscribed, 1))),
+                        screenPrice == null ? "INR" : screenPrice.getCurrency(),
+                        com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE, "MONTHLY"),
                 enabled ? razorpayGateway.keyId() : null,
                 enabled,
-                paymentRequired(workspaceId),
-                currentPeriodEnd(workspaceId));
+                paymentRequired(workspaceId));
     }
 
     @Transactional
     public CheckoutOrderResponse createOrder(UUID workspaceId, String priceCode) {
-        BillingPrice price = priceRepository.findByCodeAndActiveTrue(priceCode)
-                .orElseThrow(() -> ApiException.notFound("Price", priceCode));
-        long amountPaise = RazorpayMoney.requireMinimum(RazorpayMoney.toPaise(price.getAmount()));
+        if ("WORKSPACE_JOIN".equals(priceCode)) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "Pay the join fee from My workspaces. Each shop join is a separate payment.");
+        }
+        boolean renewScreens = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(priceCode);
+        BillingPrice price = resolvePrice(renewScreens
+                ? com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE
+                : priceCode);
+        java.math.BigDecimal amount = price.getAmount();
+        String storedCode = price.getCode();
+        String purpose = price.getCode();
+        if (renewScreens) {
+            Shop shop = shopRepository.findById(workspaceId)
+                    .orElseThrow(() -> ApiException.notFound("Shop", workspaceId));
+            if (shop.getExtraScreens() < 1) {
+                throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                        "This shop has no extra screens to renew. Add one first.");
+            }
+            amount = price.getAmount().multiply(java.math.BigDecimal.valueOf(shop.getExtraScreens()));
+            storedCode = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW;
+            purpose = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW;
+        }
+        long amountPaise = RazorpayMoney.requireMinimum(RazorpayMoney.toPaise(amount));
 
         BillingOrder order = new BillingOrder();
         order.setWorkspaceId(workspaceId);
         order.setUserId(CurrentUser.userId());
-        order.setPriceCode(price.getCode());
-        order.setPurpose(price.getCode());
-        order.setAmount(price.getAmount());
+        order.setPriceCode(storedCode);
+        order.setPurpose(purpose);
+        order.setAmount(amount);
         order.setCurrency(price.getCurrency());
         order.setStatus(PaymentStatus.CREATED);
         order.setEntitlementCode(price.getEntitlement());
@@ -189,11 +244,175 @@ public class BillingService {
         }
     }
 
+    public void requireCatalog(UUID workspaceId) {
+        if (!hasCatalog(workspaceId)) {
+            throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
+                    "This workspace needs an active plan that includes compatibility. Open Billing and pay.");
+        }
+    }
+
+    public boolean hasCatalog(UUID workspaceId) {
+        return planService.hasFeature(workspaceId, "COMPATIBILITY")
+                || hasLive(workspaceId, CATALOG)
+                || hasLive(workspaceId, SALES);
+    }
+
+    public boolean hasFullShop(UUID workspaceId) {
+        return planService.hasFeature(workspaceId, "SALES") || hasLive(workspaceId, SALES);
+    }
+
+    public boolean catalogOnly(UUID workspaceId) {
+        return workspaceId != null && hasCatalog(workspaceId) && !hasFullShop(workspaceId)
+                && !planService.hasFeature(workspaceId, "DASHBOARD");
+    }
+
     public boolean paymentRequired(UUID workspaceId) {
-        return workspaceId != null && !hasLive(workspaceId, "SALES");
+        return workspaceId != null && !planService.hasLiveAccess(workspaceId);
+    }
+
+    public java.util.Set<String> features(UUID workspaceId) {
+        return planService.featuresFor(workspaceId);
+    }
+
+    public PlanService.PlanCard currentPlan(UUID workspaceId) {
+        return planService.currentPlan(workspaceId);
+    }
+
+    public WorkspaceSubscription subscription(UUID workspaceId) {
+        return planService.subscription(workspaceId);
+    }
+
+    public static final String JOIN_PRICE = "WORKSPACE_JOIN";
+    public static final String JOIN_USED = "JOIN_USED";
+
+    public boolean hasUnspentJoinPayment(UUID userId, UUID workspaceId) {
+        return findUnspentJoin(userId, workspaceId).isPresent();
+    }
+
+    /**
+     * Marks one captured join payment as used. Returns false when the user still owes ₹50 for this shop.
+     */
+    public boolean consumeJoinPayment(UUID userId, UUID workspaceId) {
+        if (userId != null && userRepository.findById(userId).map(u -> u.isSystemAdmin()).orElse(false)) {
+            return true;
+        }
+        return findUnspentJoin(userId, workspaceId).map(order -> {
+            order.setPurpose(JOIN_USED);
+            order.setUpdatedAt(Instant.now());
+            orderRepository.save(order);
+            return true;
+        }).orElse(false);
+    }
+
+    /**
+     * Puts a consumed join payment back on file so the same person can request
+     * this shop again without paying ₹50 a second time.
+     */
+    public void releaseJoinPayment(UUID userId, UUID workspaceId) {
+        if (userId == null || workspaceId == null) {
+            return;
+        }
+        orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
+                        workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, JOIN_USED)
+                .ifPresent(order -> {
+                    order.setPurpose(JOIN_PRICE);
+                    order.setUpdatedAt(Instant.now());
+                    orderRepository.save(order);
+                });
+    }
+
+    public CheckoutOrderResponse createJoinOrder(UUID userId, UUID workspaceId) {
+        BillingPrice price = priceRepository.findByCodeAndActiveTrue(JOIN_PRICE)
+                .orElseThrow(() -> ApiException.notFound("Price", JOIN_PRICE));
+        long amountPaise = RazorpayMoney.requireMinimum(RazorpayMoney.toPaise(price.getAmount()));
+
+        BillingOrder order = new BillingOrder();
+        order.setWorkspaceId(workspaceId);
+        order.setUserId(userId);
+        order.setPriceCode(price.getCode());
+        order.setPurpose(JOIN_PRICE);
+        order.setAmount(price.getAmount());
+        order.setCurrency(price.getCurrency());
+        order.setStatus(PaymentStatus.CREATED);
+        order.setEntitlementCode(price.getEntitlement());
+
+        if (razorpayGateway.configured()) {
+            Map<String, String> notes = new LinkedHashMap<>();
+            notes.put("workspace_id", workspaceId.toString());
+            notes.put("price_code", price.getCode());
+            notes.put("joiner_user_id", userId.toString());
+            notes.put("internal_order_id", order.getId().toString());
+            RazorpayGateway.CreatedOrder remote = razorpayGateway.createOrder(
+                    amountPaise, price.getCurrency(), receiptFor(order.getId()), notes);
+            order.setGateway("RAZORPAY");
+            order.setGatewayOrderId(remote.id());
+            order.setStatus(PaymentStatus.PENDING);
+        } else if (environment.acceptsProfiles(Profiles.of("prod"))) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
+                    "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+        } else {
+            order.setGateway("DEV");
+            order.setGatewayOrderId("dev-" + UUID.randomUUID());
+        }
+        orderRepository.save(order);
+        return new CheckoutOrderResponse(order.getId(), order.getGatewayOrderId(), amountPaise,
+                order.getCurrency(), razorpayGateway.configured() ? razorpayGateway.keyId() : null,
+                order.getPriceCode(), order.getGateway());
+    }
+
+    public BillingOrder verifyJoinPayment(UUID userId, VerifyPaymentRequest request) {
+        if (request == null || isBlank(request.razorpayOrderId()) || isBlank(request.razorpayPaymentId())
+                || isBlank(request.razorpaySignature())) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "razorpay_order_id, razorpay_payment_id and razorpay_signature are required.");
+        }
+        BillingOrder order = orderRepository
+                .findByGatewayOrderIdAndUserId(request.razorpayOrderId().trim(), userId)
+                .orElseThrow(() -> ApiException.notFound("Billing order", request.razorpayOrderId()));
+        if (!JOIN_PRICE.equals(order.getPriceCode())) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "This payment is not a workspace join fee.");
+        }
+        if (order.getStatus() == PaymentStatus.CAPTURED) {
+            return order;
+        }
+        if (!razorpayGateway.verifyCheckoutSignature(request.razorpayOrderId().trim(),
+                request.razorpayPaymentId().trim(), request.razorpaySignature().trim())) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "Payment signature did not match. The order was not marked as paid.");
+        }
+        return markCaptured(order, request.razorpayPaymentId().trim());
+    }
+
+    public BillingOrder confirmJoinPayment(UUID userId, UUID orderId) {
+        BillingOrder order = orderRepository.findByIdAndUserId(orderId, userId)
+                .orElseThrow(() -> ApiException.notFound("Billing order", orderId));
+        if (!JOIN_PRICE.equals(order.getPriceCode())) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "This payment is not a workspace join fee.");
+        }
+        if ("RAZORPAY".equalsIgnoreCase(order.getGateway())) {
+            throw new ApiException(ErrorCode.FORBIDDEN,
+                    "Complete this order through Razorpay Checkout. Self-confirm is not allowed.");
+        }
+        if (environment.acceptsProfiles(Profiles.of("prod"))) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
+                    "Self-confirm is disabled in production. Complete payment through Razorpay.");
+        }
+        if (order.getStatus() == PaymentStatus.CAPTURED) {
+            return order;
+        }
+        return markCaptured(order, "dev-pay-" + UUID.randomUUID());
+    }
+
+    private java.util.Optional<BillingOrder> findUnspentJoin(UUID userId, UUID workspaceId) {
+        return orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
+                workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, JOIN_PRICE);
     }
 
     public Instant currentPeriodEnd(UUID workspaceId) {
+        var row = planService.subscription(workspaceId);
+        if (row != null && WorkspaceSubscription.ACTIVE.equals(row.getStatus())) {
+            return row.getPeriodEnd();
+        }
         return entitlementRepository.findByWorkspaceIdAndActiveTrue(workspaceId).stream()
                 .filter(this::live)
                 .map(WorkspaceEntitlement::getExpiresAt)
@@ -210,24 +429,34 @@ public class BillingService {
 
     @Transactional
     public void grantPilotEntitlements(UUID workspaceId) {
-        grantOperational(workspaceId, null, null);
+        planService.grantComplimentary(workspaceId, "FULL_SHOP");
     }
 
     @Transactional
     public void notifyPaymentPending(UUID workspaceId, UUID userId, String email) {
         notificationService.emit(workspaceId, userId, "PAYMENT_PENDING", email,
                 "Finish opening your MobiStack shop",
-                "Your shop is created. Pay the activation or monthly plan on Billing to unlock sales, repairs, and stock.");
+                "Your shop is created. Open Billing, pick a plan, and pay so the features on that plan stay on.");
     }
 
     @Transactional
     public int sendDueReminders() {
         Instant now = Instant.now();
         int reminded = 0;
-        for (UUID workspaceId : entitlementRepository.findWorkspaceIdsExpiringBetween(now, now.plus(7, ChronoUnit.DAYS))) {
+        java.util.Set<UUID> shops = new java.util.LinkedHashSet<>(
+                planService.dueSoon(now, now.plus(7, ChronoUnit.DAYS)));
+        shops.addAll(entitlementRepository.findWorkspaceIdsExpiringBetween(now, now.plus(7, ChronoUnit.DAYS)));
+        for (UUID workspaceId : shops) {
             notifyOwner(workspaceId, "BILLING_REMINDER",
                     "Your MobiStack plan is due soon",
-                    "Your current period ends soon. Open Billing and pay the monthly plan so the counter stays unlocked.");
+                    "Your current period ends soon. Open Billing and pay this month so the shop stays unlocked.");
+            reminded++;
+        }
+        for (Shop shop : shopRepository.findByExtraScreensGreaterThanAndExtraScreensPeriodEndBetween(
+                0, now, now.plus(7, ChronoUnit.DAYS))) {
+            notifyOwner(shop.getId(), "BILLING_REMINDER",
+                    "Extra screens are due soon",
+                    "Pay ₹50 for each extra screen this month or those screens turn off.");
             reminded++;
         }
         return reminded;
@@ -236,7 +465,7 @@ public class BillingService {
     @Transactional
     public int expireLapsedPlans() {
         Instant now = Instant.now();
-        java.util.Set<UUID> shops = new java.util.LinkedHashSet<>();
+        java.util.Set<UUID> shops = new java.util.LinkedHashSet<>(planService.lapseOverdue());
         for (WorkspaceEntitlement row : entitlementRepository.findByActiveTrueAndExpiresAtBefore(now)) {
             row.setActive(false);
             entitlementRepository.save(row);
@@ -244,8 +473,18 @@ public class BillingService {
         }
         shops.forEach(id -> notifyOwner(id, "PAYMENT_PENDING",
                 "MobiStack payment is pending",
-                "The shop plan has lapsed. Pay the monthly plan on Billing to restore sales, repairs, and stock."));
-        return shops.size();
+                "This month's payment was not completed. The shop is locked until you pay on Billing."));
+        Instant justLapsedFrom = now.minus(1, ChronoUnit.DAYS);
+        int extraOff = 0;
+        for (Shop shop : shopRepository.findByExtraScreensGreaterThanAndExtraScreensPeriodEndBefore(0, now)) {
+            if (shop.getExtraScreensPeriodEnd() != null && shop.getExtraScreensPeriodEnd().isAfter(justLapsedFrom)) {
+                notifyOwner(shop.getId(), "PAYMENT_PENDING",
+                        "Extra screens are off",
+                        "This month's extra-screen payment was missed. Only the included screen stays on until you pay on Billing.");
+                extraOff++;
+            }
+        }
+        return shops.size() + extraOff;
     }
 
     @Transactional
@@ -287,10 +526,30 @@ public class BillingService {
         order.setUpdatedAt(Instant.now());
         orderRepository.save(order);
         UUID workspaceId = order.getWorkspaceId();
+        if (com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
+                || com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(order.getPurpose())) {
+            int extra = deviceSessionService.renewExtraScreens(workspaceId);
+            auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
+                    "Renewed " + extra + " extra screens for the month");
+            notifyOwner(workspaceId, "PAYMENT_RECEIVED",
+                    "Extra screens paid this month",
+                    extra + " extra screen" + (extra == 1 ? "" : "s")
+                            + " stay on for this month. Pay again next month or those screens turn off.");
+            return order;
+        }
+        if (com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE.equals(order.getPriceCode())) {
+            int extra = deviceSessionService.addExtraScreen(workspaceId);
+            auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
+                    "Added extra screen #" + extra + " (monthly)");
+            notifyOwner(workspaceId, "PAYMENT_RECEIVED",
+                    "Extra screen added",
+                    "This shop can now have " + (1 + extra)
+                            + " people signed in at the same time this month. Extra screens are ₹50 each per month.");
+            return order;
+        }
         Instant periodEnd = Instant.now().plus(31, ChronoUnit.DAYS);
-        if ("WORKSPACE_ACTIVATION".equals(order.getPriceCode()) || "WORKSPACE_MONTHLY".equals(order.getPriceCode())) {
-            grantOperational(workspaceId, periodEnd, order.getId());
-        } else {
+        planService.activateFromOrder(order);
+        if (JOIN_PRICE.equals(order.getPriceCode()) || "MEMBER_ADD".equals(order.getPriceCode())) {
             grantOne(workspaceId, order.getEntitlementCode(), periodEnd, order.getId());
         }
         auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
@@ -298,13 +557,8 @@ public class BillingService {
         notifyOwner(workspaceId, "PAYMENT_RECEIVED",
                 "Payment received",
                 "MobiStack recorded payment for " + order.getPriceCode().replace('_', ' ')
-                        + ". The shop counter is unlocked until "
-                        + periodEnd.toString() + ".");
+                        + ". This period stays on until " + periodEnd + ".");
         return order;
-    }
-
-    private void grantOperational(UUID workspaceId, Instant expiresAt, UUID orderId) {
-        OPERATIONAL.forEach(code -> grantOne(workspaceId, code, expiresAt, orderId));
     }
 
     private void grantOne(UUID workspaceId, String code, Instant expiresAt, UUID orderId) {
@@ -344,6 +598,31 @@ public class BillingService {
     private static String receiptFor(UUID orderId) {
         String compact = "ms" + orderId.toString().replace("-", "");
         return compact.length() <= 40 ? compact : compact.substring(0, 40);
+    }
+
+    private BillingPrice resolvePrice(String priceOrPlanCode) {
+        if (priceOrPlanCode == null || priceOrPlanCode.isBlank()) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Pick a plan to pay.");
+        }
+        return priceRepository.findByCodeAndActiveTrue(priceOrPlanCode.trim())
+                .or(() -> planService.listSellable().stream()
+                        .filter(plan -> plan.code().equalsIgnoreCase(priceOrPlanCode.trim())
+                                || plan.priceCode().equalsIgnoreCase(priceOrPlanCode.trim()))
+                        .findFirst()
+                        .flatMap(plan -> priceRepository.findByCodeAndActiveTrue(plan.priceCode())))
+                .orElseThrow(() -> ApiException.notFound("Price", priceOrPlanCode));
+    }
+
+    private PaymentReceipt toReceipt(BillingOrder order) {
+        String planName = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
+                ? "Extra screens (month)"
+                : priceRepository.findByCode(order.getPriceCode())
+                .map(price -> planService.planName(price.getPlanId()))
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(order.getPriceCode().replace('_', ' '));
+        return new PaymentReceipt(order.getId(), planName, order.getPriceCode(), order.getAmount(),
+                order.getCurrency(), order.getStatus().name(),
+                order.getUpdatedAt() != null ? order.getUpdatedAt() : order.getCreatedAt());
     }
 
     private static boolean isBlank(String value) {

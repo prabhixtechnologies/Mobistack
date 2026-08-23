@@ -1,5 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "../lib/auth";
 import { breadcrumbsFor } from "../lib/navigation";
+import { afterAuthPath, hasFeature } from "../lib/plan";
 import { Icon } from "./navIcons";
 
 /**
@@ -10,7 +12,12 @@ import { Icon } from "./navIcons";
  */
 export function Breadcrumbs({ detailLabel }: { detailLabel?: string }) {
   const { pathname } = useLocation();
-  const crumbs = breadcrumbsFor(pathname, detailLabel);
+  const { user } = useAuth();
+  const homeTo = user && !user.paymentRequired ? afterAuthPath(user) : "/";
+  const crumbs = breadcrumbsFor(pathname, detailLabel, {
+    homeTo,
+    homeLabel: hasFeature(user, "DASHBOARD") ? "Dashboard" : "Home",
+  });
 
   if (crumbs.length < 2) {
     return null;

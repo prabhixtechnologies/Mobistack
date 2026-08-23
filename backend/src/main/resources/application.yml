@@ -143,16 +143,18 @@ fixflow:
     presence-ttl: 90s
     dashboard-ttl: 20s
   devices:
-    default-max-per-user: 3
-    absolute-max-per-user: 20
-    over-limit: ${FIXFLOW_DEVICE_OVER_LIMIT:revoke-oldest}
+    default-max-per-user: 1
+    absolute-max-per-user: 1
+    over-limit: reject
   chat:
     openai-api-key: ${FIXFLOW_OPENAI_API_KEY:}
     openai-model: ${FIXFLOW_OPENAI_MODEL:gpt-4o-mini}
   updates:
     expo-updates-url: ${FIXFLOW_EXPO_UPDATES_URL:}
-    android-download-url: ${FIXFLOW_ANDROID_DOWNLOAD_URL:https://mobistack.prabhixtechnologies.com/app/android}
-    ios-download-url: ${FIXFLOW_IOS_DOWNLOAD_URL:https://mobistack.prabhixtechnologies.com/app/ios}
+    android-download-url: ${FIXFLOW_ANDROID_DOWNLOAD_URL:https://mobistack.prabhixtechnologies.com/download/android}
+    ios-download-url: ${FIXFLOW_IOS_DOWNLOAD_URL:https://mobistack.prabhixtechnologies.com/download/ios}
+    android-apk-path: ${FIXFLOW_ANDROID_APK_PATH:/var/mobistack/downloads/MobiStack.apk}
+    ios-ipa-path: ${FIXFLOW_IOS_IPA_PATH:/var/mobistack/downloads/MobiStack.ipa}
   twilio:
     account-sid: ${TWILIO_ACCOUNT_SID:}
     auth-token: ${TWILIO_AUTH_TOKEN:}

@@ -12,4 +12,8 @@ public interface BillingPriceRepository extends JpaRepository<BillingPrice, UUID
     List<BillingPrice> findByActiveTrue();
 
     Optional<BillingPrice> findByCodeAndActiveTrue(String code);
+
+    Optional<BillingPrice> findByCode(String code);
+
+    List<BillingPrice> findByPlanIdAndActiveTrue(UUID planId);
 }

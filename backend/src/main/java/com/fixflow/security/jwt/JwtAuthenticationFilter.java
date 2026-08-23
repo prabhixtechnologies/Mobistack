@@ -1,8 +1,10 @@
 package com.fixflow.security.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fixflow.auth.service.DeviceSessionService;
 import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ApiException;
+import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.UserPrincipal;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -27,6 +29,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final DeviceSessionService deviceSessionService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -43,6 +46,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = header.substring(BEARER_PREFIX.length()).trim();
         try {
             UserPrincipal principal = jwtService.parseAccessToken(token);
+            String deviceId = jwtService.deviceIdFrom(token);
+            if (deviceId != null && !deviceSessionService.isLive(principal.getId(), deviceId)) {
+                throw new ApiException(ErrorCode.SESSION_REPLACED,
+                        "This account signed in on another screen. This session has ended.");
+            }
             var authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

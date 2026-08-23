@@ -46,6 +46,7 @@ public class JwtService {
     private static final String CLAIM_NAME = "name";
     private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_PERMISSIONS = "perms";
+    private static final String CLAIM_DEVICE = "dev";
 
     private final FixFlowProperties properties;
     private final SecureRandom secureRandom = new SecureRandom();
@@ -63,9 +64,13 @@ public class JwtService {
     }
 
     public String createAccessToken(UserPrincipal principal) {
+        return createAccessToken(principal, null);
+    }
+
+    public String createAccessToken(UserPrincipal principal, String deviceId) {
         Instant now = Instant.now();
         Duration ttl = properties.getSecurity().getJwt().getAccessTokenTtl();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(principal.getId().toString())
                 .issuer(properties.getSecurity().getJwt().getIssuer())
@@ -75,9 +80,15 @@ public class JwtService {
                 .claim(CLAIM_EMAIL, principal.getEmail())
                 .claim(CLAIM_NAME, principal.getFullName())
                 .claim(CLAIM_ROLES, List.copyOf(principal.getRoles()))
-                .claim(CLAIM_PERMISSIONS, principal.getPermissions().stream().map(Enum::name).toList())
-                .signWith(signingKey, Jwts.SIG.HS256)
-                .compact();
+                .claim(CLAIM_PERMISSIONS, principal.getPermissions().stream().map(Enum::name).toList());
+        if (deviceId != null && !deviceId.isBlank()) {
+            builder.claim(CLAIM_DEVICE, deviceId);
+        }
+        return builder.signWith(signingKey, Jwts.SIG.HS256).compact();
+    }
+
+    public String deviceIdFrom(String token) {
+        return parseClaims(token).get(CLAIM_DEVICE, String.class);
     }
 
     /**

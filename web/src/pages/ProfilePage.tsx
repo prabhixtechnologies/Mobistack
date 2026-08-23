@@ -201,7 +201,7 @@ export function ProfilePage() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
             />
-            <p className="faint">Changing your password signs out every other device.</p>
+            <p className="faint">Changing your password ends this session on every screen.</p>
             <button className="btn" type="submit" disabled={changing}>
               {changing ? "Updating…" : "Update password"}
             </button>
@@ -211,7 +211,7 @@ export function ProfilePage() {
 
       <section className="card">
         <div className="spread section-head">
-          <h2 className="section-title">Signed-in devices</h2>
+          <h2 className="section-title">This screen</h2>
           <button className="btn ghost btn--sm" type="button" onClick={sessions.reload}>
             <Icon name="refresh" />
             Refresh
@@ -229,8 +229,8 @@ export function ProfilePage() {
           <EmptyState
             compact
             icon="shield"
-            title="No other devices"
-            hint="Only this browser is signed in to your account."
+            title="Only this screen"
+            hint="This login can only be open in one place. Signing in elsewhere ends this session."
           />
         ) : (
           <ul className="session-list">

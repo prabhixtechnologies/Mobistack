@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { useAccess } from "../lib/access";
+import { DRAWER_QUERY, TABLET_QUERY, useMediaQuery } from "../lib/media";
 import { NAV_SECTIONS, type NavItem } from "../lib/navigation";
 import { selectedWorkspaceId } from "../lib/types";
 import { api } from "../lib/api";
@@ -36,8 +37,17 @@ export function AppShell() {
   const currentWorkspace = selectedWorkspaceId(user);
   const activeWorkspaces = workspaces.filter((workspace) => workspace.status === "ACTIVE");
   const unpaid = Boolean(user?.paymentRequired);
+  const features = user?.features ?? [];
 
-  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === "1");
+  const drawer = useMediaQuery(DRAWER_QUERY);
+  const tablet = useMediaQuery(TABLET_QUERY);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 1099.98px)").matches) {
+      return true;
+    }
+    return localStorage.getItem(SIDEBAR_KEY) === "1";
+  });
+  const [navOpen, setNavOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   usePresence(Boolean(user));
 
@@ -46,15 +56,38 @@ export function AppShell() {
   }, [collapsed]);
 
   useEffect(() => {
+    if (drawer) {
+      setNavOpen(false);
+      return;
+    }
+    if (tablet) {
+      setCollapsed(true);
+    }
+  }, [drawer, tablet]);
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && navOpen) {
+        event.preventDefault();
+        setNavOpen(false);
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
         event.preventDefault();
-        setCollapsed((value) => !value);
+        if (drawer) {
+          setNavOpen((value) => !value);
+        } else {
+          setCollapsed((value) => !value);
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [drawer, navOpen]);
 
   useEffect(() => {
     if (!user) {
@@ -82,6 +115,9 @@ export function AppShell() {
     if (unpaid && !item.allowUnpaid) {
       return false;
     }
+    if (item.feature && !access.isPlatformAdmin && !features.includes(item.feature)) {
+      return false;
+    }
     return !item.need || access.has(item.need);
   };
 
@@ -90,15 +126,27 @@ export function AppShell() {
     items: section.items.filter(visible),
   })).filter((section) => section.items.length > 0);
 
+  const shellClass = [
+    "app-shell",
+    drawer ? "app-shell--drawer" : collapsed ? "app-shell--collapsed" : "",
+    drawer && navOpen ? "app-shell--nav-open" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const menuOpen = drawer ? navOpen : !collapsed;
+
   return (
-    <div className={`app-shell${collapsed ? " app-shell--collapsed" : ""}`}>
+    <div className={shellClass}>
       <header className="app-header" role="banner">
         <button
           className="icon-btn header-icon sidebar-toggle"
           type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title="Toggle sidebar (Ctrl+B)"
+          onClick={() => (drawer ? setNavOpen((value) => !value) : setCollapsed((value) => !value))}
+          aria-expanded={menuOpen}
+          aria-controls="app-sidebar"
+          aria-label={drawer ? (navOpen ? "Close menu" : "Open menu") : collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={drawer ? "Menu" : "Toggle sidebar (Ctrl+B)"}
         >
           <Icon name="panelLeft" />
         </button>
@@ -177,15 +225,17 @@ export function AppShell() {
                 >
                   My profile
                 </MenuItem>
-                <MenuItem
-                  icon={<Icon name="settings" />}
-                  onClick={() => {
-                    close();
-                    navigate("/settings");
-                  }}
-                >
-                  Workspace settings
-                </MenuItem>
+                {access.has("SETTINGS_READ") && (
+                  <MenuItem
+                    icon={<Icon name="settings" />}
+                    onClick={() => {
+                      close();
+                      navigate("/settings");
+                    }}
+                  >
+                    Workspace settings
+                  </MenuItem>
+                )}
                 <MenuItem
                   icon={<Icon name="grid" />}
                   onClick={() => {
@@ -214,7 +264,22 @@ export function AppShell() {
       </header>
 
       <div className="app-body">
-        <aside className="sidebar" aria-label="Main navigation">
+        {drawer && (
+          <button
+            className="sidebar-scrim"
+            type="button"
+            tabIndex={navOpen ? 0 : -1}
+            aria-label="Close menu"
+            onClick={() => setNavOpen(false)}
+          />
+        )}
+        <aside
+          className="sidebar"
+          id="app-sidebar"
+          aria-label="Main navigation"
+          aria-hidden={drawer && !navOpen}
+          inert={drawer && !navOpen ? true : undefined}
+        >
           <div className="sidebar-workspace">
             <strong>{user?.workspaceName ?? user?.shopName ?? "Workspace"}</strong>
             <span>{access.roleLabel}</span>
@@ -261,22 +326,23 @@ export function AppShell() {
         </aside>
 
         <div className="main" id="main-content">
-          {unpaid && (
-            <div className="banner banner-warn paywall-strip">
-              Payment pending — finish Billing to unlock the counter.
+          <div className="main__body">
+            {unpaid && (
+              <div className="banner banner-warn paywall-strip">
+                Payment pending — open Billing and pay this month or the shop stays locked.
+              </div>
+            )}
+            <div className="main__crumbs">
+              <Breadcrumbs />
             </div>
-          )}
-          <div className="main__crumbs">
-            <Breadcrumbs />
-          </div>
-          <ErrorBoundary resetKey={pathname}>
-            <Outlet />
-          </ErrorBoundary>
-          <div className="main__footer">
-            <BrandFooter />
+            <ErrorBoundary resetKey={pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </div>
       </div>
+
+      <BrandFooter />
 
       <NavLink to="/support" className="support-fab" aria-label="Open support">
         <Icon name="chat" />

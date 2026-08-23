@@ -1,5 +1,6 @@
 package com.fixflow.catalog.web;
 
+import com.fixflow.billing.service.BillingService;
 import com.fixflow.catalog.dto.CatalogDtos.AddAliasRequest;
 import com.fixflow.catalog.dto.CatalogDtos.DeviceModelRequest;
 import com.fixflow.catalog.dto.CatalogDtos.DeviceModelResponse;
@@ -39,6 +40,7 @@ public class DeviceController {
 
     private final DeviceService deviceService;
     private final CompatibilityLookupService compatibilityLookupService;
+    private final BillingService billingService;
 
     @GetMapping
     @PreAuthorize(Authorize.CATALOG_READ)
@@ -62,6 +64,7 @@ public class DeviceController {
     @Operation(summary = "What parts fit this phone, how many, and at what price")
     public DeviceCompatibilityView compatibility(@PathVariable UUID id,
                                                  @RequestParam(defaultValue = "NORMAL") PricingFlag flag) {
+        billingService.requireCatalog(CurrentUser.shopId());
         return compatibilityLookupService.lookup(CurrentUser.shopId(), id, flag);
     }
 

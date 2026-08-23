@@ -37,8 +37,10 @@ public class BillingController {
     @PostMapping("/orders")
     @PreAuthorize(Authorize.WORKSPACE_BILLING)
     public CheckoutOrderResponse create(@RequestBody Map<String, String> body) {
-        return billingService.createOrder(CurrentUser.shopId(),
-                body.getOrDefault("priceCode", "WORKSPACE_ACTIVATION"));
+        String code = body.get("planCode") != null && !body.get("planCode").isBlank()
+                ? body.get("planCode")
+                : body.getOrDefault("priceCode", "COMPATIBILITY");
+        return billingService.createOrder(CurrentUser.shopId(), code);
     }
 
     @PostMapping({"/verify", "/verify-payment"})

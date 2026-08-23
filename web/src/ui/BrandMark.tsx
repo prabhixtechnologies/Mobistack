@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BRAND, copyrightLine } from "../lib/brand";
+import { BRAND } from "../lib/brand";
 
 export function BrandMark({
   compact = false,
@@ -31,18 +31,27 @@ const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
 export function BrandFooter() {
   return (
     <footer className="brand-footer">
-      <div className="brand-footer__row">
-        <span>{BRAND.tagline}</span>
+      <p className="brand-footer__copy">© {BRAND.copyrightYear} {BRAND.product}</p>
+      <p className="brand-footer__credit">
+        Designed &amp; Developed by <span className="brand-footer__author">{BRAND.designer}</span>
+        {APP_VERSION ? <span className="brand-footer__ver"> · v{APP_VERSION}</span> : null}
+      </p>
+      <div className="brand-footer__end">
         <nav className="brand-footer__links" aria-label="Legal and support">
+          <Link to="/app">Get the app</Link>
+          <a href="/download/android">Android</a>
+          <a href="/download/ios">iOS</a>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/refunds">Refunds</Link>
-          <a href={`mailto:${BRAND.supportEmail}`}>{BRAND.supportEmail}</a>
+          <a href={`mailto:${BRAND.supportEmail}`}>Support</a>
         </nav>
-      </div>
-      <div className="brand-footer__row brand-footer__meta">
-        <span>{copyrightLine()}</span>
-        {APP_VERSION && <span className="faint">v{APP_VERSION}</span>}
+        <span className="brand-footer__logo">
+          <span className="brand-mark brand-mark--xs" aria-hidden>
+            M
+          </span>
+          {BRAND.product}
+        </span>
       </div>
     </footer>
   );

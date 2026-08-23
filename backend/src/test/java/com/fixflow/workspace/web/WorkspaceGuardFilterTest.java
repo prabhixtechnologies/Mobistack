@@ -98,6 +98,20 @@ class WorkspaceGuardFilterTest {
     }
 
     @Test
+    void paidJoinAndCancelAreAllowedWithoutASelectedWorkspace() throws Exception {
+        authenticate(UserPrincipal.unscoped(user()));
+
+        MockHttpServletResponse checkout = run("POST", "/api/v1/workspaces/join/checkout", null);
+        MockHttpServletResponse complete = run("POST", "/api/v1/workspaces/join/complete", null);
+        MockHttpServletResponse cancel = run("POST", "/api/v1/workspaces/" + workspaceId + "/join/cancel", null);
+
+        assertThat(checkout.getStatus()).isEqualTo(200);
+        assertThat(complete.getStatus()).isEqualTo(200);
+        assertThat(cancel.getStatus()).isEqualTo(200);
+        verify(workspaceAccessService, never()).requireActive(any(), any());
+    }
+
+    @Test
     void selectIsAllowedEvenWhenTheHeaderNamesTheTargetWorkspace() throws Exception {
         authenticate(UserPrincipal.unscoped(user()));
 
