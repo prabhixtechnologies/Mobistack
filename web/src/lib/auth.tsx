@@ -69,9 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       workspaces,
       async login(email, password) {
+        clearSession();
+        setUser(null);
+        setWorkspaces([]);
         const auth = await api<AuthResponse>("/api/v1/auth/login", {
           method: "POST",
-          body: JSON.stringify({ email, password, deviceId: getDeviceId() }),
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+            deviceId: getDeviceId(),
+          }),
         });
         applySession(auth, setUser, setWorkspaces);
         return auth;

@@ -56,14 +56,52 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (ApiException ex) {
-            // Answer here rather than falling through, so the client can tell
-            // "expired, go refresh" apart from "invalid, go log in again".
             SecurityContextHolder.clearContext();
+            // Sign-in and other anonymous routes must still run when the browser
+            // still has an expired or replaced access token in localStorage.
+            if (isAnonymousOk(request)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             writeError(request, response, ex);
             return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    static boolean isAnonymousOk(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path == null) {
+            return false;
+        }
+        if (path.startsWith("/api/v1/public/") || path.startsWith("/download/")
+                || path.startsWith("/actuator/health")) {
+            return true;
+        }
+        if (!path.startsWith("/api/v1/auth/")) {
+            return false;
+        }
+        return path.equals("/api/v1/auth/login")
+                || path.equals("/api/v1/auth/refresh")
+                || path.equals("/api/v1/auth/register")
+                || path.equals("/api/v1/auth/register-shop")
+                || path.equals("/api/v1/auth/forgot-password")
+                || path.equals("/api/v1/auth/reset-password")
+                || path.equals("/api/v1/auth/request-otp")
+                || path.equals("/api/v1/auth/verify-otp")
+                || path.equals("/api/v1/auth/methods")
+                || path.equals("/api/v1/auth/magic-link")
+                || path.equals("/api/v1/auth/magic-link/consume")
+                || path.equals("/api/v1/auth/email-otp")
+                || path.equals("/api/v1/auth/email-otp/verify")
+                || path.equals("/api/v1/auth/phone/start")
+                || path.equals("/api/v1/auth/phone/verify")
+                || path.equals("/api/v1/auth/whatsapp/start")
+                || path.equals("/api/v1/auth/whatsapp/verify")
+                || path.equals("/api/v1/auth/sso/google/start")
+                || path.equals("/api/v1/auth/sso/google")
+                || path.equals("/api/v1/auth/sso/dev");
     }
 
     private void writeError(HttpServletRequest request, HttpServletResponse response, ApiException ex)

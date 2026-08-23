@@ -117,14 +117,23 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const token = await getAccessToken();
+  const anonymous = path.startsWith("/api/v1/auth/login")
+    || path.startsWith("/api/v1/auth/refresh")
+    || path.startsWith("/api/v1/auth/register")
+    || path.startsWith("/api/v1/auth/magic-link")
+    || path.startsWith("/api/v1/auth/email-otp")
+    || path.startsWith("/api/v1/auth/phone/")
+    || path.startsWith("/api/v1/auth/whatsapp/")
+    || path.startsWith("/api/v1/auth/forgot-password")
+    || path.startsWith("/api/v1/auth/reset-password");
+  const token = anonymous ? null : await getAccessToken();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
   headers.set("X-MobiStack-Device", await getDeviceId());
 
   let response = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  if (response.status === 401 && path !== "/api/v1/auth/refresh") {
+  if (response.status === 401 && !anonymous && path !== "/api/v1/auth/refresh") {
     try {
       const payload = (await response.clone().json()) as { code?: string };
       if (payload.code === "SESSION_REPLACED") {

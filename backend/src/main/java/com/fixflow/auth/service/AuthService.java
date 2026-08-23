@@ -71,7 +71,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest request, ClientInfo client) {
-        User user = userRepository.findWithRolesByEmail(request.email())
+        User user = userRepository.findWithRolesByEmail(request.email().trim())
                 // Same message for unknown email and wrong password: do not let
                 // an attacker enumerate which accounts exist.
                 .orElseThrow(() -> new ApiException(ErrorCode.INVALID_CREDENTIALS,
