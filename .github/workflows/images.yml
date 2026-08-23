@@ -1,8 +1,9 @@
-# Docker Hub push needs repository secrets (Settings → Secrets and variables → Actions):
+# Image push needs repository secrets (Settings → Secrets and variables → Actions):
 #   DOCKERHUB_USERNAME
 #   DOCKERHUB_TOKEN   (Hub access token, not the account password)
 # Optional variable: DOCKERHUB_NAMESPACE (defaults to the username)
 # Create private Hub repos mobistack-backend and mobistack-web before the first push.
+# Tests, APK, and the iOS module still run when those secrets are missing.
 
 name: Build and push images
 
@@ -63,29 +64,34 @@ jobs:
           npm ci
           npx tsc --noEmit
 
-  hub-note:
-    needs: test
-    if: ${{ secrets.DOCKERHUB_USERNAME == '' || secrets.DOCKERHUB_TOKEN == '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Docker Hub secrets are not set
-        run: |
-          echo "Image push was skipped because DOCKERHUB_USERNAME / DOCKERHUB_TOKEN are empty."
-          echo "Repo Settings → Secrets and variables → Actions → add those two secrets."
-          echo "Create private Hub repos mobistack-backend and mobistack-web first."
-
   push:
     needs: test
-    if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
     runs-on: ubuntu-latest
     env:
-      NS: ${{ vars.DOCKERHUB_NAMESPACE || secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
     steps:
+      - name: Decide whether Hub credentials are present
+        id: hub
+        run: |
+          if [ -z "${DOCKERHUB_USERNAME}" ] || [ -z "${DOCKERHUB_TOKEN}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Image push skipped: add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN in repo Settings → Secrets."
+            echo "Create private Hub repos mobistack-backend and mobistack-web first."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "ns=${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.hub.outputs.configured == 'true'
 
       - name: Resolve image tags
+        if: steps.hub.outputs.configured == 'true'
         id: tags
         env:
+          NS: ${{ steps.hub.outputs.ns }}
           EXTRA: ${{ github.event.inputs.tag }}
         run: |
           {
@@ -102,13 +108,16 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
+        if: steps.hub.outputs.configured == 'true'
 
       - uses: docker/login-action@v3
+        if: steps.hub.outputs.configured == 'true'
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Push backend
+        if: steps.hub.outputs.configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -118,6 +127,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Push web
+        if: steps.hub.outputs.configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./web
