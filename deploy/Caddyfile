@@ -16,7 +16,6 @@ mobistack.prabhixtechnologies.com {
 	}
 
 	handle /download/* {
-		encode off
 		reverse_proxy backend:8080
 	}
 	handle /api/* {
