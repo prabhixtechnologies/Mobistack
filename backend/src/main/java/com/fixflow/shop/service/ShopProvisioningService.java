@@ -24,6 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
@@ -80,7 +81,7 @@ public class ShopProvisioningService {
         owner.setEmail(request.email().toLowerCase());
         owner.setPhone(request.phone());
         owner.setPasswordHash(passwordEncoder.encode(request.rawPassword()));
-        owner.setRoles(Set.of(ownerRole));
+        owner.setRoles(new LinkedHashSet<>(Set.of(ownerRole)));
         userRepository.save(owner);
         attachOwnerMembership(owner, shop);
         billingService.grantPilotEntitlements(shop.getId());

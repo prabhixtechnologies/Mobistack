@@ -45,6 +45,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -385,7 +386,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         user.setEmail(email);
         user.setPhone(phone);
         user.setPasswordHash(passwordEncoder.encode(password));
-        user.setRoles(Set.of(role));
+        user.setRoles(new LinkedHashSet<>(Set.of(role)));
         userRepository.save(user);
         Shop shop = shopRepository.findById(shopId).orElseThrow();
         workspaceAccessService.activate(user, shop, role, invitedBy);
