@@ -1,0 +1,31 @@
+# Production: HTTPS on mobistack.prabhixtechnologies.com. Redis required.
+spring:
+  cache:
+    type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
+fixflow:
+  auth:
+    web-origin: ${FIXFLOW_WEB_ORIGIN:https://mobistack.prabhixtechnologies.com}
+    dev-sso-enabled: false
+    dev-otp: ""
+  platform:
+    public-origin: https://mobistack.prabhixtechnologies.com
+    api-origin: https://mobistack.prabhixtechnologies.com
+    require-https: true
+  redis:
+    enabled: true
+  cors:
+    allowed-origins:
+      - https://mobistack.prabhixtechnologies.com
+      - https://www.mobistack.prabhixtechnologies.com
+  demo:
+    seed-enabled: false
+
+logging:
+  level:
+    com.fixflow: INFO
+    org.hibernate.SQL: WARN

@@ -1,0 +1,17 @@
+# Used only if a future integration test boots the full Spring context
+# without Testcontainers. Unit tests in this repo do not load this file.
+spring:
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+fixflow:
+  security:
+    jwt:
+      secret: fixflow-test-signing-key-that-is-definitely-longer-than-sixty-four-chars
+  redis:
+    enabled: false
+  demo:
+    seed-enabled: false

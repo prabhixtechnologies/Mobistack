@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "FixFlow",
+    "slug": "fixflow",
+    "scheme": "fixflow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#14130F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.prabhix.fixflow",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FixFlow scans part barcodes at the counter.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSExceptionDomains": {
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
+      }
+    },
+    "android": {
+      "package": "app.prabhix.fixflow",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#14130F"
+      },
+      "usesCleartextTraffic": true,
+      "permissions": ["CAMERA", "INTERNET", "ACCESS_NETWORK_STATE"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-dev-client",
+      "expo-notifications",
+      "expo-updates",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FixFlow scans part barcodes at the counter."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

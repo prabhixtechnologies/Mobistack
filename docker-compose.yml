@@ -1,0 +1,102 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fixflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fixflow
+      POSTGRES_USER: fixflow
+      POSTGRES_PASSWORD: fixflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fixflow -d fixflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: fixflow-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: fixflow-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:prod}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fixflow
+      SPRING_DATASOURCE_USERNAME: fixflow
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:fixflow}
+      REDIS_HOST: redis
+      FIXFLOW_REDIS_ENABLED: "true"
+      FIXFLOW_CACHE_TYPE: redis
+      FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:-change-me-in-production-this-must-be-at-least-64-characters-long-abcdef}
+      FIXFLOW_WEB_ORIGIN: https://mobistack.prabhixtechnologies.com
+      FIXFLOW_PUBLIC_ORIGIN: https://mobistack.prabhixtechnologies.com
+      FIXFLOW_API_ORIGIN: https://mobistack.prabhixtechnologies.com
+      FIXFLOW_REQUIRE_HTTPS: "true"
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_SMS_FROM: ${TWILIO_SMS_FROM:-}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
+      FIXFLOW_GOOGLE_CLIENT_ID: ${FIXFLOW_GOOGLE_CLIENT_ID:-}
+      FIXFLOW_GOOGLE_CLIENT_SECRET: ${FIXFLOW_GOOGLE_CLIENT_SECRET:-}
+      FIXFLOW_OPENAI_API_KEY: ${FIXFLOW_OPENAI_API_KEY:-}
+    ports:
+      - "8080:8080"
+    profiles: ["full", "prod"]
+
+  web:
+    build:
+      context: ./web
+    container_name: fixflow-web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "4173:80"
+    profiles: ["full", "prod"]
+
+  caddy:
+    image: caddy:2.10-alpine
+    container_name: fixflow-caddy
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-ops@prabhixtechnologies.com}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    profiles: ["prod"]
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

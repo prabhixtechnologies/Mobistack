@@ -1,0 +1,12 @@
+package com.fixflow.support.repository;
+
+import com.fixflow.support.domain.SupportMessage;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface SupportMessageRepository extends JpaRepository<SupportMessage, UUID> {
+
+    List<SupportMessage> findByConversationIdOrderByCreatedAtAsc(UUID conversationId);
+}

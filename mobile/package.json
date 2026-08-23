@@ -1,0 +1,44 @@
+{
+  "name": "fixflow-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "expo prebuild",
+    "prebuild:android": "expo prebuild --platform android",
+    "prebuild:ios": "expo prebuild --platform ios",
+    "apk": "expo prebuild --platform android && node ./scripts/assemble-apk.js",
+    "apk:debug": "expo prebuild --platform android && node ./scripts/assemble-apk.js debug",
+    "ios:project": "node ./scripts/assemble-ios.js",
+    "ios:build": "node ./scripts/assemble-ios.js --require-binary",
+    "ios:eas": "npx eas-cli build -p ios --profile preview",
+    "ios:eas-device": "npx eas-cli build -p ios --profile preview-device"
+  },
+  "dependencies": {
+    "expo": "~54.0.0",
+    "expo-camera": "~17.0.10",
+    "expo-constants": "~18.0.0",
+    "expo-dev-client": "~6.0.21",
+    "expo-linking": "~8.0.0",
+    "expo-router": "~6.0.0",
+    "expo-secure-store": "~15.0.0",
+    "expo-splash-screen": "~31.0.0",
+    "expo-sqlite": "~16.0.0",
+    "expo-status-bar": "~3.0.0",
+    "expo-updates": "~29.0.16",
+    "expo-notifications": "~0.32.16",
+    "expo-device": "~8.0.10",
+    "expo-application": "~7.0.8",
+    "react": "19.1.0",
+    "react-native": "0.81.4",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "typescript": "~5.9.2"
+  }
+}

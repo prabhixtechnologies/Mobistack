@@ -1,0 +1,12 @@
+# Laptop / local Docker: demo seed, Redis on, HTTP on localhost.
+#   docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml up --build
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      FIXFLOW_REQUIRE_HTTPS: "false"
+      FIXFLOW_WEB_ORIGIN: http://localhost:4173
+      FIXFLOW_PUBLIC_ORIGIN: http://localhost:4173
+      FIXFLOW_API_ORIGIN: http://localhost:8080
+      FIXFLOW_REDIS_ENABLED: "true"
+      FIXFLOW_CACHE_TYPE: redis

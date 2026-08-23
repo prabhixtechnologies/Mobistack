@@ -1,0 +1,124 @@
+package com.fixflow.sync.web;
+
+import com.fixflow.catalog.service.ProductService;
+import com.fixflow.commerce.dto.CommerceDtos.CreateSaleRequest;
+import com.fixflow.commerce.service.SaleService;
+import com.fixflow.inventory.dto.InventoryDtos.StockReceiveRequest;
+import com.fixflow.inventory.service.InventoryQueryService;
+import com.fixflow.inventory.service.InventoryService;
+import com.fixflow.repair.dto.RepairDtos.CreateRepairRequest;
+import com.fixflow.repair.service.RepairService;
+import com.fixflow.report.service.ReportService;
+import com.fixflow.security.Authorize;
+import com.fixflow.security.CurrentUser;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/sync")
+@RequiredArgsConstructor
+@Tag(name = "Sync")
+public class SyncController {
+
+    private final SaleService saleService;
+    private final InventoryService inventoryService;
+    private final InventoryQueryService inventoryQueryService;
+    private final ProductService productService;
+    private final RepairService repairService;
+    private final ReportService reportService;
+
+    public record SyncOperation(
+            @NotBlank String type,
+            @NotBlank String idempotencyKey,
+            CreateSaleRequest sale,
+            StockReceiveRequest receive,
+            CreateRepairRequest repair
+    ) {
+    }
+
+    public record SyncRequest(List<SyncOperation> operations) {
+    }
+
+    public record SyncResult(String idempotencyKey, String status, String message) {
+    }
+
+    @GetMapping("/snapshot")
+    @PreAuthorize(Authorize.INVENTORY_READ)
+    public Map<String, Object> snapshot() {
+        var shopId = CurrentUser.shopId();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pulledAt", java.time.Instant.now().toString());
+        body.put("variants", productService.searchVariants(shopId, null, null, null, null, false, false,
+                PageRequest.of(0, 200)).getContent());
+        body.put("sales", saleService.list(shopId, null, PageRequest.of(0, 40)).getContent());
+        body.put("repairs", repairService.list(shopId, null, PageRequest.of(0, 40)).getContent());
+        var today = ReportService.resolve("today", null, null, java.time.ZoneId.of("Asia/Kolkata"));
+        var sales = reportService.sales(shopId, today);
+        var repairs = reportService.repairs(shopId);
+        Map<String, Object> dashboard = new LinkedHashMap<>();
+        Map<String, Object> salesCard = new LinkedHashMap<>();
+        salesCard.put("todaySales", sales.sales());
+        salesCard.put("todayProfit", sales.profit());
+        salesCard.put("todayTransactions", sales.transactions());
+        dashboard.put("sales", salesCard);
+        dashboard.put("repairs", java.util.Collections.singletonMap("pending", repairs.pending()));
+        dashboard.put("inventory", inventoryQueryService.snapshot(shopId));
+        dashboard.put("alerts", inventoryQueryService.openAlerts(shopId, PageRequest.of(0, 8)).getContent());
+        body.put("dashboard", dashboard);
+        return body;
+    }
+
+    @PostMapping
+    @PreAuthorize(Authorize.INVENTORY_WRITE + " or hasAuthority('SALES_WRITE') or hasAuthority('REPAIR_WRITE')")
+    public List<SyncResult> push(@Valid @RequestBody SyncRequest request) {
+        List<SyncResult> results = new ArrayList<>();
+        if (request.operations() == null) {
+            return results;
+        }
+        for (SyncOperation op : request.operations()) {
+            try {
+                if ("SALE".equalsIgnoreCase(op.type()) && op.sale() != null) {
+                    CreateSaleRequest keyed = new CreateSaleRequest(op.sale().customerId(), op.sale().pricingFlag(),
+                            op.sale().discount(), op.sale().notes(), op.idempotencyKey(), op.sale().deviceId(),
+                            op.sale().items(), op.sale().payments());
+                    saleService.complete(CurrentUser.shopId(), keyed);
+                    results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Sale accepted"));
+                } else if ("RECEIVE".equalsIgnoreCase(op.type()) && op.receive() != null) {
+                    inventoryQueryService.toResponse(inventoryService.receive(
+                            CurrentUser.shopId(), op.receive().variantId(), op.receive().quantity(),
+                            op.receive().unitCost(), op.receive().reason(), op.receive().batchNo()));
+                    results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Stock received"));
+                } else if ("REPAIR".equalsIgnoreCase(op.type()) && op.repair() != null) {
+                    CreateRepairRequest repair = op.repair();
+                    CreateRepairRequest keyed = new CreateRepairRequest(
+                            repair.customerId(), repair.deviceModelId(), repair.technicianUserId(),
+                            repair.problem(), repair.imei(), repair.estimatedCost(), repair.laborCharge(),
+                            repair.laborCost(), repair.customerNotes(), repair.internalNotes(),
+                            repair.expectedAt(), op.idempotencyKey());
+                    repairService.create(CurrentUser.shopId(), keyed);
+                    results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Repair accepted"));
+                } else {
+                    results.add(new SyncResult(op.idempotencyKey(), "FAILED", "Unknown operation"));
+                }
+            } catch (Exception ex) {
+                results.add(new SyncResult(op.idempotencyKey(), "FAILED", ex.getMessage()));
+            }
+        }
+        return results;
+    }
+}

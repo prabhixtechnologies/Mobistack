@@ -1,0 +1,31 @@
+# Local development profile: run with -Dspring-boot.run.profiles=dev
+fixflow:
+  security:
+    jwt:
+      # Development-only key. Never reuse this outside a local machine.
+      secret: fixflow-local-development-signing-key-do-not-use-in-production-0123456789
+  auth:
+    web-origin: ${FIXFLOW_WEB_ORIGIN:http://localhost:5173}
+    dev-sso-enabled: true
+  platform:
+    public-origin: ${FIXFLOW_PUBLIC_ORIGIN:http://localhost:5173}
+    api-origin: ${FIXFLOW_API_ORIGIN:http://localhost:8080}
+    require-https: false
+  redis:
+    enabled: ${FIXFLOW_REDIS_ENABLED:false}
+  demo:
+    seed-enabled: true
+    owner-email: owner@fixflow.app
+    owner-password: Owner@123
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    com.fixflow: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
