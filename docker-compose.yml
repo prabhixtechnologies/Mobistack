@@ -96,6 +96,8 @@ services:
     image: ${DOCKERHUB_NAMESPACE:-prabhixtechnologies}/mobistack-web:${IMAGE_TAG:-latest}
     build:
       context: ./web
+      args:
+        VITE_RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
     container_name: fixflow-web
     depends_on:
       backend:

@@ -1101,6 +1101,17 @@ button {
   color: #7a4b00;
 }
 
+body.rzp-checkout-open .app-shell,
+body.rzp-checkout-open .app-body {
+  filter: none;
+}
+
+iframe.razorpay-checkout-frame,
+.razorpay-container {
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
 .paywall-strip {
   margin: 16px 28px 0;
 }

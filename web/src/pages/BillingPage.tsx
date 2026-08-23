@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, money } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { BRAND } from "../lib/brand";
-import { loadRazorpayCheckout, openRazorpayCheckout } from "../lib/razorpay";
+import { checkoutContact, loadRazorpayCheckout, openRazorpayCheckout } from "../lib/razorpay";
 import { PageHeader } from "../ui/PageHeader";
 
 interface Overview {
@@ -18,12 +18,17 @@ interface Overview {
 
 interface CheckoutOrder {
   id: string;
-  order_id: string;
+  order_id?: string;
+  orderId?: string;
   amount: number;
   currency: string;
   keyId?: string;
   priceCode: string;
   gateway: string;
+}
+
+function razorpayOrderId(order: CheckoutOrder): string {
+  return (order.order_id || order.orderId || "").trim();
 }
 
 function priceTitle(code: string): string {
@@ -77,18 +82,23 @@ export function BillingPage() {
         method: "POST",
         body: JSON.stringify({ priceCode }),
       });
-      if (order.gateway === "DEV" || !order.order_id?.startsWith("order_")) {
+      const remoteOrderId = razorpayOrderId(order);
+      if (order.gateway === "DEV") {
         await api(`/api/v1/billing/orders/${order.id}/confirm`, { method: "POST" });
         await load();
         await refreshUser();
         setNotice("Payment recorded. The shop counter is unlocked.");
         return;
       }
-      const key = publishableKey || order.keyId;
+      if (!remoteOrderId.startsWith("order_")) {
+        throw new Error("The server did not return a Razorpay order. Try again.");
+      }
+      const key = (order.keyId || publishableKey).trim();
       if (!key) {
         throw new Error("Razorpay key is missing. Set VITE_RAZORPAY_KEY_ID or configure the server.");
       }
       await loadRazorpayCheckout();
+      const testMode = key.startsWith("rzp_test_");
       await new Promise<void>((resolve, reject) => {
         let settled = false;
         const checkout = openRazorpayCheckout({
@@ -97,12 +107,18 @@ export function BillingPage() {
           currency: order.currency,
           name: BRAND.product,
           description: priceTitle(priceCode),
-          order_id: order.order_id,
+          order_id: remoteOrderId,
+          remember_customer: false,
+          retry: { enabled: true, max_count: 3 },
           prefill: {
             name: user?.fullName,
             email: user?.email,
-            contact: user?.phone,
+            contact: checkoutContact(user?.phone),
+            method: testMode ? "card" : undefined,
           },
+          method: testMode
+            ? { card: true, netbanking: true, wallet: true, upi: false, emi: false, paylater: false }
+            : undefined,
           theme: { color: "#6d28d9" },
           handler: (response) => {
             void api("/api/v1/billing/verify", {
@@ -142,6 +158,7 @@ export function BillingPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Payment failed");
     } finally {
+      document.body.classList.remove("rzp-checkout-open");
       setPaying(null);
     }
   }
@@ -169,8 +186,12 @@ export function BillingPage() {
       )}
       {(publishableKey.startsWith("rzp_test_") || data?.razorpayKeyId?.startsWith("rzp_test_")) && (
         <div className="banner">
-          Razorpay is in test mode. Real UPI IDs and QR scans will show as invalid. Use UPI ID{" "}
-          <strong>success@razorpay</strong> or card <strong>4111 1111 1111 1111</strong>.
+          Razorpay Test Mode cannot load a real UPI QR — that blur is expected, and scanning it
+          will never succeed. Stay on <strong>Cards</strong>, uncheck save-card if it appears,
+          click <strong>Continue</strong>, then enter OTP <strong>1234</strong>. Use card{" "}
+          <strong>4111 1111 1111 1111</strong> or <strong>4100 2800 0000 1007</strong> (any future
+          expiry, CVV 123). Cancel the browser sign-in popup if it appears — do not type your
+          Razorpay secret there.
         </div>
       )}
       {data && !data.paymentRequired && periodEnd && (

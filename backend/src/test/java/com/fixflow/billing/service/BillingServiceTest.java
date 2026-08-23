@@ -1,5 +1,6 @@
 package com.fixflow.billing.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.billing.domain.BillingOrder;
 import com.fixflow.billing.razorpay.RazorpayGateway;
@@ -122,6 +123,15 @@ class BillingServiceTest {
                 .isInstanceOf(ApiException.class)
                 .extracting(ex -> ((ApiException) ex).getCode())
                 .isEqualTo(ErrorCode.ENTITLEMENT_DENIED);
+    }
+
+    @Test
+    void checkoutOrderJsonExposesRazorpayOrderId() throws Exception {
+        String json = new ObjectMapper().writeValueAsString(new BillingService.CheckoutOrderResponse(
+                UUID.fromString("11111111-1111-1111-1111-111111111111"),
+                "order_test123", 5000L, "INR", "rzp_test_key", "WORKSPACE_ACTIVATION", "RAZORPAY"));
+        assertThat(json).contains("\"order_id\":\"order_test123\"");
+        assertThat(json).contains("\"keyId\":\"rzp_test_key\"");
     }
 
     private static BillingOrder pendingRazorpayOrder(UUID workspaceId, String gatewayOrderId) {

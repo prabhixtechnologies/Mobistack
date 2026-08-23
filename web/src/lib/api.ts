@@ -76,6 +76,17 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
 
   if (response.status === 401 && getRefreshToken() && path !== "/api/v1/auth/refresh") {
+    let sessionExpired = true;
+    try {
+      const payload = (await response.clone().json()) as ApiError;
+      sessionExpired = !payload.code || payload.code === "UNAUTHENTICATED"
+        || payload.code === "TOKEN_EXPIRED" || payload.code === "TOKEN_INVALID";
+    } catch {
+      sessionExpired = true;
+    }
+    if (!sessionExpired) {
+      await parseError(response);
+    }
     const refreshed = await fetch(`${API_ORIGIN}/api/v1/auth/refresh`, {
       method: "POST",
       headers: withDevice(new Headers({ "Content-Type": "application/json" })),
