@@ -15,7 +15,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: fixflow-postgres
+    container_name: mobistack-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-fixflow}
       POSTGRES_USER: ${POSTGRES_USER:-fixflow}
@@ -31,7 +31,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: fixflow-redis
+    container_name: mobistack-redis
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
@@ -47,7 +47,7 @@ services:
     image: ${DOCKERHUB_NAMESPACE:-prabhixtechnologies}/mobistack-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
-    container_name: fixflow-backend
+    container_name: mobistack-backend
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,7 +98,7 @@ services:
       context: ./web
       args:
         VITE_RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
-    container_name: fixflow-web
+    container_name: mobistack-web
     depends_on:
       backend:
         condition: service_healthy
@@ -107,7 +107,7 @@ services:
   caddy:
     profiles: ["prod"]
     image: caddy:2.10-alpine
-    container_name: fixflow-caddy
+    container_name: mobistack-caddy
     depends_on:
       backend:
         condition: service_healthy

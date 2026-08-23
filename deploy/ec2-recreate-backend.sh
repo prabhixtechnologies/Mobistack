@@ -17,7 +17,7 @@ if [[ "$secret_set" != "yes" ]]; then
   echo "RAZORPAY_KEY_SECRET is empty" >&2
   exit 1
 fi
-echo "container_key_before=$(sudo docker exec fixflow-backend printenv RAZORPAY_KEY_ID | cut -c1-8 || true)"
+echo "container_key_before=$(sudo docker exec mobistack-backend printenv RAZORPAY_KEY_ID | cut -c1-8 || true)"
 sudo docker compose --profile prod \
   -f docker-compose.yml \
   -f docker-compose.prod.yml \
