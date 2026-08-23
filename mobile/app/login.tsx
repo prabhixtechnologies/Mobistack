@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "../lib/auth";
 import { api, selectedWorkspaceId, type AuthResponse, type AuthUser } from "../lib/api";
@@ -145,7 +145,10 @@ export default function LoginScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={styles.wrap}>
       <View style={styles.top}>
-        <Text style={styles.mark}>{BRAND.product}</Text>
+        <View style={styles.brand}>
+          <Image source={require("../assets/logo.png")} style={styles.logo} />
+          <Text style={styles.mark}>{BRAND.product}</Text>
+        </View>
         <Pressable onPress={toggle}>
           <Text style={styles.ghostText}>{mode === "light" ? "Dark" : "Light"}</Text>
         </Pressable>
@@ -279,6 +282,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     wrap: { padding: 28, paddingTop: 72, paddingBottom: 48 },
     top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+    brand: { flexDirection: "row", alignItems: "center", gap: 10 },
+    logo: { width: 36, height: 36, borderRadius: 10 },
     mark: { fontSize: 18, fontWeight: "700", color: colors.ink },
     title: { fontSize: 40, lineHeight: 44, fontWeight: "500", letterSpacing: -1, marginBottom: 8, color: colors.ink },
     sub: { color: colors.soft, fontSize: 16, marginBottom: 22 },

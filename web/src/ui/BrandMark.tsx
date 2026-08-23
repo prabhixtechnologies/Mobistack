@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { BRAND } from "../lib/brand";
+import { LogoMark } from "./LogoMark";
 
 export function BrandMark({
   compact = false,
@@ -10,7 +11,9 @@ export function BrandMark({
 }) {
   return (
     <div className={`brand${inverse ? " brand--inverse" : ""}`} style={{ padding: compact ? 0 : undefined }}>
-      <div className="brand-mark">M</div>
+      <span className="brand-mark">
+        <LogoMark size={34} />
+      </span>
       <div>
         <div className="brand-name">{BRAND.product}</div>
         {!compact && <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{BRAND.organization}</div>}
@@ -47,8 +50,8 @@ export function BrandFooter() {
           <a href={`mailto:${BRAND.supportEmail}`}>Support</a>
         </nav>
         <span className="brand-footer__logo">
-          <span className="brand-mark brand-mark--xs" aria-hidden>
-            M
+          <span className="brand-mark brand-mark--xs">
+            <LogoMark size={22} />
           </span>
           {BRAND.product}
         </span>

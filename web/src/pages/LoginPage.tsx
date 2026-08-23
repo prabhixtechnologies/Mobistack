@@ -8,6 +8,7 @@ import { BRAND, copyrightLine } from "../lib/brand";
 import { getDeviceId } from "../lib/device";
 import { storeGet, storeRemove, storeSet } from "../lib/storage";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { LogoMark } from "../ui/LogoMark";
 
 type Method = "password" | "magic" | "email-otp" | "phone" | "whatsapp" | "register" | "shop";
 
@@ -310,7 +311,9 @@ export function LoginPage() {
       <div className="auth-layout">
         <form className="auth-panel" onSubmit={onSubmit}>
           <div className="auth-brand">
-            <div className="auth-brand__mark">M</div>
+            <div className="auth-brand__mark">
+              <LogoMark size={40} />
+            </div>
             <div className="auth-brand__name">{BRAND.product}</div>
             <p className="auth-brand__welcome">{subtitle}</p>
           </div>
@@ -597,7 +600,10 @@ export function LoginPage() {
 
         <aside className="auth-showcase">
           <p className="auth-kicker">{BRAND.organization}</p>
-          <h2>{BRAND.product}</h2>
+          <div className="auth-showcase__brand">
+            <LogoMark size={56} />
+            <h2>{BRAND.product}</h2>
+          </div>
           <p className="auth-tagline">{BRAND.tagline}</p>
           <ul className="auth-highlights">
             {HIGHLIGHTS.map((item) => (

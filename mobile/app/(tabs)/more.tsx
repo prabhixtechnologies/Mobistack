@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
 import { router } from "expo-router";
@@ -40,6 +40,7 @@ export default function MoreScreen() {
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={{ paddingBottom: 48 }}>
+      <Image source={require("../../assets/logo.png")} style={styles.logo} />
       <Text style={styles.title}>More</Text>
       <Text style={styles.name}>{user?.fullName}</Text>
       <Text style={styles.sub}>
@@ -124,6 +125,7 @@ export default function MoreScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.bg, padding: 22, paddingTop: 72 },
+    logo: { width: 40, height: 40, borderRadius: 12, marginBottom: 14 },
     title: { fontSize: 32, fontWeight: "500", color: colors.ink },
     name: { marginTop: 18, fontSize: 20, fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 6, marginBottom: 12 },

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { BRAND, copyrightLine } from "../lib/brand";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { LogoMark } from "../ui/LogoMark";
 
 type Kind = "privacy" | "terms" | "refunds";
 
@@ -15,6 +16,7 @@ export function LegalPage({ kind }: { kind: Kind }) {
     <div className="legal-screen">
       <header className="legal-top">
         <Link to="/login" className="legal-brand">
+          <LogoMark size={28} />
           {BRAND.product}
         </Link>
         <ThemeToggle compact />
