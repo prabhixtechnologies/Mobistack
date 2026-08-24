@@ -39,7 +39,7 @@
     },
     "android": {
       "package": "app.prabhix.fixflow",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3B0764"

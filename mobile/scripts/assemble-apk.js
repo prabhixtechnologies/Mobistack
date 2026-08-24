@@ -33,6 +33,7 @@ if (process.platform !== "win32") {
 }
 
 if (variant === "assembleRelease") {
+  restoreReleaseKeystoreFromEnv();
   ensureReleaseKeystore();
   patchReleaseSigning();
 }
@@ -56,6 +57,51 @@ if (built) {
   console.log(`Built ${built}`);
 }
 
+function writeGradleKeystoreProps(propsFile, { password, alias, keyPassword }) {
+  fs.writeFileSync(
+    propsFile,
+    [
+      "storeFile=mobistack-release.keystore",
+      `storePassword=${password}`,
+      `keyAlias=${alias}`,
+      `keyPassword=${keyPassword}`,
+      "",
+    ].join("\n"),
+    { mode: 0o600 },
+  );
+}
+
+function loadProps(file) {
+  const out = {};
+  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+    const cut = line.indexOf("=");
+    if (cut > 0) {
+      out[line.slice(0, cut).trim()] = line.slice(cut + 1);
+    }
+  }
+  return out;
+}
+
+function restoreReleaseKeystoreFromEnv() {
+  const b64 = process.env.ANDROID_RELEASE_KEYSTORE_BASE64;
+  if (!b64) {
+    return false;
+  }
+  const password = process.env.ANDROID_KEYSTORE_PASSWORD;
+  const keyPassword = process.env.ANDROID_KEY_PASSWORD || password;
+  const alias = process.env.ANDROID_KEY_ALIAS || "mobistack";
+  if (!password || !keyPassword) {
+    console.error("ANDROID_KEYSTORE_PASSWORD is required when ANDROID_RELEASE_KEYSTORE_BASE64 is set.");
+    process.exit(1);
+  }
+  const storeFile = path.join(appDir, "mobistack-release.keystore");
+  const propsFile = path.join(androidDir, "keystore.properties");
+  fs.writeFileSync(storeFile, Buffer.from(b64.replace(/\s/g, ""), "base64"));
+  writeGradleKeystoreProps(propsFile, { password, alias, keyPassword });
+  console.log("Restored release keystore from CI secrets.");
+  return true;
+}
+
 function ensureReleaseKeystore() {
   const storeFile = path.join(appDir, "mobistack-release.keystore");
   const propsFile = path.join(androidDir, "keystore.properties");
@@ -69,11 +115,24 @@ function ensureReleaseKeystore() {
     fs.copyFileSync(secretProps, propsFile);
   }
   if (fs.existsSync(storeFile) && fs.existsSync(propsFile)) {
+    const props = loadProps(propsFile);
+    const storePassword = props.storePassword || props.storePassword;
+    const keyPassword = props.keyPassword || props.keyPassword || storePassword;
+    const alias = props.keyAlias || props.keyAlias || "mobistack";
+    if (storePassword && !props.storePassword) {
+      writeGradleKeystoreProps(propsFile, { password: storePassword, alias, keyPassword });
+    }
     fs.mkdirSync(secretDir, { recursive: true });
     fs.copyFileSync(storeFile, secretStore);
     fs.copyFileSync(propsFile, secretProps);
     console.log("Using existing release keystore.");
     return;
+  }
+  if (process.env.GITHUB_ACTIONS === "true") {
+    console.error(
+      "Release signing secrets are missing. Add ANDROID_RELEASE_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD.",
+    );
+    process.exit(1);
   }
   const password = crypto.randomBytes(18).toString("base64url");
   const keytool = findKeytool();

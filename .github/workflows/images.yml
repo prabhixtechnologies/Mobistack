@@ -3,7 +3,10 @@
 #   DOCKERHUB_TOKEN   (Hub access token, not the account password)
 # Optional variable: DOCKERHUB_NAMESPACE (defaults to the username)
 # Create private Hub repos mobistack-backend and mobistack-web before the first push.
-# Tests, APK, and the iOS module still run when those secrets are missing.
+# Tests still run when Hub secrets are missing.
+# Release APK needs ANDROID_RELEASE_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+# ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD. Deploy to EC2 needs EC2_HOST, EC2_USER,
+# EC2_SSH_KEY, and EC2_APP_DIR.
 
 name: Build and push images
 
@@ -139,6 +142,12 @@ jobs:
   android-apk:
     needs: test
     runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_API_URL: https://mobistack.prabhixtechnologies.com
+      ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -159,16 +168,77 @@ jobs:
         working-directory: mobile
         run: npm ci
 
-      - name: Assemble debug APK
+      - name: Assemble release APK
         working-directory: mobile
-        run: node ./scripts/assemble-apk.js debug
+        run: node ./scripts/assemble-apk.js
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: mobistack-android-apk
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+  deploy-apk:
+    needs: android-apk
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+      EC2_APP_DIR: ${{ secrets.EC2_APP_DIR }}
+    steps:
+      - name: Decide whether EC2 deploy is configured
+        id: ec2
+        run: |
+          if [ -z "${EC2_HOST}" ] || [ -z "${EC2_USER}" ] || [ -z "${EC2_SSH_KEY}" ] || [ -z "${EC2_APP_DIR}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "APK built, but not copied to the server. Add EC2_HOST, EC2_USER, EC2_SSH_KEY, EC2_APP_DIR."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v4
+        if: steps.ec2.outputs.configured == 'true'
+        with:
+          name: mobistack-android-apk
+          path: apk
+
+      - name: Publish APK on EC2
+        if: steps.ec2.outputs.configured == 'true'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: apk/app-release.apk
+          target: /tmp
+          strip_components: 1
+          overwrite: true
+
+      - name: Replace live download
+        if: steps.ec2.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            dest="${{ secrets.EC2_APP_DIR }}/downloads/MobiStack.apk"
+            mkdir -p "$(dirname "$dest")"
+            src=""
+            for candidate in /tmp/app-release.apk /tmp/apk/app-release.apk; do
+              if [ -f "$candidate" ]; then src="$candidate"; break; fi
+            done
+            if [ -z "$src" ]; then
+              echo "APK not found under /tmp"; ls -la /tmp; exit 1
+            fi
+            mv "$src" "$dest"
+            chmod 644 "$dest"
+            ls -lh "$dest"
 
   ios-module:
     needs: test
