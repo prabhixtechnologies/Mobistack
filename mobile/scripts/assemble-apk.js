@@ -3,7 +3,8 @@ const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
 
-const variant = process.argv[2] === "debug" ? "assembleDebug" : "assembleRelease";
+const debug = process.argv[2] === "debug";
+const gradleTasks = debug ? ["assembleDebug"] : ["assembleRelease", "bundleRelease"];
 const androidDir = path.join(__dirname, "..", "android");
 const appDir = path.join(androidDir, "app");
 const gradlew = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
@@ -32,13 +33,13 @@ if (process.platform !== "win32") {
   }
 }
 
-if (variant === "assembleRelease") {
+if (!debug) {
   restoreReleaseKeystoreFromEnv();
   ensureReleaseKeystore();
   patchReleaseSigning();
 }
 
-const result = spawnSync(gradlew, [variant], {
+const result = spawnSync(gradlew, gradleTasks, {
   cwd: androidDir,
   stdio: "inherit",
   shell: process.platform === "win32",
@@ -51,10 +52,18 @@ if (result.status !== 0) {
 const apkDir = path.join(androidDir, "app", "build", "outputs", "apk");
 const releaseApk = path.join(apkDir, "release", "app-release.apk");
 const debugApk = path.join(apkDir, "debug", "app-debug.apk");
+const releaseAab = path.join(androidDir, "app", "build", "outputs", "bundle", "release", "app-release.aab");
 const built = fs.existsSync(releaseApk) ? releaseApk : debugApk;
 console.log(`APK output is under ${apkDir}`);
 if (built) {
   console.log(`Built ${built}`);
+}
+if (!debug) {
+  if (!fs.existsSync(releaseAab)) {
+    console.error("Release AAB was not produced.");
+    process.exit(1);
+  }
+  console.log(`Built ${releaseAab}`);
 }
 
 function writeGradleKeystoreProps(propsFile, { password, alias, keyPassword }) {

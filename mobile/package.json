@@ -12,6 +12,7 @@
     "prebuild:ios": "expo prebuild --platform ios",
     "apk": "expo prebuild --platform android && node ./scripts/assemble-apk.js",
     "apk:debug": "expo prebuild --platform android && node ./scripts/assemble-apk.js debug",
+    "aab": "expo prebuild --platform android && node ./scripts/assemble-apk.js",
     "ios:project": "node ./scripts/assemble-ios.js",
     "ios:build": "node ./scripts/assemble-ios.js --require-binary",
     "ios:eas": "npx eas-cli build -p ios --profile preview",
