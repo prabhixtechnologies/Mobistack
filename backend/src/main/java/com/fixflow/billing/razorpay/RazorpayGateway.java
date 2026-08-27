@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -88,6 +89,20 @@ public class RazorpayGateway {
     public boolean webhooksConfigured() {
         String secret = properties.getRazorpay().getWebhookSecret();
         return secret != null && !secret.isBlank();
+    }
+
+    /**
+     * Says once, at boot, what a missing webhook secret costs. Checkout still
+     * activates a plan on its own, so the gap is narrow: a customer whose
+     * browser died between paying and confirming stays locked out until
+     * someone reconciles the order by hand.
+     */
+    @PostConstruct
+    void reportWebhookReadiness() {
+        if (configured() && !webhooksConfigured()) {
+            log.warn("Razorpay webhooks are off: RAZORPAY_WEBHOOK_SECRET is unset. Payments still activate through "
+                    + "checkout, but a payment confirmed only by Razorpay will not reach us.");
+        }
     }
 
     public boolean verifyWebhookSignature(String rawBody, String signature) {
