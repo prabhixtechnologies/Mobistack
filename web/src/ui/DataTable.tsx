@@ -26,6 +26,11 @@ interface DataTableProps<T> {
   empty?: { icon?: NavIconName; title: string; hint?: string; action?: ReactNode };
   /** Skeleton row count while loading. Match the page size to avoid layout jump. */
   skeletonRows?: number;
+  /**
+   * Paging footer. Supplying this shows how much of the list is on screen and a
+   * button for the rest, so a long history stops looking like a short one.
+   */
+  paging?: { total: number; hasMore: boolean; loadingMore: boolean; onLoadMore: () => void; noun?: string };
 }
 
 /**
@@ -46,6 +51,7 @@ export function DataTable<T>({
   onRowClick,
   empty,
   skeletonRows = 6,
+  paging,
 }: DataTableProps<T>) {
   const access = useAccess();
   const visible = columns.filter((column) => !column.need || access.has(column.need));
@@ -88,33 +94,72 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="table-scroll">
-      <table className={`table${loading ? " table--refreshing" : ""}`}>
-        <thead>
-          <tr>
-            {visible.map((column) => (
-              <th key={column.key} style={{ width: column.width, textAlign: column.align }}>
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={rowKey(row)}
-              className={onRowClick ? "table__row--clickable" : undefined}
-              onClick={onRowClick ? () => onRowClick(row) : undefined}
-            >
+    <>
+      <div className="table-scroll">
+        <table className={`table${loading ? " table--refreshing" : ""}`}>
+          <thead>
+            <tr>
               {visible.map((column) => (
-                <td key={column.key} style={{ textAlign: column.align }}>
-                  {column.render(row)}
-                </td>
+                <th key={column.key} style={{ width: column.width, textAlign: column.align }}>
+                  {column.header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={rowKey(row)}
+                className={onRowClick ? "table__row--clickable" : undefined}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
+                {visible.map((column) => (
+                  <td key={column.key} style={{ textAlign: column.align }}>
+                    {column.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {paging && <LoadMore loaded={rows.length} {...paging} />}
+    </>
+  );
+}
+
+/**
+ * Says how much of the list is on screen. Without the count, a page that stops
+ * at twenty-five rows is indistinguishable from a shop with twenty-five rows.
+ */
+export function LoadMore({
+  loaded,
+  total,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+  noun = "rows",
+}: {
+  loaded: number;
+  total: number;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+  noun?: string;
+}) {
+  if (!hasMore && loaded >= total) {
+    return total > 0 ? <div className="load-more"><span className="faint">{total} {noun}</span></div> : null;
+  }
+  return (
+    <div className="load-more">
+      <span className="faint">
+        Showing {loaded} of {total} {noun}
+      </span>
+      {hasMore && (
+        <button className="btn ghost" type="button" onClick={onLoadMore} disabled={loadingMore}>
+          {loadingMore ? "Loading…" : "Load more"}
+        </button>
+      )}
     </div>
   );
 }

@@ -14,7 +14,9 @@ import com.fixflow.inventory.domain.InventoryTransactionType;
 import com.fixflow.inventory.domain.StockAlert;
 import com.fixflow.inventory.repository.InventoryTransactionRepository;
 import com.fixflow.inventory.repository.StockAlertRepository;
+import com.fixflow.notify.WorkspaceNotifier;
 import com.fixflow.security.CurrentUser;
+import com.fixflow.security.Permission;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class InventoryService {
     private final AuditService auditService;
     private final FixFlowProperties properties;
     private final com.fixflow.billing.service.BillingService billingService;
+    private final WorkspaceNotifier notifier;
 
     @Transactional
     public InventoryTransaction post(UUID shopId, StockMovement movement) {
@@ -136,10 +139,24 @@ public class InventoryService {
     @Transactional
     public InventoryTransaction receive(UUID shopId, UUID variantId, int quantity, BigDecimal unitCost,
                                         String reason, String batchNo) {
+        return receive(shopId, variantId, quantity, unitCost, reason, batchNo, null, null);
+    }
+
+    /**
+     * Receives stock on behalf of an offline device. The idempotency key is what
+     * makes a retried sync safe: without it, a receive that failed to report
+     * success stays queued on the phone and adds the same stock again on every
+     * attempt.
+     */
+    @Transactional
+    public InventoryTransaction receive(UUID shopId, UUID variantId, int quantity, BigDecimal unitCost,
+                                        String reason, String batchNo, String idempotencyKey, String deviceId) {
         return post(shopId, StockMovement.of(variantId, InventoryTransactionType.IN, quantity)
                 .unitCost(unitCost)
                 .reason(reason)
                 .batchNo(batchNo)
+                .idempotencyKey(idempotencyKey)
+                .deviceId(deviceId)
                 .build());
     }
 
@@ -281,16 +298,24 @@ public class InventoryService {
     private void raise(ProductVariant variant, StockAlert.AlertType type, StockStatus severity,
                        String message, int observed) {
         StockAlert alert = stockAlertRepository.findOpen(variant.getId(), type).orElseGet(StockAlert::new);
+        boolean firstTime = alert.getId() == null;
         alert.setShopId(variant.getShopId());
         alert.setProductVariantId(variant.getId());
         alert.setAlertType(type);
         alert.setSeverity(severity);
-        alert.setStatus(alert.getId() == null ? StockAlert.Status.OPEN : alert.getStatus());
+        alert.setStatus(firstTime ? StockAlert.Status.OPEN : alert.getStatus());
         alert.setThresholdValue(variant.getReorderLevel());
         alert.setObservedValue(observed);
         alert.setMessage(message);
         alert.setUpdatedAt(Instant.now());
         stockAlertRepository.save(alert);
+        if (firstTime) {
+            // Only on the crossing, not on every later sale of the same part:
+            // an alert per transaction would train the shop to ignore alerts.
+            notifier.broadcast(variant.getShopId(), Permission.INVENTORY_READ, "LOW_STOCK",
+                    type == StockAlert.AlertType.OUT_OF_STOCK ? "Out of stock" : "Running low",
+                    message, "/movements");
+        }
     }
 
     private void resolveIfOpen(ProductVariant variant, StockAlert.AlertType type, boolean shouldResolve) {

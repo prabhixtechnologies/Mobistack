@@ -100,6 +100,48 @@ function withDevice(headers: Headers): Headers {
   return headers;
 }
 
+function endSession(reason: "session" | "expired"): void {
+  clearSession();
+  if (!window.location.pathname.startsWith("/login")) {
+    window.location.assign(`/login?reason=${reason}`);
+  }
+}
+
+/**
+ * Shared refresh, so a page whose requests all expire together performs one
+ * rotation instead of one per request. Refresh tokens are single-use, and
+ * firing several in parallel is what used to end the session outright.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const refreshToken = getRefreshToken();
+      if (!refreshToken) {
+        return false;
+      }
+      try {
+        const response = await fetch(`${API_ORIGIN}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: withDevice(new Headers({ "Content-Type": "application/json" })),
+          body: JSON.stringify({ refreshToken, deviceId: getDeviceId() }),
+        });
+        if (!response.ok) {
+          return false;
+        }
+        persistSession((await response.json()) as AuthResponse);
+        return true;
+      } catch {
+        return false;
+      }
+    })().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = withDevice(new Headers(init.headers));
   if (init.body && !headers.has("Content-Type")) {
@@ -123,10 +165,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     try {
       const payload = (await response.clone().json()) as ApiError;
       if (payload.code === "SESSION_REPLACED") {
-        clearSession();
-        if (!window.location.pathname.startsWith("/login")) {
-          window.location.assign("/login?reason=session");
-        }
+        endSession("session");
         await parseError(response);
       }
       sessionExpired = !payload.code || payload.code === "UNAUTHENTICATED"
@@ -140,17 +179,16 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!sessionExpired) {
       await parseError(response);
     }
-    const refreshed = await fetch(`${API_ORIGIN}/api/v1/auth/refresh`, {
-      method: "POST",
-      headers: withDevice(new Headers({ "Content-Type": "application/json" })),
-      body: JSON.stringify({ refreshToken: getRefreshToken(), deviceId: getDeviceId() }),
-    });
-    if (refreshed.ok) {
-      persistSession((await refreshed.json()) as AuthResponse);
+    // Another request may have refreshed while this one was in flight, in
+    // which case retrying with the current token is enough.
+    const current = getAccessToken();
+    const refreshed = current && current !== token ? true : await refreshSession();
+    if (refreshed) {
       headers.set("Authorization", `Bearer ${getAccessToken()}`);
       response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
     } else {
-      clearSession();
+      endSession("expired");
+      await parseError(response);
     }
   }
 
@@ -174,6 +212,20 @@ export async function apiText(path: string, init: RequestInit = {}): Promise<str
     await parseError(response);
   }
   return response.text();
+}
+
+/**
+ * POST whose retry the server will collapse into the original.
+ *
+ * The key is generated once per call site and travels as a header, so a request
+ * the browser resends after a timeout adds one carton rather than two.
+ */
+export async function apiOnce<T>(path: string, body: unknown, key = crypto.randomUUID()): Promise<T> {
+  return api<T>(path, {
+    method: "POST",
+    headers: { "Idempotency-Key": key },
+    body: JSON.stringify(body),
+  });
 }
 
 export const money = new Intl.NumberFormat("en-IN", {

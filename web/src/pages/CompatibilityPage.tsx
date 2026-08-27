@@ -180,7 +180,7 @@ export function CompatibilityPage() {
         </section>
       )}
 
-      {requests.length > 0 && (
+      {canApprove && requests.length > 0 && (
         <section className="card tight">
           <div className="spread" style={{ padding: "16px 18px" }}>
             <strong>Pending changes</strong>

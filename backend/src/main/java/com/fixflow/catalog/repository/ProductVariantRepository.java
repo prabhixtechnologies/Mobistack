@@ -25,6 +25,16 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     @EntityGraph(attributePaths = {"product"})
     List<ProductVariant> findByProductIdOrderByVariantNameAsc(UUID productId);
 
+    /**
+     * Batch form of {@link #findByIdAndShopId}, so a page of documents resolves its
+     * item names in one query instead of one per line.
+     */
+    @EntityGraph(attributePaths = {"product"})
+    List<ProductVariant> findByShopIdAndIdIn(UUID shopId, Collection<UUID> ids);
+
+    @EntityGraph(attributePaths = {"product"})
+    List<ProductVariant> findByShopIdAndProductIdOrderByVariantNameAsc(UUID shopId, UUID productId);
+
     @EntityGraph(attributePaths = {"product"})
     List<ProductVariant> findByProductIdInAndActiveTrue(Collection<UUID> productIds);
 

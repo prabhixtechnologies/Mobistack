@@ -2534,6 +2534,19 @@ iframe.razorpay-checkout-frame,
   min-width: 640px;
 }
 
+/* Footer under a paged list: how much is on screen, and the rest of it. */
+.load-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+
+.load-more .faint { font-size: 13px; }
+
 .cell-identity {
   display: grid;
   gap: 2px;

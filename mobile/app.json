@@ -3,7 +3,7 @@
     "name": "MobiStack",
     "slug": "mobistack",
     "scheme": "mobistack",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -22,10 +22,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.prabhix.fixflow",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "NSCameraUsageDescription": "MobiStack scans part barcodes at the counter.",
         "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"],
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true,
           "NSExceptionDomains": {
@@ -39,13 +40,19 @@
     },
     "android": {
       "package": "app.prabhix.fixflow",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3B0764"
       },
       "usesCleartextTraffic": true,
-      "permissions": ["CAMERA", "INTERNET", "ACCESS_NETWORK_STATE"]
+      "permissions": [
+        "CAMERA",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ]
     },
     "plugins": [
       "./plugins/withReleaseSigning",
@@ -53,7 +60,13 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-dev-client",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#7C3AED",
+          "defaultChannel": "mobistack-default"
+        }
+      ],
       "expo-updates",
       [
         "expo-camera",

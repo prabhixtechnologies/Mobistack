@@ -268,6 +268,7 @@ public class WorkspaceAccessService {
     @Transactional
     public WorkspaceMember approve(UUID workspaceId, UUID membershipId, String roleCode) {
         requireCanApproveMembers(workspaceId);
+        billingService.requireMemberSeat(workspaceId);
         WorkspaceMembership membership = membershipRepository.findById(membershipId)
                 .orElseThrow(() -> ApiException.notFound("Membership", membershipId));
         if (!membership.getWorkspaceId().equals(workspaceId)) {

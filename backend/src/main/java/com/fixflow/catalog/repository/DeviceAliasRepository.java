@@ -12,9 +12,9 @@ import java.util.UUID;
 
 public interface DeviceAliasRepository extends JpaRepository<DeviceAlias, UUID> {
 
-    List<DeviceAlias> findByDeviceModelIdOrderByAliasAsc(UUID deviceModelId);
+    List<DeviceAlias> findByShopIdAndDeviceModelIdOrderByAliasAsc(UUID shopId, UUID deviceModelId);
 
-    List<DeviceAlias> findByDeviceModelIdInOrderByAliasAsc(Collection<UUID> deviceModelIds);
+    List<DeviceAlias> findByShopIdAndDeviceModelIdInOrderByAliasAsc(UUID shopId, Collection<UUID> deviceModelIds);
 
     Optional<DeviceAlias> findByIdAndShopId(UUID id, UUID shopId);
 

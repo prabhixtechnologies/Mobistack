@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppState, Linking, Platform, Pressable, Text, View } from "react-native";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Application from "expo-application";
 import { AuthProvider, useAuth } from "../lib/auth";
@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from "../lib/theme";
 import { selectedWorkspaceId } from "../lib/api";
 import { syncNow } from "../lib/offline";
 import { startPresence } from "../lib/presence";
+import { listenForPush, registerForPush } from "../lib/push";
 import { applyOtaIfAvailable, checkRelease } from "../lib/updates";
 
 function SyncOnResume() {
@@ -18,17 +19,31 @@ function SyncOnResume() {
     }
     const stopPresence = startPresence();
     void applyOtaIfAvailable();
+    // Registration is retried on resume: permission can be granted from the OS
+    // settings screen long after the app first asked, and the Expo token is
+    // reissued after some OS updates.
+    void registerForPush();
+    const stopPush = listenForPush({
+      onOpened: (link) => {
+        router.push(link ? (link as never) : ("/inbox" as never));
+      },
+    });
     if (!selectedWorkspaceId(user)) {
-      return () => stopPresence();
+      return () => {
+        stopPush();
+        stopPresence();
+      };
     }
     void syncNow();
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void syncNow();
+        void registerForPush();
       }
     });
     return () => {
       sub.remove();
+      stopPush();
       stopPresence();
     };
   }, [user]);

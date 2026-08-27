@@ -85,6 +85,16 @@ public class RazorpayGateway {
         return RazorpaySignature.matches(orderId, paymentId, signature, properties.getRazorpay().getKeySecret());
     }
 
+    public boolean webhooksConfigured() {
+        String secret = properties.getRazorpay().getWebhookSecret();
+        return secret != null && !secret.isBlank();
+    }
+
+    public boolean verifyWebhookSignature(String rawBody, String signature) {
+        return RazorpaySignature.matchesWebhook(rawBody, signature,
+                properties.getRazorpay().getWebhookSecret());
+    }
+
     private RestClient restClient() {
         return RestClient.builder()
                 .defaultHeaders(headers -> headers.setBasicAuth(keyId(), properties.getRazorpay().getKeySecret()))

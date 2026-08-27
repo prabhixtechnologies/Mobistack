@@ -49,7 +49,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String deviceId = jwtService.deviceIdFrom(token);
             if (deviceId != null && !deviceSessionService.isLive(principal.getId(), deviceId)) {
                 throw new ApiException(ErrorCode.SESSION_REPLACED,
-                        "This account signed in on another screen. This session has ended.");
+                        "This device's session has ended. Sign in again to continue.");
             }
             var authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());

@@ -1,6 +1,8 @@
 package com.fixflow.workspace.web;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fixflow.billing.service.BillingService;
+import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.user.domain.User;
 import com.fixflow.workspace.domain.WorkspaceMembership;
@@ -31,6 +33,8 @@ class WorkspaceGuardFilterTest {
     @Mock
     private WorkspaceAccessService workspaceAccessService;
     @Mock
+    private BillingService billingService;
+    @Mock
     private FilterChain chain;
 
     private WorkspaceGuardFilter filter;
@@ -39,7 +43,8 @@ class WorkspaceGuardFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new WorkspaceGuardFilter(workspaceAccessService, new ObjectMapper().findAndRegisterModules());
+        filter = new WorkspaceGuardFilter(workspaceAccessService, billingService,
+                new ObjectMapper().findAndRegisterModules());
         userId = UUID.randomUUID();
         workspaceId = UUID.randomUUID();
     }
@@ -138,6 +143,46 @@ class WorkspaceGuardFilterTest {
     }
 
     @Test
+    void anUnpaidShopCanStillReadButCannotRecordAnything() throws Exception {
+        authenticate(scopedPrincipal());
+        when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
+        when(billingService.paymentRequired(workspaceId)).thenReturn(true);
+
+        MockHttpServletResponse read = run("GET", "/api/v1/inventory", null);
+        MockHttpServletResponse write = run("POST", "/api/v1/sales", null);
+
+        assertThat(read.getStatus()).isEqualTo(200);
+        assertThat(write.getStatus()).isEqualTo(ErrorCode.ENTITLEMENT_DENIED.status().value());
+        assertThat(write.getContentAsString()).contains("ENTITLEMENT_DENIED");
+    }
+
+    @Test
+    void anUnpaidShopCanStillDoWhatItNeedsInOrderToPay() throws Exception {
+        authenticate(scopedPrincipal());
+        when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
+
+        MockHttpServletResponse order = run("POST", "/api/v1/billing/orders", null);
+        MockHttpServletResponse shop = run("PUT", "/api/v1/shop", null);
+
+        assertThat(order.getStatus()).isEqualTo(200);
+        assertThat(shop.getStatus()).isEqualTo(200);
+        // Not even asked: paying and fixing your own shop details are never blocked.
+        verify(billingService, never()).paymentRequired(any());
+    }
+
+    @Test
+    void aPaidShopWritesNormally() throws Exception {
+        authenticate(scopedPrincipal());
+        when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
+        when(billingService.paymentRequired(workspaceId)).thenReturn(false);
+
+        MockHttpServletResponse response = run("POST", "/api/v1/sales", null);
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        verify(chain).doFilter(any(), any());
+    }
+
+    @Test
     void authEndpointsBypassTheGuard() throws Exception {
         authenticate(UserPrincipal.unscoped(user()));
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/auth/me");
@@ -158,6 +203,11 @@ class WorkspaceGuardFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, chain);
         return response;
+    }
+
+    private UserPrincipal scopedPrincipal() {
+        return new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Abhishek", true,
+                java.util.Set.of("OWNER"), java.util.Set.of());
     }
 
     private void authenticate(UserPrincipal principal) {

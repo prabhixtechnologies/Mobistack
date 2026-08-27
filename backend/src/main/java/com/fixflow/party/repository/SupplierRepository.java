@@ -15,6 +15,9 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
 
     Optional<Supplier> findByIdAndShopId(UUID id, UUID shopId);
 
+    /** Batch form, so a page of purchases resolves its supplier names in one query. */
+    List<Supplier> findByShopIdAndIdIn(UUID shopId, java.util.Collection<UUID> ids);
+
     List<Supplier> findByShopIdAndActiveTrueOrderByNameAsc(UUID shopId);
 
     @Query("select s from Supplier s where s.shopId = :shopId and lower(s.name) = lower(:name)")

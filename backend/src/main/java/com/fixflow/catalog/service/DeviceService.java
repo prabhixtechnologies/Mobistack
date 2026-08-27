@@ -4,6 +4,7 @@ import com.fixflow.audit.service.AuditAction;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.catalog.DeviceNameParser;
 import com.fixflow.catalog.domain.Brand;
+import com.fixflow.catalog.domain.CompatibilityGroupDevice;
 import com.fixflow.catalog.domain.DeviceAlias;
 import com.fixflow.catalog.domain.DeviceModel;
 import com.fixflow.catalog.dto.CatalogDtos.AddAliasRequest;
@@ -22,7 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,16 +44,28 @@ public class DeviceService {
         Page<DeviceModel> page = brandId == null
                 ? deviceModelRepository.findByShopId(shopId, pageable)
                 : deviceModelRepository.findByShopIdAndBrandId(shopId, brandId, pageable);
+        if (page.isEmpty()) {
+            return page.map(device -> mapper.toResponse(device, List.of(), 0));
+        }
+        List<UUID> deviceIds = page.getContent().stream().map(DeviceModel::getId).toList();
+
+        Map<UUID, List<DeviceAlias>> aliasesByDevice = deviceAliasRepository
+                .findByShopIdAndDeviceModelIdInOrderByAliasAsc(shopId, deviceIds)
+                .stream().collect(Collectors.groupingBy(DeviceAlias::getDeviceModelId));
+        Map<UUID, Long> groupCounts = groupDeviceRepository.findByDeviceModelIdIn(deviceIds)
+                .stream().collect(Collectors.groupingBy(
+                        CompatibilityGroupDevice::getDeviceModelId, Collectors.counting()));
+
         return page.map(device -> mapper.toResponse(device,
-                deviceAliasRepository.findByDeviceModelIdOrderByAliasAsc(device.getId()),
-                groupDeviceRepository.findByDeviceModelId(device.getId()).size()));
+                aliasesByDevice.getOrDefault(device.getId(), List.of()),
+                groupCounts.getOrDefault(device.getId(), 0L).intValue()));
     }
 
     @Transactional(readOnly = true)
     public DeviceModelResponse get(UUID shopId, UUID id) {
         DeviceModel device = require(shopId, id);
         return mapper.toResponse(device,
-                deviceAliasRepository.findByDeviceModelIdOrderByAliasAsc(id),
+                deviceAliasRepository.findByShopIdAndDeviceModelIdOrderByAliasAsc(shopId, id),
                 groupDeviceRepository.findByDeviceModelId(id).size());
     }
 
@@ -201,12 +216,6 @@ public class DeviceService {
         return get(shopId, device.getId());
     }
 
-    @Transactional(readOnly = true)
-    public List<String> aliasesOf(UUID deviceModelId) {
-        return deviceAliasRepository.findByDeviceModelIdOrderByAliasAsc(deviceModelId).stream()
-                .map(DeviceAlias::getAlias)
-                .toList();
-    }
 
     private DeviceModel require(UUID shopId, UUID id) {
         return deviceModelRepository.findByIdAndShopId(id, shopId)

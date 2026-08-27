@@ -18,6 +18,7 @@ import com.fixflow.inventory.domain.InventoryReferenceType;
 import com.fixflow.inventory.domain.InventoryTransactionType;
 import com.fixflow.inventory.service.InventoryService;
 import com.fixflow.inventory.service.StockMovement;
+import com.fixflow.notify.WorkspaceNotifier;
 import com.fixflow.party.domain.Customer;
 import com.fixflow.party.repository.CustomerRepository;
 import com.fixflow.party.service.PartyService;
@@ -36,8 +37,11 @@ import com.fixflow.repair.dto.RepairDtos.RepairResponse;
 import com.fixflow.repair.dto.RepairDtos.UpdateRepairRequest;
 import com.fixflow.repair.repository.RepairJobRepository;
 import com.fixflow.repair.repository.RepairPartRepository;
+import com.fixflow.security.Permission;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.workspace.domain.MembershipStatus;
+import com.fixflow.workspace.repository.WorkspaceMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,8 +50,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -64,6 +73,8 @@ public class RepairService {
     private final InventoryService inventoryService;
     private final AuditService auditService;
     private final com.fixflow.billing.service.BillingService billingService;
+    private final WorkspaceMembershipRepository membershipRepository;
+    private final WorkspaceNotifier notifier;
 
     @Transactional
     public RepairResponse create(UUID shopId, CreateRepairRequest request) {
@@ -78,6 +89,8 @@ public class RepairService {
             customerRepository.findByIdAndShopId(request.customerId(), shopId)
                     .orElseThrow(() -> ApiException.notFound("Customer", request.customerId()));
         }
+        requireOwnDevice(shopId, request.deviceModelId());
+        requireTechnicianOfShop(shopId, request.technicianUserId());
         RepairJob job = new RepairJob();
         job.setShopId(shopId);
         job.setCustomerId(request.customerId());
@@ -115,6 +128,7 @@ public class RepairService {
             }
         }
         if (request.technicianUserId() != null) {
+            requireTechnicianOfShop(shopId, request.technicianUserId());
             job.setTechnicianUserId(request.technicianUserId());
         }
         if (request.laborCharge() != null) {
@@ -141,6 +155,7 @@ public class RepairService {
                 auditService.record(AuditAction.REPAIR_DELIVERED, "Repair", id,
                         "Delivered repair %s".formatted(job.getJobNumber()));
             }
+            announceStatus(shopId, job, request.status());
         } else {
             auditService.record(AuditAction.REPAIR_UPDATED, "Repair", id,
                     "Updated repair %s".formatted(job.getJobNumber()));
@@ -214,12 +229,60 @@ public class RepairService {
         return toResponse(job);
     }
 
+    /** Batched: one screen of jobs used to cost five queries per job plus one per part. */
     @Transactional(readOnly = true)
     public Page<RepairResponse> list(UUID shopId, RepairStatus status, Pageable pageable) {
         Page<RepairJob> page = status == null
                 ? repairRepository.findByShopIdOrderByCreatedAtDesc(shopId, pageable)
                 : repairRepository.findByShopIdAndStatusOrderByCreatedAtDesc(shopId, status, pageable);
-        return page.map(this::toResponse);
+        if (page.isEmpty()) {
+            return page.map(job -> toResponse(job, List.of(), List.of(), Map.of(), Map.of(), Map.of()));
+        }
+        List<UUID> jobIds = page.getContent().stream().map(RepairJob::getId).toList();
+
+        Map<UUID, List<RepairPart>> partsByJob = repairPartRepository.findByRepairIdInOrderByCreatedAtAsc(jobIds)
+                .stream().collect(Collectors.groupingBy(RepairPart::getRepairId));
+        Map<UUID, List<Payment>> paymentsByJob = paymentRepository
+                .findByShopIdAndReferenceTypeAndReferenceIdInOrderByOccurredAtAsc(
+                        shopId, PaymentReferenceType.REPAIR, jobIds)
+                .stream().collect(Collectors.groupingBy(Payment::getReferenceId));
+        Map<UUID, String> variantNames = variantNames(shopId, partsByJob.values().stream()
+                .flatMap(List::stream).map(RepairPart::getProductVariantId).toList());
+        Map<UUID, String> customerNames = customerNames(shopId, page.getContent().stream()
+                .map(RepairJob::getCustomerId).toList());
+        Map<UUID, String> deviceNames = deviceNames(shopId, page.getContent().stream()
+                .map(RepairJob::getDeviceModelId).toList());
+
+        return page.map(job -> toResponse(job,
+                partsByJob.getOrDefault(job.getId(), List.of()),
+                paymentsByJob.getOrDefault(job.getId(), List.of()),
+                variantNames, customerNames, deviceNames));
+    }
+
+    /** All three scoped to the shop, so a stale id cannot pull a name from elsewhere. */
+    private Map<UUID, String> variantNames(UUID shopId, Collection<UUID> ids) {
+        List<UUID> wanted = distinct(ids);
+        return wanted.isEmpty() ? Map.of()
+                : variantRepository.findByShopIdAndIdIn(shopId, wanted).stream()
+                .collect(Collectors.toMap(ProductVariant::getId, ProductVariant::getVariantName));
+    }
+
+    private Map<UUID, String> customerNames(UUID shopId, Collection<UUID> ids) {
+        List<UUID> wanted = distinct(ids);
+        return wanted.isEmpty() ? Map.of()
+                : customerRepository.findByShopIdAndIdIn(shopId, wanted).stream()
+                .collect(Collectors.toMap(Customer::getId, Customer::getName));
+    }
+
+    private Map<UUID, String> deviceNames(UUID shopId, Collection<UUID> ids) {
+        List<UUID> wanted = distinct(ids);
+        return wanted.isEmpty() ? Map.of()
+                : deviceModelRepository.findByShopIdAndIdIn(shopId, wanted).stream()
+                .collect(Collectors.toMap(DeviceModel::getId, DeviceModel::getName));
+    }
+
+    private static List<UUID> distinct(Collection<UUID> ids) {
+        return ids.stream().filter(Objects::nonNull).distinct().toList();
     }
 
     @Transactional(readOnly = true)
@@ -275,26 +338,83 @@ public class RepairService {
                 .orElseThrow(() -> ApiException.notFound("Repair", id));
     }
 
-    private RepairResponse toResponse(RepairJob job) {
-        List<RepairPart> parts = repairPartRepository.findByRepairIdOrderByCreatedAtAsc(job.getId());
-        List<Payment> payments = paymentsOf(job);
+    /**
+     * A device model id arrives from the client, so it has to be checked before it
+     * is stored. Without this a job can point at another shop's model and the
+     * repair card then shows a device name the shop never created.
+     */
+    private void requireOwnDevice(UUID shopId, UUID deviceModelId) {
+        if (deviceModelId == null) {
+            return;
+        }
+        deviceModelRepository.findByIdAndShopId(deviceModelId, shopId)
+                .orElseThrow(() -> ApiException.notFound("Device model", deviceModelId));
+    }
+
+    /** Work can only be assigned to somebody who actually works at this shop. */
+    private void requireTechnicianOfShop(UUID shopId, UUID technicianUserId) {
+        if (technicianUserId == null) {
+            return;
+        }
+        boolean member = membershipRepository
+                .findByWorkspaceIdAndUserIdAndStatus(shopId, technicianUserId, MembershipStatus.ACTIVE)
+                .isPresent();
+        if (!member) {
+            throw ApiException.businessRule("That technician is not an active member of this shop.");
+        }
+    }
+
+    /**
+     * Alerts the counter when a job reaches a state somebody has to act on. In
+     * a shop the technician and the person at the counter are rarely the same
+     * person, so "ready" has to travel between them without a phone call.
+     */
+    private void announceStatus(UUID shopId, RepairJob job, RepairStatus status) {
         String customerName = job.getCustomerId() == null ? null
-                : customerRepository.findById(job.getCustomerId()).map(Customer::getName).orElse(null);
-        String deviceName = job.getDeviceModelId() == null ? null
-                : deviceModelRepository.findById(job.getDeviceModelId()).map(DeviceModel::getName).orElse(null);
+                : customerRepository.findByIdAndShopId(job.getCustomerId(), shopId)
+                .map(Customer::getName).orElse(null);
+        String who = customerName == null ? "Walk-in" : customerName;
+        switch (status) {
+            case READY -> notifier.broadcast(shopId, Permission.REPAIR_READ, "REPAIR_READY",
+                    "Repair %s is ready".formatted(job.getJobNumber()),
+                    "%s can be collected. Outstanding: %s.".formatted(who, job.getOutstanding()),
+                    "/repairs");
+            case WAITING_FOR_PART -> notifier.broadcast(shopId, Permission.REPAIR_READ, "REPAIR_READY",
+                    "Repair %s is waiting on parts".formatted(job.getJobNumber()),
+                    "%s cannot progress until the part arrives.".formatted(who),
+                    "/repairs");
+            default -> {
+                // Other transitions are routine and already in the audit trail.
+            }
+        }
+    }
+
+    private RepairResponse toResponse(RepairJob job) {
+        UUID shopId = job.getShopId();
+        List<RepairPart> parts = repairPartRepository.findByRepairIdOrderByCreatedAtAsc(job.getId());
+        return toResponse(job, parts, paymentsOf(job),
+                variantNames(shopId, parts.stream().map(RepairPart::getProductVariantId).toList()),
+                customerNames(shopId, Collections.singletonList(job.getCustomerId())),
+                deviceNames(shopId, Collections.singletonList(job.getDeviceModelId())));
+    }
+
+    private RepairResponse toResponse(RepairJob job, List<RepairPart> parts, List<Payment> payments,
+                                      Map<UUID, String> variantNames, Map<UUID, String> customerNames,
+                                      Map<UUID, String> deviceNames) {
+        String customerName = job.getCustomerId() == null ? null : customerNames.get(job.getCustomerId());
+        String deviceName = job.getDeviceModelId() == null ? null : deviceNames.get(job.getDeviceModelId());
         return new RepairResponse(job.getId(), job.getJobNumber(), job.getStatus(), job.getCustomerId(), customerName,
                 job.getDeviceModelId(), deviceName, job.getTechnicianUserId(), job.getProblem(), job.getImei(),
                 job.getEstimatedCost(), job.getLaborCharge(), job.getLaborCost(), job.getPartsTotal(),
                 job.getPartsCost(), job.getTotal(), job.getPaid(), job.getOutstanding(), job.getProfit(),
                 job.getCustomerNotes(), job.getInternalNotes(), job.getExpectedAt(), job.getDeliveredAt(),
-                job.getCreatedAt(), parts.stream().map(this::toPart).toList(),
+                job.getCreatedAt(), parts.stream().map(part -> toPart(part, variantNames)).toList(),
                 payments.stream().map(this::toPayment).toList());
     }
 
-    private RepairPartResponse toPart(RepairPart part) {
-        String name = variantRepository.findById(part.getProductVariantId())
-                .map(ProductVariant::getVariantName).orElse(null);
-        return new RepairPartResponse(part.getId(), part.getProductVariantId(), name, part.getQuantity(),
+    private RepairPartResponse toPart(RepairPart part, Map<UUID, String> variantNames) {
+        return new RepairPartResponse(part.getId(), part.getProductVariantId(),
+                variantNames.get(part.getProductVariantId()), part.getQuantity(),
                 part.getUnitPrice(), part.getUnitCost(), part.getLineTotal());
     }
 

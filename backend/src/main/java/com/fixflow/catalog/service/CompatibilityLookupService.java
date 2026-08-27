@@ -71,8 +71,8 @@ public class CompatibilityLookupService {
 
         PricingFlag effectiveFlag = flag == null ? PricingFlag.NORMAL : flag;
 
-        DeviceSummary deviceSummary = toSummary(device, aliasesFor(deviceModelId));
-        List<DeviceSummary> compatibleModels = loadCompatibleModels(deviceModelId);
+        DeviceSummary deviceSummary = toSummary(device, aliasesFor(shopId, deviceModelId));
+        List<DeviceSummary> compatibleModels = loadCompatibleModels(shopId, deviceModelId);
         List<CompatibilityGroupSummary> groups = loadGroups(shopId, deviceModelId);
         List<CategoryPartsSummary> categories = loadCategoryBreakdown(shopId, deviceModelId, effectiveFlag);
 
@@ -86,15 +86,16 @@ public class CompatibilityLookupService {
 
     // -----------------------------------------------------------------
 
-    private List<DeviceSummary> loadCompatibleModels(UUID deviceModelId) {
+    private List<DeviceSummary> loadCompatibleModels(UUID shopId, UUID deviceModelId) {
         List<DeviceModelRepository.DeviceSearchRow> rows =
-                deviceModelRepository.findCompatibleModels(deviceModelId);
+                deviceModelRepository.findCompatibleModels(shopId, deviceModelId);
         if (rows.isEmpty()) {
             return List.of();
         }
 
         List<UUID> ids = rows.stream().map(DeviceModelRepository.DeviceSearchRow::getId).toList();
-        Map<UUID, List<String>> aliasesByDevice = deviceAliasRepository.findByDeviceModelIdInOrderByAliasAsc(ids)
+        Map<UUID, List<String>> aliasesByDevice = deviceAliasRepository
+                .findByShopIdAndDeviceModelIdInOrderByAliasAsc(shopId, ids)
                 .stream()
                 .collect(Collectors.groupingBy(DeviceAlias::getDeviceModelId,
                         Collectors.mapping(DeviceAlias::getAlias, Collectors.toList())));
@@ -225,8 +226,8 @@ public class CompatibilityLookupService {
                 variant.getLocation());
     }
 
-    private List<String> aliasesFor(UUID deviceModelId) {
-        return deviceAliasRepository.findByDeviceModelIdOrderByAliasAsc(deviceModelId).stream()
+    private List<String> aliasesFor(UUID shopId, UUID deviceModelId) {
+        return deviceAliasRepository.findByShopIdAndDeviceModelIdOrderByAliasAsc(shopId, deviceModelId).stream()
                 .map(DeviceAlias::getAlias)
                 .toList();
     }

@@ -39,4 +39,15 @@ public class PushDevice extends BaseEntity {
 
     @Column(name = "last_seen_at", nullable = false)
     private Instant lastSeenAt = Instant.now();
+
+    /** Why Expo last refused this token, kept so support can explain silence. */
+    @Column(name = "last_error", length = 200)
+    private String lastError;
+
+    /**
+     * Set once Expo reports the token is dead — the app was uninstalled, or the
+     * registration was replaced. Retired rows are skipped rather than retried.
+     */
+    @Column(name = "retired_at")
+    private Instant retiredAt;
 }

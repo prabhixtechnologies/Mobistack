@@ -76,6 +76,9 @@ services:
       FIXFLOW_OPENAI_API_KEY: ${FIXFLOW_OPENAI_API_KEY:-}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      # Without this the webhook endpoint rejects every call, so a payment that
+      # succeeds at Razorpay never activates the workspace.
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}

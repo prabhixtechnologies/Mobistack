@@ -46,6 +46,7 @@ public class PasswordlessAuthService {
     private final FixFlowProperties properties;
     private final com.fixflow.notify.OtpDeliveryService otpDeliveryService;
     private final com.fixflow.notify.EmailDeliveryService emailDeliveryService;
+    private final OtpGuard otpGuard;
 
     public record AuthMethods(List<String> methods, Map<String, Object> brand) {
     }
@@ -140,6 +141,7 @@ public class PasswordlessAuthService {
 
     @Transactional
     public Map<String, String> sendEmailOtp(EmailStartRequest request) {
+        otpGuard.requireResendAllowed(OtpGuard.Channel.EMAIL, request.email().toLowerCase(), UserToken.EMAIL_OTP);
         String code = issueOtp();
         UserToken row = new UserToken();
         row.setEmail(request.email().toLowerCase());
@@ -169,6 +171,8 @@ public class PasswordlessAuthService {
     public Map<String, String> sendPhoneOtp(ChannelOtpRequest request) {
         boolean whatsapp = request.channel() != null && request.channel().toUpperCase().contains("WHATSAPP");
         String phone = otpDeliveryService.normalizePhone(request.phone());
+        otpGuard.requireResendAllowed(OtpGuard.Channel.PHONE, phone,
+                UserToken.PHONE_OTP, UserToken.WHATSAPP_OTP);
         var user = userRepository.findFirstByPhone(phone)
                 .or(() -> userRepository.findFirstByPhone(request.phone()));
         var delivery = otpDeliveryService.sendPhone(phone, whatsapp, user.map(User::getId).orElse(null));
@@ -344,11 +348,19 @@ public class PasswordlessAuthService {
         return row;
     }
 
+    /**
+     * A wrong guess is charged against whatever code is outstanding for the
+     * address, since the guess itself matches nothing to charge it to.
+     */
     private UserToken requireFreshEmail(String type, String raw, String email) {
         UserToken row = userTokenRepository
                 .findFirstByTokenTypeAndTokenHashAndEmailIgnoreCaseAndUsedAtIsNull(
                         type, jwtService.hashRefreshToken(raw), email)
-                .orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID, "That code is not valid."));
+                .orElse(null);
+        if (row == null) {
+            otpGuard.recordFailure(OtpGuard.Channel.EMAIL, email, type);
+            throw new ApiException(ErrorCode.OTP_INVALID, "That code is not valid.");
+        }
         if (row.getExpiresAt().isBefore(Instant.now())) {
             throw new ApiException(ErrorCode.OTP_INVALID, "That code has expired.");
         }
@@ -359,7 +371,11 @@ public class PasswordlessAuthService {
         UserToken row = userTokenRepository
                 .findFirstByTokenTypeAndTokenHashAndPhoneAndUsedAtIsNull(
                         type, jwtService.hashRefreshToken(raw), phone)
-                .orElseThrow(() -> new ApiException(ErrorCode.OTP_INVALID, "That code is not valid."));
+                .orElse(null);
+        if (row == null) {
+            otpGuard.recordFailure(OtpGuard.Channel.PHONE, phone, type);
+            throw new ApiException(ErrorCode.OTP_INVALID, "That code is not valid.");
+        }
         if (row.getExpiresAt().isBefore(Instant.now())) {
             throw new ApiException(ErrorCode.OTP_INVALID, "That code has expired.");
         }

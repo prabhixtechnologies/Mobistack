@@ -15,4 +15,14 @@ public interface UserTokenRepository extends JpaRepository<UserToken, UUID> {
 
     Optional<UserToken> findFirstByTokenTypeAndTokenHashAndPhoneAndUsedAtIsNull(
             String tokenType, String tokenHash, String phone);
+
+    /**
+     * The code a caller is currently guessing at, found without knowing the code
+     * itself. Needed to count wrong guesses and to throttle resends.
+     */
+    Optional<UserToken> findFirstByTokenTypeAndEmailIgnoreCaseAndUsedAtIsNullOrderByCreatedAtDesc(
+            String tokenType, String email);
+
+    Optional<UserToken> findFirstByTokenTypeAndPhoneAndUsedAtIsNullOrderByCreatedAtDesc(
+            String tokenType, String phone);
 }

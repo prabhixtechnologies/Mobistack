@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -33,8 +32,8 @@ public class GlobalExceptionHandler {
         } else {
             log.debug("API error {} at {}: {}", code, request.getRequestURI(), ex.getMessage());
         }
-        ApiError body = new ApiError(Instant.now(), code.status().value(), code.name(),
-                ex.getMessage(), request.getRequestURI(), List.of(), ex.getDetails());
+        ApiError body = ApiError.of(code, ex.getMessage(), request.getRequestURI(),
+                List.of(), ex.getDetails());
         return ResponseEntity.status(code.status()).body(body);
     }
 
@@ -44,8 +43,7 @@ public class GlobalExceptionHandler {
         List<ApiError.FieldViolation> violations = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> new ApiError.FieldViolation(fe.getField(), fe.getDefaultMessage(), fe.getRejectedValue()))
                 .toList();
-        ApiError body = new ApiError(Instant.now(), HttpStatus.BAD_REQUEST.value(),
-                ErrorCode.VALIDATION_FAILED.name(), "Request validation failed",
+        ApiError body = ApiError.of(ErrorCode.VALIDATION_FAILED, "Request validation failed",
                 request.getRequestURI(), violations, Map.of());
         return ResponseEntity.badRequest().body(body);
     }
@@ -57,8 +55,7 @@ public class GlobalExceptionHandler {
                 .map(v -> new ApiError.FieldViolation(v.getPropertyPath().toString(), v.getMessage(),
                         v.getInvalidValue()))
                 .toList();
-        ApiError body = new ApiError(Instant.now(), HttpStatus.BAD_REQUEST.value(),
-                ErrorCode.VALIDATION_FAILED.name(), "Request validation failed",
+        ApiError body = ApiError.of(ErrorCode.VALIDATION_FAILED, "Request validation failed",
                 request.getRequestURI(), violations, Map.of());
         return ResponseEntity.badRequest().body(body);
     }

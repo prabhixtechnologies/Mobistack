@@ -42,6 +42,8 @@ class InventoryServiceTest {
     private AuditService auditService;
     @Mock
     private com.fixflow.billing.service.BillingService billingService;
+    @Mock
+    private com.fixflow.notify.WorkspaceNotifier notifier;
 
     private InventoryService inventoryService;
     private UUID shopId;
@@ -50,7 +52,7 @@ class InventoryServiceTest {
     @BeforeEach
     void setUp() {
         inventoryService = new InventoryService(variantRepository, transactionRepository,
-                stockAlertRepository, auditService, new FixFlowProperties(), billingService);
+                stockAlertRepository, auditService, new FixFlowProperties(), billingService, notifier);
         shopId = UUID.randomUUID();
 
         Product product = new Product();
@@ -113,6 +115,41 @@ class InventoryServiceTest {
         assertThat(result.getId()).isEqualTo(existing.getId());
         verify(variantRepository, never()).findForStockUpdate(any(), any());
         assertThat(variant.getOnHandQty()).isEqualTo(2);
+    }
+
+    @Test
+    void aReceiveArrivingFromSyncCarriesItsKeyOntoTheLedgerRow() {
+        when(variantRepository.findForStockUpdate(variant.getId(), shopId)).thenReturn(Optional.of(variant));
+        when(transactionRepository.findByShopIdAndIdempotencyKey(shopId, "phone-recv-7"))
+                .thenReturn(Optional.empty());
+        when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(stockAlertRepository.findOpen(any(), any())).thenReturn(Optional.empty());
+
+        inventoryService.receive(shopId, variant.getId(), 4, new BigDecimal("2700"),
+                "Courier arrived", "B-19", "phone-recv-7", "phone-2");
+
+        ArgumentCaptor<InventoryTransaction> captor = ArgumentCaptor.forClass(InventoryTransaction.class);
+        verify(transactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdempotencyKey()).isEqualTo("phone-recv-7");
+        assertThat(captor.getValue().getDeviceId()).isEqualTo("phone-2");
+    }
+
+    @Test
+    void aRetriedSyncReceiveDoesNotAddTheSameStockTwice() {
+        // The phone keeps a receive queued until the server confirms it, so the
+        // same operation can arrive several times over a flaky connection.
+        InventoryTransaction existing = new InventoryTransaction();
+        existing.setId(UUID.randomUUID());
+        existing.setIdempotencyKey("phone-recv-7");
+        when(transactionRepository.findByShopIdAndIdempotencyKey(shopId, "phone-recv-7"))
+                .thenReturn(Optional.of(existing));
+
+        InventoryTransaction result = inventoryService.receive(shopId, variant.getId(), 4,
+                new BigDecimal("2700"), "Courier arrived", "B-19", "phone-recv-7", "phone-2");
+
+        assertThat(result.getId()).isEqualTo(existing.getId());
+        assertThat(variant.getOnHandQty()).isEqualTo(2);
+        verify(transactionRepository, never()).save(any());
     }
 
     @Test

@@ -48,6 +48,14 @@ public class UserToken {
     @Column(name = "used_at")
     private Instant usedAt;
 
+    /**
+     * Wrong guesses made against this code. A six-digit code with no counter can
+     * be brute-forced inside its own lifetime by a caller who spreads attempts
+     * across enough addresses to stay under the per-IP limit.
+     */
+    @Column(name = "attempts", nullable = false)
+    private short attempts;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 }

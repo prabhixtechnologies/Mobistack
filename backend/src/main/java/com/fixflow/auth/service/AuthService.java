@@ -47,6 +47,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuthService {
 
+    /**
+     * How long a just-rotated refresh token still works. Covers the window in
+     * which a client's parallel requests can each present the same token.
+     */
+    private static final java.time.Duration REFRESH_REPLAY_GRACE = java.time.Duration.ofSeconds(60);
+
     private final UserRepository userRepository;
     private final ShopRepository shopRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -141,8 +147,20 @@ public class AuthService {
     }
 
     /**
-     * Rotates the refresh token on every use. Presenting an already-rotated
-     * token means it leaked, so every session for that user is dropped.
+     * Rotates the refresh token on every use.
+     *
+     * <p>A client with several requests in flight can present the same token
+     * more than once: the first call rotates it and the rest arrive moments
+     * later holding a token that is already spent. That is ordinary
+     * concurrency, not theft, so a replay inside
+     * {@link #REFRESH_REPLAY_GRACE} of the rotation is honoured with a fresh
+     * pair. Clients also serialise refresh, so this is a safety net rather
+     * than the normal path.
+     *
+     * <p>A replay after the grace window is treated as a leak. Only the chain
+     * for that one device is dropped — the same person's other devices keep
+     * working, since revoking everything is how a single stale tab used to
+     * sign a user out everywhere.
      */
     @Transactional
     public AuthResponse refresh(RefreshRequest request, ClientInfo client) {
@@ -150,14 +168,19 @@ public class AuthService {
         RefreshToken stored = refreshTokenRepository.findByTokenHash(hash)
                 .orElseThrow(() -> new ApiException(ErrorCode.TOKEN_INVALID, "Refresh token is not valid."));
 
-        if (stored.getRevokedAt() != null) {
-            log.warn("Reuse of a revoked refresh token for user {}; revoking all sessions",
-                    stored.getUserId());
-            refreshTokenRepository.revokeAllForUser(stored.getUserId(), Instant.now());
-            throw new ApiException(ErrorCode.TOKEN_INVALID, "Session expired. Please sign in again.");
-        }
-        if (!stored.isActive()) {
+        if (stored.getExpiresAt().isBefore(Instant.now())) {
             throw new ApiException(ErrorCode.TOKEN_EXPIRED, "Session expired. Please sign in again.");
+        }
+        if (stored.getRevokedAt() != null && !isConcurrentReplay(stored)) {
+            log.warn("Replay of a spent refresh token for user {} on device {}; dropping that device's sessions",
+                    stored.getUserId(), stored.getDeviceId());
+            if (stored.getDeviceId() == null) {
+                refreshTokenRepository.revokeAllForUser(stored.getUserId(), Instant.now());
+            } else {
+                refreshTokenRepository.revokeByUserAndDevice(
+                        stored.getUserId(), stored.getDeviceId(), Instant.now());
+            }
+            throw new ApiException(ErrorCode.TOKEN_INVALID, "Session expired. Please sign in again.");
         }
 
         User user = userRepository.findWithRolesById(stored.getUserId())
@@ -167,12 +190,25 @@ public class AuthService {
         }
 
         UserPrincipal principal = workspaceAccessService.principalFor(user, user.getShopId());
-        AuthResponse response = issueTokens(user, principal, client);
+        IssuedSession issued = issueSession(user, principal, client);
 
-        stored.setRevokedAt(Instant.now());
+        if (stored.getRevokedAt() == null) {
+            stored.setRevokedAt(Instant.now());
+        }
+        stored.setReplacedBy(issued.refreshTokenId());
         refreshTokenRepository.save(stored);
 
-        return response;
+        return issued.response();
+    }
+
+    /**
+     * True when this token was rotated moments ago by another in-flight
+     * request, rather than being an old token resurfacing.
+     */
+    private boolean isConcurrentReplay(RefreshToken stored) {
+        return stored.getReplacedBy() != null
+                && stored.getRevokedAt() != null
+                && stored.getRevokedAt().isAfter(Instant.now().minus(REFRESH_REPLAY_GRACE));
     }
 
     @Transactional
@@ -308,6 +344,14 @@ public class AuthService {
     }
 
     private AuthResponse issueTokens(User user, UserPrincipal principal, ClientInfo client) {
+        return issueSession(user, principal, client).response();
+    }
+
+    /** A newly issued pair, plus the stored refresh row so rotation can point at it. */
+    private record IssuedSession(AuthResponse response, UUID refreshTokenId) {
+    }
+
+    private IssuedSession issueSession(User user, UserPrincipal principal, ClientInfo client) {
         String deviceId = deviceSessionService.register(
                 user.getId(), principal.getShopId(), client, user.isSystemAdmin());
         String accessToken = jwtService.createAccessToken(principal, deviceId);
@@ -324,8 +368,8 @@ public class AuthService {
 
         List<WorkspaceCard> workspaces = workspaceAccessService.listMine(user.getId(), principal.getShopId())
                 .workspaces();
-        return AuthResponse.of(accessToken, rawRefresh, jwtService.accessTokenTtlSeconds(),
-                toAuthenticatedUser(user, principal), workspaces, deviceId);
+        return new IssuedSession(AuthResponse.of(accessToken, rawRefresh, jwtService.accessTokenTtlSeconds(),
+                toAuthenticatedUser(user, principal), workspaces, deviceId), refreshToken.getId());
     }
 
     private void registerFailedLogin(User user) {

@@ -1,102 +1,132 @@
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { cachedDashboard, cachedDevices, cachedVariants, searchDevices, searchVariants, syncNow, type CachedDashboard, type CachedVariant } from "../../lib/offline";
+import {
+  cachedDashboard,
+  cachedDevices,
+  cachedVariants,
+  searchDevices,
+  searchVariants,
+  syncNow,
+  type CachedDashboard,
+  type CachedVariant,
+} from "../../lib/offline";
 import { CompatibilityHub } from "../../components/CompatibilityHub";
+import { useDebounced } from "../../lib/useDebounced";
+import { useScreenData } from "../../lib/useScreenData";
+import { Loading, OfflineNotice } from "../../components/ListState";
 import { money, useTheme } from "../../lib/theme";
 
 interface SearchHit {
   devices: { id: string; name: string; brandName: string; matchedAliases: string[] }[];
 }
 
+/** The greeting was fixed at "Good evening", which read as broken all morning. */
+function greetingFor(date = new Date()): string {
+  const hour = date.getHours();
+  if (hour < 12) {
+    return "Good morning";
+  }
+  return hour < 17 ? "Good afternoon" : "Good evening";
+}
+
 export default function HomeScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const [dash, setDash] = useState<CachedDashboard | null>(null);
+  const styles = makeStyles(colors);
   const [query, setQuery] = useState("");
+  const settled = useDebounced(query);
   const [hits, setHits] = useState<SearchHit["devices"]>([]);
   const [parts, setParts] = useState<CachedVariant[]>([]);
   const [fabOpen, setFabOpen] = useState(false);
-  const [offline, setOffline] = useState(false);
-  const styles = makeStyles(colors);
+
+  const firstName = user?.fullName?.split(" ")[0] ?? "there";
+  const greeting = `${greetingFor()}, ${firstName}.`;
+  const catalogOnly = Boolean(user?.catalogOnly);
+  const locked = Boolean(user?.paymentRequired);
+
+  const loadDash = useCallback(async () => {
+    const live = await api<CachedDashboard>("/api/v1/dashboard");
+    // Piggybacked on the dashboard load: opening the app is the moment a phone
+    // is most likely to have signal after a spell on the counter without any.
+    void syncNow();
+    return live;
+  }, []);
+  const dashboard = useScreenData<CachedDashboard | null>(
+    `dash:${user?.workspaceId ?? user?.shopId ?? "none"}`,
+    loadDash,
+    { fallback: cachedDashboard, enabled: !catalogOnly },
+  );
+  const dash = dashboard.data;
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const cached = await cachedDashboard();
-      if (!cancelled && cached) {
-        setDash(cached);
-      }
-      try {
-        if (user?.catalogOnly) {
-          return;
-        }
-        const live = await api<CachedDashboard>("/api/v1/dashboard");
-        if (!cancelled) {
-          setDash(live);
-          setOffline(false);
-        }
-        await syncNow();
-      } catch {
-        if (!cancelled) {
-          setOffline(true);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.workspaceId, user?.shopId, user?.catalogOnly]);
-
-  useEffect(() => {
-    if (query.trim().length < 2) {
+    const term = settled.trim();
+    if (term.length < 2) {
       setHits([]);
       setParts([]);
       return;
     }
-    const handle = setTimeout(() => {
-      api<SearchHit>(`/api/v1/search?q=${encodeURIComponent(query)}`)
-        .then((res) => {
-          setHits(res.devices);
-          setParts([]);
-        })
-        .catch(async () => {
-          const devices = searchDevices(await cachedDevices(), query).slice(0, 8);
-          setHits(
-            devices.map((device) => ({
-              id: device.id,
-              name: device.name,
-              brandName: device.brandName,
-              matchedAliases: (device.aliases ?? []).map((alias) => alias.alias),
-            })),
-          );
-          setParts(searchVariants(await cachedVariants(), query).slice(0, 12));
-        });
-    }, 150);
-    return () => clearTimeout(handle);
-  }, [query]);
+    let live = true;
+    api<SearchHit>(`/api/v1/search?q=${encodeURIComponent(term)}`)
+      .then((res) => {
+        if (!live) {
+          return;
+        }
+        setHits(res.devices);
+        setParts([]);
+      })
+      .catch(async () => {
+        // No signal: search what is on the phone instead of showing nothing.
+        const devices = searchDevices(await cachedDevices(), term).slice(0, 8);
+        if (!live) {
+          return;
+        }
+        setHits(
+          devices.map((device) => ({
+            id: device.id,
+            name: device.name,
+            brandName: device.brandName,
+            matchedAliases: (device.aliases ?? []).map((alias) => alias.alias),
+          })),
+        );
+        setParts(searchVariants(await cachedVariants(), term).slice(0, 12));
+      });
+    return () => {
+      live = false;
+    };
+  }, [settled]);
 
-  if (user?.catalogOnly) {
-    return <CompatibilityHub greeting={`Good evening, ${user.fullName.split(" ")[0]}.`} />;
+  if (catalogOnly) {
+    return <CompatibilityHub greeting={greeting} />;
   }
+
+  const searching = settled.trim().length >= 2;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={styles.page}>
-        <Text style={styles.hello}>Good evening, {user?.fullName.split(" ")[0]}.</Text>
-        {user?.paymentRequired ? (
-          <Text style={styles.banner}>
-            Payment is pending. Open Billing in More to activate this shop. Sales, repairs, and stock stay locked until then.
-          </Text>
+      <ScrollView
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={dashboard.refreshing}
+            onRefresh={dashboard.refresh}
+            tintColor={colors.accent}
+          />
+        }
+      >
+        <Text style={styles.hello}>{greeting}</Text>
+        {locked ? (
+          <Pressable onPress={() => router.push("/billing")}>
+            <Text style={styles.banner}>
+              Payment is pending. Tap here to activate this shop — sales, repairs, and stock stay locked until then.
+            </Text>
+          </Pressable>
         ) : null}
-        {user?.catalogOnly ? (
-          <Text style={styles.banner}>
-            Compatibility plan. Search a phone to see parts that fit. The full shop unlocks on the monthly plan.
-          </Text>
-        ) : null}
-        {offline ? <Text style={styles.banner}>Working offline from the last snapshot.</Text> : null}
+        {dashboard.offline ? <OfflineNotice what="figures" /> : null}
+
         <Pressable style={styles.hit} onPress={() => router.push("/compatibility")}>
           <Text style={styles.hitTitle}>Universal lists</Text>
           <Text style={styles.hitSub}>Tempered glass, OCA, displays, and the rest</Text>
@@ -107,7 +137,11 @@ export default function HomeScreen() {
           placeholderTextColor={colors.faint}
           value={query}
           onChangeText={setQuery}
+          autoCorrect={false}
         />
+        {searching && hits.length === 0 && parts.length === 0 ? (
+          <Text style={styles.hitSub}>Nothing matches “{settled.trim()}”.</Text>
+        ) : null}
         {hits.map((device) => (
           <Pressable key={device.id} style={styles.hit} onPress={() => router.push(`/device/${device.id}`)}>
             <Text style={styles.hitTitle}>
@@ -127,17 +161,21 @@ export default function HomeScreen() {
           </View>
         ))}
 
-        {!user?.catalogOnly && (
-        <View style={styles.grid}>
-          <Tile label="Today’s sales" value={money(dash?.sales.todaySales ?? 0)} colors={colors} />
-          <Tile label="Profit" value={money(dash?.sales.todayProfit ?? 0)} colors={colors} />
-          <Tile label="Stock value" value={money(dash?.inventory.stockValueAtCost ?? 0)} colors={colors} />
-          <Tile label="Low / out" value={`${dash?.inventory.lowStockCount ?? 0} / ${dash?.inventory.outOfStockCount ?? 0}`} colors={colors} />
-        </View>
-        )}
-
-        {!user?.catalogOnly && (
+        {dashboard.loading && !dash ? (
+          <Loading label="Reading today’s figures…" />
+        ) : (
           <>
+            <View style={styles.grid}>
+              <Tile label="Today’s sales" value={money(dash?.sales.todaySales ?? 0)} colors={colors} />
+              <Tile label="Profit" value={money(dash?.sales.todayProfit ?? 0)} colors={colors} />
+              <Tile label="Stock value" value={money(dash?.inventory.stockValueAtCost ?? 0)} colors={colors} />
+              <Tile
+                label="Low / out"
+                value={`${dash?.inventory.lowStockCount ?? 0} / ${dash?.inventory.outOfStockCount ?? 0}`}
+                colors={colors}
+              />
+            </View>
+
             <Text style={styles.section}>Alerts</Text>
             {(dash?.alerts ?? []).map((alert) => (
               <View key={alert.id} style={styles.card}>
@@ -145,28 +183,32 @@ export default function HomeScreen() {
                 <Text style={styles.hitSub}>{alert.message}</Text>
               </View>
             ))}
-            {dash && dash.alerts.length === 0 && <Text style={styles.hitSub}>No stock emergencies this morning.</Text>}
+            {dash && dash.alerts.length === 0 ? (
+              <Text style={styles.hitSub}>No stock emergencies right now.</Text>
+            ) : null}
+            {!dash && dashboard.error ? <Text style={styles.hitSub}>{dashboard.error}</Text> : null}
           </>
         )}
       </ScrollView>
 
-      {!user?.catalogOnly && (
-        <>
-          <Pressable style={styles.fab} onPress={() => setFabOpen(!fabOpen)}>
-            <Text style={styles.fabPlus}>{fabOpen ? "×" : "+"}</Text>
-          </Pressable>
-          {fabOpen && (
-            <View style={styles.fabMenu}>
+      <Pressable style={styles.fab} onPress={() => setFabOpen(!fabOpen)}>
+        <Text style={styles.fabPlus}>{fabOpen ? "×" : "+"}</Text>
+      </Pressable>
+      {fabOpen && (
+        <View style={styles.fabMenu}>
+          {/* An unpaid shop cannot record anything, so offering these shortcuts
+              only leads to a rejection at the end of the form. */}
+          {locked ? (
+            <FabAction label="Activate this shop" onPress={() => router.push("/billing")} colors={colors} />
+          ) : (
+            <>
               <FabAction label="Add stock" onPress={() => router.push("/inventory")} colors={colors} />
               <FabAction label="New sale" onPress={() => router.push("/(tabs)/sales")} colors={colors} />
               <FabAction label="New repair" onPress={() => router.push("/(tabs)/repairs")} colors={colors} />
               <FabAction label="Receive purchase" onPress={() => router.push("/purchases")} colors={colors} />
-              {user?.paymentRequired ? (
-                <FabAction label="Billing" onPress={() => router.push("/billing")} colors={colors} />
-              ) : null}
-            </View>
+            </>
           )}
-        </>
+        </View>
       )}
     </View>
   );

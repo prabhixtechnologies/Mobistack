@@ -1,6 +1,6 @@
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { kvGet, kvSet } from "./db";
-import { flush, pendingCount } from "./outbox";
+import { flush, pendingCount, type FailedOp } from "./outbox";
 
 const VARIANTS = "snapshot.variants";
 const SALES = "snapshot.sales";
@@ -175,14 +175,85 @@ export async function pullSnapshot(): Promise<Snapshot> {
   return snapshot;
 }
 
-export async function syncNow(): Promise<{ pending: number; pulledAt: string | null }> {
-  try {
-    await flush();
-    await pullSnapshot();
-  } catch {
-    /* stay on the last local snapshot when the radio is down */
+export interface SyncOutcome {
+  pending: number;
+  pulledAt: string | null;
+  failed: FailedOp[];
+  offline: boolean;
+  /**
+   * Why the server turned the whole batch away — a lapsed plan, most often.
+   * Set only when the request reached the server and was refused, so the UI can
+   * say what is actually wrong instead of blaming the connection.
+   */
+  blocked: string | null;
+}
+
+/**
+ * Sync is triggered from app resume, the home screen, the sales screen and the
+ * manual button. Without this guard those can overlap and post the same queued
+ * batch twice, so callers share one run instead of starting another.
+ */
+let syncInFlight: Promise<SyncOutcome> | null = null;
+
+export function syncNow(): Promise<SyncOutcome> {
+  if (!syncInFlight) {
+    syncInFlight = runSync().finally(() => {
+      syncInFlight = null;
+    });
   }
-  return { pending: await pendingCount(), pulledAt: await lastPulledAt() };
+  return syncInFlight;
+}
+
+async function runSync(): Promise<SyncOutcome> {
+  let failed: FailedOp[] = [];
+  let offline = false;
+  let blocked: string | null = null;
+  try {
+    failed = (await flush()).failed;
+    await pullSnapshot();
+  } catch (cause) {
+    if (cause instanceof ApiError && cause.permanent) {
+      // The server answered and refused, so retrying changes nothing. The queue
+      // is left alone: the work is still valid once the shop is paid up again.
+      blocked = cause.message;
+    } else {
+      // Stay on the last local snapshot when the radio is down. The queue is
+      // untouched, so nothing is lost and the next run retries it.
+      offline = true;
+    }
+  }
+  return { pending: await pendingCount(), pulledAt: await lastPulledAt(), failed, offline, blocked };
+}
+
+/**
+ * Sends anything queued before the app changes workspace. Switching with work
+ * still pending would leave those operations attributed to the wrong shop, so
+ * the caller is expected to surface this error rather than switch anyway.
+ */
+export async function drainBeforeWorkspaceChange(): Promise<void> {
+  if ((await pendingCount()) === 0) {
+    return;
+  }
+  const outcome = await syncNow();
+  const left = await pendingCount();
+  if (left === 0) {
+    return;
+  }
+  if (outcome.blocked) {
+    throw new Error(`${outcome.blocked} Your queued work is safe and will send once that is sorted.`);
+  }
+  if (outcome.failed.length > 0) {
+    // A rejected operation never drains on its own, so pointing at the retry
+    // button would strand the shopkeeper. More offers a discard.
+    throw new Error(
+      `The server rejected a queued ${outcome.failed[0].type.toLowerCase()}: ${outcome.failed[0].message}. `
+        + "Review it under Sync now in More, then switch shops.",
+    );
+  }
+  throw new Error(
+    `${left} offline change${left === 1 ? "" : "s"} still waiting to sync. `
+      + "Connect to the internet and sync from More, then switch shops.",
+  );
 }
 
 export async function loadOrFetch<T>(remote: () => Promise<T>, fallback: () => Promise<T>): Promise<{ data: T; offline: boolean }> {

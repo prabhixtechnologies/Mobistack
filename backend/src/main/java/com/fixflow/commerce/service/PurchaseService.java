@@ -37,8 +37,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -119,7 +123,8 @@ public class PurchaseService {
 
         auditService.record(AuditAction.PURCHASE_RECEIVED, "Purchase", purchase.getId(),
                 "Received purchase from %s for %s".formatted(supplier.getName(), total.toPlainString()));
-        return toResponse(purchase, supplier.getName(), items, payments);
+        return toResponse(purchase, supplier.getName(), items, payments,
+                variantNames(shopId, items.stream().map(PurchaseItem::getProductVariantId).toList()));
     }
 
     @Transactional
@@ -143,9 +148,51 @@ public class PurchaseService {
         return toResponse(purchase);
     }
 
+    /** Batched for the same reason as the sales list: one screen, a fixed query count. */
     @Transactional(readOnly = true)
     public Page<PurchaseResponse> list(UUID shopId, Pageable pageable) {
-        return purchaseRepository.findByShopIdOrderByReceivedAtDesc(shopId, pageable).map(this::toResponse);
+        Page<Purchase> page = purchaseRepository.findByShopIdOrderByReceivedAtDesc(shopId, pageable);
+        if (page.isEmpty()) {
+            return page.map(purchase -> toResponse(purchase, null, List.of(), List.of(), Map.of()));
+        }
+        List<UUID> purchaseIds = page.getContent().stream().map(Purchase::getId).toList();
+
+        Map<UUID, List<PurchaseItem>> itemsByPurchase = purchaseItemRepository
+                .findByPurchaseIdInOrderByCreatedAtAsc(purchaseIds)
+                .stream().collect(Collectors.groupingBy(PurchaseItem::getPurchaseId));
+        Map<UUID, List<Payment>> paymentsByPurchase = paymentRepository
+                .findByShopIdAndReferenceTypeAndReferenceIdInOrderByOccurredAtAsc(
+                        shopId, PaymentReferenceType.PURCHASE, purchaseIds)
+                .stream().collect(Collectors.groupingBy(Payment::getReferenceId));
+        Map<UUID, String> variantNames = variantNames(shopId, itemsByPurchase.values().stream()
+                .flatMap(List::stream).map(PurchaseItem::getProductVariantId).toList());
+        Map<UUID, String> supplierNames = supplierNames(shopId, page.getContent().stream()
+                .map(Purchase::getSupplierId).toList());
+
+        return page.map(purchase -> toResponse(purchase,
+                supplierNames.get(purchase.getSupplierId()),
+                itemsByPurchase.getOrDefault(purchase.getId(), List.of()),
+                paymentsByPurchase.getOrDefault(purchase.getId(), List.of()),
+                variantNames));
+    }
+
+    /** Scoped to the shop, so a line naming another shop's variant resolves to nothing. */
+    private Map<UUID, String> variantNames(UUID shopId, Collection<UUID> variantIds) {
+        List<UUID> wanted = variantIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (wanted.isEmpty()) {
+            return Map.of();
+        }
+        return variantRepository.findByShopIdAndIdIn(shopId, wanted).stream()
+                .collect(Collectors.toMap(ProductVariant::getId, ProductVariant::getVariantName));
+    }
+
+    private Map<UUID, String> supplierNames(UUID shopId, Collection<UUID> supplierIds) {
+        List<UUID> wanted = supplierIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (wanted.isEmpty()) {
+            return Map.of();
+        }
+        return supplierRepository.findByShopIdAndIdIn(shopId, wanted).stream()
+                .collect(Collectors.toMap(Supplier::getId, Supplier::getName));
     }
 
     @Transactional(readOnly = true)
@@ -180,27 +227,29 @@ public class PurchaseService {
     }
 
     private PurchaseResponse toResponse(Purchase purchase) {
-        String supplierName = supplierRepository.findById(purchase.getSupplierId())
+        UUID shopId = purchase.getShopId();
+        String supplierName = purchase.getSupplierId() == null ? null
+                : supplierRepository.findByIdAndShopId(purchase.getSupplierId(), shopId)
                 .map(Supplier::getName).orElse(null);
-        return toResponse(purchase, supplierName,
-                purchaseItemRepository.findByPurchaseIdOrderByCreatedAtAsc(purchase.getId()),
+        List<PurchaseItem> items = purchaseItemRepository.findByPurchaseIdOrderByCreatedAtAsc(purchase.getId());
+        return toResponse(purchase, supplierName, items,
                 paymentRepository.findByShopIdAndReferenceTypeAndReferenceIdOrderByOccurredAtAsc(
-                        purchase.getShopId(), PaymentReferenceType.PURCHASE, purchase.getId()));
+                        shopId, PaymentReferenceType.PURCHASE, purchase.getId()),
+                variantNames(shopId, items.stream().map(PurchaseItem::getProductVariantId).toList()));
     }
 
     private PurchaseResponse toResponse(Purchase purchase, String supplierName, List<PurchaseItem> items,
-                                        List<Payment> payments) {
+                                        List<Payment> payments, Map<UUID, String> variantNames) {
         return new PurchaseResponse(purchase.getId(), purchase.getSupplierId(), supplierName, purchase.getStatus(),
                 purchase.getSubtotal(), purchase.getTax(), purchase.getTotal(), purchase.getPaid(),
                 purchase.getOutstanding(), purchase.getNotes(), purchase.getReceivedAt(),
-                items.stream().map(this::toItem).toList(),
+                items.stream().map(item -> toItem(item, variantNames)).toList(),
                 payments.stream().map(this::toPayment).toList());
     }
 
-    private PurchaseItemResponse toItem(PurchaseItem item) {
-        String name = variantRepository.findById(item.getProductVariantId())
-                .map(ProductVariant::getVariantName).orElse(null);
-        return new PurchaseItemResponse(item.getId(), item.getProductVariantId(), name, item.getQuantity(),
+    private PurchaseItemResponse toItem(PurchaseItem item, Map<UUID, String> variantNames) {
+        return new PurchaseItemResponse(item.getId(), item.getProductVariantId(),
+                variantNames.get(item.getProductVariantId()), item.getQuantity(),
                 item.getUnitCost(), item.getLineTotal(), item.getBatchNo());
     }
 

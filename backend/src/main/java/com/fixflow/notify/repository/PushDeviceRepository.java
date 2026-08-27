@@ -12,4 +12,7 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, UUID> {
     Optional<PushDevice> findByUserIdAndDeviceId(UUID userId, String deviceId);
 
     List<PushDevice> findByUserIdAndExpoPushTokenIsNotNull(UUID userId);
+
+    /** Tokens still worth trying: registered, and not retired by a dead-token report. */
+    List<PushDevice> findByUserIdAndExpoPushTokenIsNotNullAndRetiredAtIsNull(UUID userId);
 }

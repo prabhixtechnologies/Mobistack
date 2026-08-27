@@ -90,9 +90,13 @@ public class Shop extends AuditableEntity {
     @Column(name = "join_code", nullable = false, length = 16)
     private String joinCode;
 
-    /** Legacy column. Same user is always one live session. */
+    /**
+     * How many devices one person may stay signed in on at once — typically the
+     * counter phone plus the web console. This is not a billing limit: paid
+     * screen seats count people, not devices.
+     */
     @Column(name = "max_devices_per_user", nullable = false)
-    private int maxDevicesPerUser = 1;
+    private int maxDevicesPerUser = 3;
 
     /** Extra screens subscribed. They count only while the monthly period is live. */
     @Column(name = "extra_screens", nullable = false)

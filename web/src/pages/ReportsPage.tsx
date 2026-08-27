@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, getAccessToken, money, qty } from "../lib/api";
+import { useAccess } from "../lib/access";
+import { useAction } from "../lib/useAction";
 import { PageHeader } from "../ui/PageHeader";
 
 interface ReportBundle {
@@ -11,15 +13,58 @@ interface ReportBundle {
 }
 
 export function ReportsPage() {
+  const access = useAccess();
   const [range, setRange] = useState("today");
   const [data, setData] = useState<ReportBundle | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let live = true;
+    setLoading(true);
     api<ReportBundle>(`/api/v1/reports?range=${range}`)
-      .then(setData)
-      .catch((err: Error) => setError(err.message));
+      .then((bundle) => {
+        if (live) {
+          setData(bundle);
+          setError(null);
+        }
+      })
+      .catch((err: Error) => {
+        if (live) {
+          setError(err.message);
+        }
+      })
+      .finally(() => {
+        if (live) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      live = false;
+    };
   }, [range]);
+
+  const exportCsv = useAction(
+    async () => {
+      const token = getAccessToken();
+      const response = await fetch(`/api/v1/reports/export?range=${range}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      // Without this check a rejected export saves the error page as a .csv,
+      // which then opens as a spreadsheet of HTML.
+      if (!response.ok) {
+        throw new Error(`The export was refused (${response.status}). Nothing was downloaded.`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `mobistack-report-${range}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+    { fallbackError: "That export did not download." },
+  );
 
   return (
     <div className="page">
@@ -28,35 +73,30 @@ export function ReportsPage() {
         title="Reports"
         subtitle="Profit is sale price minus ledger cost. Dead stock is inventory that has not moved."
         actions={
-        <div className="row">
-          <select className="select" value={range} onChange={(e) => setRange(e.target.value)} style={{ width: 180 }}>
-            <option value="today">Today</option>
-            <option value="yesterday">Yesterday</option>
-            <option value="7d">7 days</option>
-            <option value="this_month">This month</option>
-            <option value="last_month">Last month</option>
-          </select>
-          <a className="btn ghost" href={`/api/v1/reports/export?range=${range}`} onClick={(event) => {
-            event.preventDefault();
-            const token = getAccessToken();
-            void fetch(`/api/v1/reports/export?range=${range}`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            }).then(async (response) => {
-              const blob = await response.blob();
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.href = url;
-              link.download = "mobistack-report.csv";
-              link.click();
-              URL.revokeObjectURL(url);
-            });
-          }}>
-            Export CSV
-          </a>
-        </div>
+          <div className="row">
+            <select className="select" value={range} onChange={(e) => setRange(e.target.value)} style={{ width: 180 }}>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="7d">7 days</option>
+              <option value="this_month">This month</option>
+              <option value="last_month">Last month</option>
+            </select>
+            {access.has("REPORT_EXPORT") && (
+              <button
+                className="btn ghost"
+                type="button"
+                disabled={exportCsv.busy}
+                onClick={() => void exportCsv.run()}
+              >
+                {exportCsv.busy ? "Exporting…" : "Export CSV"}
+              </button>
+            )}
+          </div>
         }
       />
       {error && <div className="error">{error}</div>}
+      {exportCsv.error && <div className="error">{exportCsv.error}</div>}
+      {loading && !data && <div className="muted">Adding up the numbers…</div>}
       {data && (
         <>
           <div className="grid-4">

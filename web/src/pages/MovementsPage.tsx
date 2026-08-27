@@ -1,48 +1,59 @@
-import { useEffect, useState } from "react";
-import { api, qty } from "../lib/api";
+import { qty } from "../lib/api";
+import { usePagedList } from "../lib/usePagedList";
+import { DataTable, type Column } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
-import type { InventoryTransaction, PageResponse } from "../lib/types";
+import type { InventoryTransaction } from "../lib/types";
 
 export function MovementsPage() {
-  const [page, setPage] = useState<PageResponse<InventoryTransaction> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const movements = usePagedList<InventoryTransaction>("/api/v1/inventory/transactions", { size: 40 });
 
-  useEffect(() => {
-    api<PageResponse<InventoryTransaction>>("/api/v1/inventory/transactions?size=40")
-      .then(setPage)
-      .catch((err: Error) => setError(err.message));
-  }, []);
+  const columns: Column<InventoryTransaction>[] = [
+    {
+      key: "when",
+      header: "When",
+      render: (row) => new Date(row.occurredAt).toLocaleString("en-IN"),
+    },
+    { key: "type", header: "Type", render: (row) => row.type },
+    {
+      key: "delta",
+      header: "Qty",
+      align: "right",
+      render: (row) => (row.onHandDelta > 0 ? `+${row.onHandDelta}` : row.onHandDelta),
+    },
+    { key: "balance", header: "Balance", align: "right", render: (row) => qty.format(row.balanceAfter) },
+    { key: "by", header: "By", render: (row) => row.createdByName ?? "—" },
+    { key: "reason", header: "Reason", render: (row) => <span className="faint">{row.reason ?? "—"}</span> },
+  ];
 
   return (
     <div className="page">
-      <PageHeader kicker="Insights" title="Stock movements" subtitle="Every change is a row. Nothing is overwritten." />
-      {error && <div className="error">{error}</div>}
+      <PageHeader
+        kicker="Insights"
+        title="Stock movements"
+        subtitle="Every change is a row. Nothing is overwritten."
+      />
       <div className="card tight">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>When</th>
-              <th>Type</th>
-              <th>Qty</th>
-              <th>Balance</th>
-              <th>By</th>
-              <th>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {page?.content.map((row) => (
-              <tr key={row.id}>
-                <td>{new Date(row.occurredAt).toLocaleString("en-IN")}</td>
-                <td>{row.type}</td>
-                <td>{row.onHandDelta > 0 ? `+${row.onHandDelta}` : row.onHandDelta}</td>
-                <td>{qty.format(row.balanceAfter)}</td>
-                <td>{row.createdByName ?? "—"}</td>
-                <td className="faint">{row.reason ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {page && page.content.length === 0 && <div className="empty">No movements yet.</div>}
+        <DataTable
+          columns={columns}
+          rows={movements.loading && movements.rows.length === 0 ? undefined : movements.rows}
+          rowKey={(row) => row.id}
+          loading={movements.loading}
+          error={movements.error}
+          onRetry={movements.reload}
+          skeletonRows={10}
+          empty={{
+            icon: "move",
+            title: "No movements yet",
+            hint: "Receiving stock, selling a part or fitting one to a repair all land here.",
+          }}
+          paging={{
+            total: movements.total,
+            hasMore: movements.hasMore,
+            loadingMore: movements.loadingMore,
+            onLoadMore: movements.loadMore,
+            noun: "movements",
+          }}
+        />
       </div>
     </div>
   );

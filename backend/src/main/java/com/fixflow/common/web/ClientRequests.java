@@ -8,6 +8,7 @@ public final class ClientRequests {
 
     public static final String DEVICE_HEADER = "X-MobiStack-Device";
     public static final String DEVICE_HEADER_LEGACY = "X-FixFlow-Device";
+    public static final String IDEMPOTENCY_HEADER = "Idempotency-Key";
 
     private ClientRequests() {
     }
@@ -19,6 +20,22 @@ public final class ClientRequests {
                 ? http.getRemoteAddr()
                 : forwarded.split(",")[0].trim();
         return new AuthService.ClientInfo(resolved, http.getHeader(HttpHeaders.USER_AGENT), ip);
+    }
+
+    /** The calling device, or null when the client did not identify itself. */
+    public static String deviceId(HttpServletRequest http) {
+        return firstHeader(http, DEVICE_HEADER, DEVICE_HEADER_LEGACY);
+    }
+
+    /**
+     * Caller-supplied key that makes a retried write land once.
+     *
+     * <p>Sent as a header rather than in the body so it works the same whichever
+     * endpoint is being retried, and so a proxy replaying a request cannot lose
+     * it by rewriting the payload.
+     */
+    public static String idempotencyKey(HttpServletRequest http) {
+        return firstHeader(http, IDEMPOTENCY_HEADER);
     }
 
     public static String ip(HttpServletRequest http) {

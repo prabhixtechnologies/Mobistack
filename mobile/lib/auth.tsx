@@ -4,13 +4,18 @@ import {
   clearSession,
   getStoredUser,
   getStoredWorkspaces,
+  onSessionEnded,
   persistSession,
   persistWorkspaces,
+  selectedWorkspaceId,
   type AuthResponse,
   type AuthUser,
   type WorkspaceCard,
 } from "./api";
+import { setActiveScope } from "./db";
 import { getDeviceId } from "./device";
+import { drainBeforeWorkspaceChange } from "./offline";
+import { forgetPushRegistration } from "./push";
 
 interface MyWorkspacesResponse {
   selectedWorkspaceId?: string | null;
@@ -56,11 +61,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     Promise.all([getStoredUser(), getStoredWorkspaces()]).then(([stored, storedWorkspaces]) => {
+      // Point local reads at this person's workspace before any screen mounts.
+      setActiveScope(stored?.id, selectedWorkspaceId(stored));
       setUser(stored);
       setWorkspaces(storedWorkspaces);
       setReady(true);
     });
   }, []);
+
+  // The server can end a session mid-request (expired or device limit). Drop
+  // back to the sign-in screen instead of leaving the tabs on screen.
+  useEffect(() => onSessionEnded(() => {
+    setUser(null);
+    setWorkspaces([]);
+    forgetPushRegistration();
+  }), []);
 
   return (
     <AuthContext.Provider
@@ -89,10 +104,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         async logout() {
           await clearSession();
+          // A push token belongs to whoever registered it, so the next person
+          // on this phone must register again rather than inherit the alerts.
+          forgetPushRegistration();
           setUser(null);
           setWorkspaces([]);
         },
         async switchWorkspace(workspaceId) {
+          // Queued work belongs to the shop it was recorded in, so it has to
+          // reach the server before the active shop changes.
+          await drainBeforeWorkspaceChange();
           const auth = await api<AuthResponse>(`/api/v1/workspaces/${workspaceId}/select`, {
             method: "POST",
           });

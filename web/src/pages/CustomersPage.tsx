@@ -1,7 +1,11 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { api, money } from "../lib/api";
+import { useAccess } from "../lib/access";
+import { useAction } from "../lib/useAction";
+import { useDebounced } from "../lib/useDebounced";
+import { usePagedList } from "../lib/usePagedList";
+import { DataTable, type Column } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
-import type { PageResponse } from "../lib/types";
 
 interface Customer {
   id: string;
@@ -15,71 +19,117 @@ interface Customer {
 }
 
 export function CustomersPage() {
-  const [rows, setRows] = useState<Customer[]>([]);
+  const access = useAccess();
+  const canWrite = access.has("CUSTOMER_WRITE");
+  const [search, setSearch] = useState("");
+  const settled = useDebounced(search);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [type, setType] = useState("RETAIL");
-  const [error, setError] = useState<string | null>(null);
 
-  async function load() {
-    const page = await api<PageResponse<Customer>>("/api/v1/customers?size=50");
-    setRows(page.content);
-  }
+  const path = useMemo(() => {
+    const term = settled.trim();
+    return term ? `/api/v1/customers?q=${encodeURIComponent(term)}` : "/api/v1/customers";
+  }, [settled]);
+  const customers = usePagedList<Customer>(path, { size: 50 });
 
-  useEffect(() => {
-    load().catch((err: Error) => setError(err.message));
-  }, []);
-
-  async function create(event: FormEvent) {
-    event.preventDefault();
-    try {
-      await api("/api/v1/customers", { method: "POST", body: JSON.stringify({ name, phone, customerType: type }) });
+  const create = useAction(
+    async () => {
+      await api("/api/v1/customers", {
+        method: "POST",
+        body: JSON.stringify({ name, phone, customerType: type }),
+      });
       setName("");
       setPhone("");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save customer");
-    }
+      customers.reload();
+    },
+    { fallbackError: "Could not save that customer." },
+  );
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void create.run();
   }
+
+  const columns: Column<Customer>[] = [
+    {
+      key: "name",
+      header: "Name",
+      render: (row) => (
+        <div className="cell-identity">
+          <strong>{row.name}</strong>
+          {row.city && <span className="faint">{row.city}</span>}
+        </div>
+      ),
+    },
+    { key: "phone", header: "Phone", render: (row) => row.phone ?? "—" },
+    { key: "type", header: "Type", render: (row) => row.customerType },
+    { key: "purchases", header: "Purchases", align: "right", render: (row) => money.format(row.totalPurchases) },
+    {
+      key: "outstanding",
+      header: "Outstanding",
+      align: "right",
+      render: (row) => money.format(row.outstandingAmount),
+    },
+  ];
 
   return (
     <div className="page">
-      <PageHeader kicker="People" title="Customers" subtitle="Walk-ins stay unnamed. Regulars keep a phone and an outstanding balance." />
-      {error && <div className="error">{error}</div>}
-      <form className="card row" onSubmit={create}>
-        <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
-        <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
-        <select className="select" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
-          <option value="RETAIL">Retail</option>
-          <option value="WHOLESALE">Wholesale</option>
-          <option value="VIP">VIP</option>
-        </select>
-        <button className="btn">Add</button>
-      </form>
+      <PageHeader
+        kicker="People"
+        title="Customers"
+        subtitle="Walk-ins stay unnamed. Regulars keep a phone and an outstanding balance."
+      />
+      {create.error && <div className="error">{create.error}</div>}
+
+      {canWrite && (
+        <form className="card row" onSubmit={submit}>
+          <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
+          <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
+          <select className="select" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
+            <option value="RETAIL">Retail</option>
+            <option value="WHOLESALE">Wholesale</option>
+            <option value="VIP">VIP</option>
+          </select>
+          <button className="btn" disabled={create.busy}>
+            {create.busy ? "Saving…" : "Add"}
+          </button>
+        </form>
+      )}
+
+      <div className="card row">
+        <input
+          className="field"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or phone…"
+        />
+      </div>
+
       <div className="card tight">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Type</th>
-              <th>Purchases</th>
-              <th>Outstanding</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.name}</td>
-                <td>{row.phone ?? "—"}</td>
-                <td>{row.customerType}</td>
-                <td>{money.format(row.totalPurchases)}</td>
-                <td>{money.format(row.outstandingAmount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {rows.length === 0 && <div className="empty">No customers yet.</div>}
+        <DataTable
+          columns={columns}
+          rows={customers.loading && customers.rows.length === 0 ? undefined : customers.rows}
+          rowKey={(row) => row.id}
+          loading={customers.loading}
+          error={customers.error}
+          onRetry={customers.reload}
+          skeletonRows={8}
+          empty={{
+            icon: "users",
+            title: settled.trim() ? "No customer matches that" : "No customers yet",
+            hint: settled.trim()
+              ? "Try part of the name or the last few digits of the phone number."
+              : "Add a regular above so their balance and history follow them.",
+          }}
+          paging={{
+            total: customers.total,
+            hasMore: customers.hasMore,
+            loadingMore: customers.loadingMore,
+            onLoadMore: customers.loadMore,
+            noun: "customers",
+          }}
+        />
       </div>
     </div>
   );

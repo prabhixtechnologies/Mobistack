@@ -1,5 +1,6 @@
 package com.fixflow.inventory.web;
 
+import com.fixflow.common.web.ClientRequests;
 import com.fixflow.common.web.PageResponse;
 import com.fixflow.inventory.domain.InventoryReferenceType;
 import com.fixflow.inventory.domain.InventoryTransactionType;
@@ -17,6 +18,7 @@ import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -64,14 +66,21 @@ public class InventoryController {
         return PageResponse.of(inventoryQueryService.openAlerts(CurrentUser.shopId(), pageable));
     }
 
+    /**
+     * An {@code Idempotency-Key} header makes a retry safe. Receiving stock is the
+     * write most likely to be repeated — a slow save invites a second press, and
+     * without the key both presses add the carton.
+     */
     @PostMapping("/receive")
     @PreAuthorize(Authorize.INVENTORY_WRITE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Add stock. Posts an IN ledger row.")
-    public InventoryTransactionResponse receive(@Valid @RequestBody StockReceiveRequest request) {
+    public InventoryTransactionResponse receive(@Valid @RequestBody StockReceiveRequest request,
+                                               HttpServletRequest http) {
         return inventoryQueryService.toResponse(inventoryService.receive(
                 CurrentUser.shopId(), request.variantId(), request.quantity(), request.unitCost(),
-                request.reason(), request.batchNo()));
+                request.reason(), request.batchNo(),
+                ClientRequests.idempotencyKey(http), ClientRequests.deviceId(http)));
     }
 
     @PostMapping("/issue")

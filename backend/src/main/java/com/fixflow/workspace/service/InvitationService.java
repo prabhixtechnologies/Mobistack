@@ -65,7 +65,11 @@ public class InvitationService {
         invitationRepository.save(invitation);
 
         Shop workspace = shopRepository.findById(workspaceId).orElseThrow();
-        notificationService.emit(workspaceId, CurrentUser.userId(), "USER_INVITED", request.email(),
+        // Addressed to the invitee, not the inviter. Passing the caller's id here
+        // put the invitation — token and all — in the inbox of the person who
+        // sent it, and left the invitee with nothing.
+        UUID invitee = userRepository.findWithRolesByEmail(request.email()).map(User::getId).orElse(null);
+        notificationService.emit(workspaceId, invitee, "USER_INVITED", request.email(),
                 "You have been invited to " + workspace.getName(),
                 "Join %s as %s. Token: %s (expires in 7 days)."
                         .formatted(workspace.getName(), role.getCode(), token));
@@ -88,6 +92,9 @@ public class InvitationService {
         }
         User user = userRepository.findById(userId).orElseThrow(() -> ApiException.notFound("User", userId));
         Shop workspace = shopRepository.findById(invitation.getWorkspaceId()).orElseThrow();
+        // Re-checked here, not just at invite time: an invitation is valid for a
+        // week, and the shop's plan can lapse inside that window.
+        billingService.requireMemberSeat(workspace.getId());
         workspaceAccessService.activate(user, workspace, invitation.getRole(), invitation.getInvitedBy());
         invitation.setStatus(WorkspaceInvitation.Status.ACCEPTED);
         invitation.setAcceptedBy(userId);
@@ -99,7 +106,9 @@ public class InvitationService {
     @Transactional
     public void cancel(UUID workspaceId, UUID invitationId) {
         workspaceAccessService.requireActive(CurrentUser.userId(), workspaceId);
-        WorkspaceInvitation invitation = invitationRepository.findById(invitationId)
+        // Matched on both ids: an id alone let a member of one shop cancel an
+        // invitation belonging to another shop entirely.
+        WorkspaceInvitation invitation = invitationRepository.findByIdAndWorkspaceId(invitationId, workspaceId)
                 .orElseThrow(() -> ApiException.notFound("Invitation", invitationId));
         invitation.setStatus(WorkspaceInvitation.Status.CANCELLED);
         invitationRepository.save(invitation);

@@ -14,6 +14,9 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
 
     Optional<Customer> findByIdAndShopId(UUID id, UUID shopId);
 
+    /** Batch form, so a page of sales resolves its customer names in one query. */
+    java.util.List<Customer> findByShopIdAndIdIn(UUID shopId, java.util.Collection<UUID> ids);
+
     Optional<Customer> findByShopIdAndPhone(UUID shopId, String phone);
 
     @Query("""

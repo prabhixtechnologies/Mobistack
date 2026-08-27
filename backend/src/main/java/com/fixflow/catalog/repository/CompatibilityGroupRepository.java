@@ -15,6 +15,9 @@ public interface CompatibilityGroupRepository extends JpaRepository<Compatibilit
 
     Optional<CompatibilityGroup> findByIdAndShopId(UUID id, UUID shopId);
 
+    /** Batch form, so resolving a product's group names takes one query. */
+    List<CompatibilityGroup> findByShopIdAndIdIn(UUID shopId, java.util.Collection<UUID> ids);
+
     Optional<CompatibilityGroup> findByShopIdAndCode(UUID shopId, String code);
 
     boolean existsByShopIdAndCode(UUID shopId, String code);

@@ -81,3 +81,32 @@ IMAGE_TAG=abc123def ./deploy/ec2-up.sh
 ```
 
 Optional: GitHub **Deploy to EC2** (manual). Add secrets `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`, `EC2_APP_DIR` (absolute path of the clone).
+
+## 5. Backups
+
+Postgres lives in a Docker volume. Losing the instance or the volume loses every invoice, repair job, and stock balance in it, so a dump off the box is not optional.
+
+`ec2-up.sh` takes one automatically before each deploy, because a new image runs its Flyway migrations on boot. Pass `SKIP_BACKUP=1` on the very first deploy, when there is no database yet.
+
+Nightly, on the server:
+
+```bash
+crontab -e
+# 15 2 * * * cd /opt/mobistack && bash deploy/db-backup.sh >> /var/log/mobistack-backup.log 2>&1
+```
+
+Dumps land in `./backups` (override with `BACKUP_DIR`) and the newest 14 are kept (`KEEP`). **Copy them off the instance** — to S3, or anywhere that is not the disk holding the database:
+
+```bash
+aws s3 sync ./backups s3://your-bucket/mobistack/ --storage-class STANDARD_IA
+```
+
+To restore:
+
+```bash
+bash deploy/db-restore.sh backups/mobistack-fixflow-20260827T021500Z.sql.gz
+```
+
+That stops the API, replaces the database, and starts it again. It asks you to type the database name first, because there is no undo.
+
+Test a restore before you need one. An untested backup is a guess.

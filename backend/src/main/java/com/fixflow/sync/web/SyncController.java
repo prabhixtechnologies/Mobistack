@@ -99,11 +99,13 @@ public class SyncController {
 
     @PostMapping
     @PreAuthorize(Authorize.INVENTORY_WRITE + " or hasAuthority('SALES_WRITE') or hasAuthority('REPAIR_WRITE')")
-    public List<SyncResult> push(@Valid @RequestBody SyncRequest request) {
+    public List<SyncResult> push(@Valid @RequestBody SyncRequest request,
+                                 jakarta.servlet.http.HttpServletRequest http) {
         List<SyncResult> results = new ArrayList<>();
         if (request.operations() == null) {
             return results;
         }
+        String deviceId = com.fixflow.common.web.ClientRequests.deviceId(http);
         for (SyncOperation op : request.operations()) {
             try {
                 if ("SALE".equalsIgnoreCase(op.type()) && op.sale() != null) {
@@ -115,7 +117,8 @@ public class SyncController {
                 } else if ("RECEIVE".equalsIgnoreCase(op.type()) && op.receive() != null) {
                     inventoryQueryService.toResponse(inventoryService.receive(
                             CurrentUser.shopId(), op.receive().variantId(), op.receive().quantity(),
-                            op.receive().unitCost(), op.receive().reason(), op.receive().batchNo()));
+                            op.receive().unitCost(), op.receive().reason(), op.receive().batchNo(),
+                            op.idempotencyKey(), deviceId));
                     results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Stock received"));
                 } else if ("REPAIR".equalsIgnoreCase(op.type()) && op.repair() != null) {
                     CreateRepairRequest repair = op.repair();
@@ -127,7 +130,7 @@ public class SyncController {
                     repairService.create(CurrentUser.shopId(), keyed);
                     results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Repair accepted"));
                 } else if ("CUSTOMER".equalsIgnoreCase(op.type()) && op.customer() != null) {
-                    partyService.createCustomer(CurrentUser.shopId(), op.customer());
+                    partyService.createCustomerForSync(CurrentUser.shopId(), op.customer());
                     results.add(new SyncResult(op.idempotencyKey(), "SYNCED", "Customer accepted"));
                 } else if ("REPAIR_STATUS".equalsIgnoreCase(op.type()) && op.repairStatus() != null
                         && op.repairStatus().repairId() != null && op.repairStatus().status() != null) {

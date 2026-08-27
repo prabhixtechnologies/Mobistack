@@ -25,7 +25,7 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
     Page<DeviceModel> findByShopIdAndBrandId(UUID shopId, UUID brandId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"brand"})
-    List<DeviceModel> findByShopIdAndIdIn(UUID shopId, List<UUID> ids);
+    List<DeviceModel> findByShopIdAndIdIn(UUID shopId, java.util.Collection<UUID> ids);
 
     @EntityGraph(attributePaths = {"brand"})
     @Query("""
@@ -105,6 +105,10 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
     /**
      * Every model sharing at least one compatibility group with the given
      * device: the "Realme 6 = Realme 6i = Realme 7" list the shopkeeper expects.
+     *
+     * <p>Both the peer model and the group are held to the shop. Group membership
+     * is keyed on device alone, so without those filters a group that ever
+     * straddled two shops would surface the other shop's model names here.
      */
     @Query(value = """
             select distinct dm.id         as "id",
@@ -123,11 +127,14 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
                      join brands b on b.id = dm.brand_id
             where source.device_model_id = :deviceModelId
               and cg.active
+              and cg.shop_id = :shopId
               and dm.active
+              and dm.shop_id = :shopId
               and dm.id <> :deviceModelId
             order by dm.name
             """, nativeQuery = true)
-    List<DeviceSearchRow> findCompatibleModels(@Param("deviceModelId") UUID deviceModelId);
+    List<DeviceSearchRow> findCompatibleModels(@Param("shopId") UUID shopId,
+                                               @Param("deviceModelId") UUID deviceModelId);
 
     /** Cheap popularity signal: bump the model each time it is looked up. */
     @Modifying

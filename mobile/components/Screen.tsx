@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useTheme } from "../lib/theme";
 
@@ -8,18 +8,32 @@ export function Screen({
   copy,
   children,
   back,
+  onRefresh,
+  refreshing = false,
 }: {
   title: string;
   copy?: string;
   children: ReactNode;
   back?: boolean;
+  /** Supplying this adds pull-to-refresh, which is how people expect to reload. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={styles.page}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      contentContainerStyle={styles.page}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+        ) : undefined
+      }
+    >
       {back ? (
-        <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }}>
+        <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }} hitSlop={8}>
           <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
         </Pressable>
       ) : null}

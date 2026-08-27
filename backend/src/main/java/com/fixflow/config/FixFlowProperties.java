@@ -30,6 +30,7 @@ public class FixFlowProperties {
     private final Updates updates = new Updates();
     private final Razorpay razorpay = new Razorpay();
     private final Mail mail = new Mail();
+    private final Push push = new Push();
 
     @Getter
     @Setter
@@ -96,12 +97,21 @@ public class FixFlowProperties {
         /** Public web origin used to build magic links. Overridden in prod. */
         private String webOrigin = "https://mobistack.prabhixtechnologies.com";
         private String magicLinkPath = "/login?magic=";
-        /** Dev/local one-time codes. Production replaces this with a real sender. */
-        private String devOtp = "123456";
-        private boolean devSsoEnabled = true;
+        /**
+         * Fixed one-time code so a developer can sign in without a mail or SMS
+         * account. Blank everywhere except the dev profile: a value here accepts
+         * that code for every number in the system.
+         */
+        private String devOtp = "";
+        /** Password-free sign-in as any user. Dev profile only, for the same reason. */
+        private boolean devSsoEnabled = false;
         private String googleClientId = "";
         private String googleClientSecret = "";
         private String googleRedirectPath = "/login?sso=google";
+        /** Wrong guesses a one-time code survives before it is burned. */
+        private int otpMaxAttempts = 5;
+        /** How long a caller must wait before a fresh code can be sent. */
+        private Duration otpResendCooldown = Duration.ofSeconds(45);
     }
 
     @Getter
@@ -147,11 +157,13 @@ public class FixFlowProperties {
     @Getter
     @Setter
     public static class Devices {
-        private int defaultMaxPerUser = 1;
+        /** Devices one person may stay signed in on when the shop has no override. */
+        private int defaultMaxPerUser = 3;
+        /** Hard ceiling, so a shop setting cannot raise the cap without limit. */
         @Positive
-        private int absoluteMaxPerUser = 1;
-        /** Kept for config compatibility. Same-user overlap is always rejected. */
-        private String overLimit = "reject";
+        private int absoluteMaxPerUser = 5;
+        /** {@code evict} ends the least recently used device; {@code reject} refuses the sign-in. */
+        private String overLimit = "evict";
     }
 
     @Getter
@@ -175,11 +187,28 @@ public class FixFlowProperties {
 
     @Getter
     @Setter
+    public static class Push {
+        /**
+         * Expo access token. Optional, but without it anyone who learns a push
+         * token could send alerts that look like they came from MobiStack, and
+         * Expo applies tighter rate limits to unauthenticated senders.
+         */
+        private String expoAccessToken = "";
+    }
+
+    @Getter
+    @Setter
     public static class Razorpay {
         /** Public checkout key. Safe to send to the browser. */
         private String keyId = "";
         /** Server-only signing secret. Never returned from an API. */
         private String keySecret = "";
+        /**
+         * Webhook signing secret, set separately in the Razorpay dashboard. It is
+         * not the same value as the key secret, and without it a webhook cannot
+         * be trusted — so an unsigned one is refused rather than believed.
+         */
+        private String webhookSecret = "";
 
         public boolean configured() {
             return keyId != null && !keyId.isBlank() && keySecret != null && !keySecret.isBlank();

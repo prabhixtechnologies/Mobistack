@@ -45,6 +45,7 @@ public class UserService {
     private final WorkspaceAccessService workspaceAccessService;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final com.fixflow.billing.service.BillingService billingService;
 
     @Transactional(readOnly = true)
     public Page<UserResponse> list(UUID shopId, Pageable pageable) {
@@ -60,6 +61,7 @@ public class UserService {
 
     @Transactional
     public UserResponse create(UUID shopId, CreateUserRequest request) {
+        billingService.requireMemberSeat(shopId);
         Set<Role> roles = resolveRoles(shopId, request.roles());
         assertAssignable(roles);
         Role primary = mostSenior(roles);

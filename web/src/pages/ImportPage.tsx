@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { useAction } from "../lib/useAction";
 import { PageHeader } from "../ui/PageHeader";
 import type { CompatibilityOverview, PageResponse } from "../lib/types";
 
@@ -37,10 +38,8 @@ export function ImportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    try {
+  const runImport = useAction(
+    async () => {
       const body = await api<{ groups: number; devices: number; aliases: number; warnings: string[] }>(
         "/api/v1/imports/compatibility",
         {
@@ -56,9 +55,15 @@ export function ImportPage() {
       const warningText = body.warnings?.length ? ` ${body.warnings.length} skipped.` : "";
       setResult(`Imported ${body.groups} groups and ${body.devices} phones.${warningText}`);
       await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Import failed");
-    }
+    },
+    { fallbackError: "That list could not be imported. Nothing was created." },
+  );
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setResult(null);
+    void runImport.run();
   }
 
   return (
@@ -69,6 +74,7 @@ export function ImportPage() {
         subtitle="Paste the old universal list. Each A = B = C line becomes a real compatibility group in the category you pick."
       />
       {error && <div className="error">{error}</div>}
+      {runImport.error && <div className="error">{runImport.error}</div>}
       {result && <div className="muted">{result}</div>}
       <form className="card stack" onSubmit={submit}>
         <label className="stack" style={{ gap: 6 }}>
@@ -94,9 +100,12 @@ export function ImportPage() {
           <span className="faint">List</span>
           <textarea className="field" rows={10} value={text} onChange={(event) => setText(event.target.value)} />
         </label>
-        <button className="btn">Import compatibility</button>
+        <button className="btn" disabled={runImport.busy || !categoryId || !text.trim()}>
+          {runImport.busy ? "Importing…" : "Import compatibility"}
+        </button>
       </form>
       <div className="card tight">
+        {jobs.length === 0 && <div className="faint" style={{ padding: 12 }}>No imports yet.</div>}
         {jobs.map((job) => (
           <div className="category-row" key={job.id}>
             <div>

@@ -18,6 +18,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -26,6 +27,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @RequiredArgsConstructor
@@ -54,7 +57,10 @@ public class SecurityConfig {
             "/api/v1/auth/sso/google",
             "/api/v1/public/**",
             "/download/**",
-            "/actuator/health/**"
+            "/actuator/health/**",
+            // Razorpay cannot present a token. Its authenticity is proved by the
+            // HMAC signature over the raw body, checked inside the handler.
+            "/api/v1/billing/webhooks/razorpay"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -77,6 +83,19 @@ public class SecurityConfig {
                     auth.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                             .anyRequest().authenticated();
                 })
+                // Set here as well as at the reverse proxy: the API is also reached
+                // directly in development and from the mobile app, and a header
+                // that only exists in the Caddy config protects neither.
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(withDefaults())
+                        .referrerPolicy(referrer -> referrer.policy(
+                                ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .permissionsPolicyHeader(permissions -> permissions
+                                .policy("camera=(self), geolocation=(), microphone=()")))
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
@@ -112,8 +131,22 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.getCors().getAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Content-Disposition"));
+        // Named rather than "*": credentials are allowed on this origin, so the
+        // browser should not be able to attach arbitrary headers to those calls.
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Accept-Language",
+                "X-Requested-With",
+                "Idempotency-Key",
+                com.fixflow.workspace.web.WorkspaceGuardFilter.WORKSPACE_HEADER,
+                com.fixflow.workspace.web.WorkspaceGuardFilter.WORKSPACE_HEADER_LEGACY,
+                com.fixflow.common.web.ClientRequests.DEVICE_HEADER,
+                com.fixflow.common.web.ClientRequests.DEVICE_HEADER_LEGACY,
+                com.fixflow.common.web.CorrelationIdFilter.HEADER));
+        configuration.setExposedHeaders(List.of("Content-Disposition",
+                com.fixflow.common.web.CorrelationIdFilter.HEADER));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

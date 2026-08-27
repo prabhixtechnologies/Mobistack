@@ -25,6 +25,23 @@ public final class RazorpaySignature {
                 signature.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Razorpay webhook signature: HMAC-SHA256 of the exact raw body, keyed with
+     * the webhook secret — which is a different secret from the API key.
+     *
+     * <p>The body must be the bytes as received. Parsing and re-serialising the
+     * JSON changes whitespace and key order, and the signature stops matching.
+     */
+    public static boolean matchesWebhook(String rawBody, String signature, String webhookSecret) {
+        if (isBlank(rawBody) || isBlank(signature) || isBlank(webhookSecret)) {
+            return false;
+        }
+        String expected = hmacSha256Hex(rawBody, webhookSecret);
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                signature.trim().toLowerCase().getBytes(StandardCharsets.UTF_8));
+    }
+
     public static String hmacSha256Hex(String payload, String keySecret) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");

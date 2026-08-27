@@ -243,26 +243,23 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<CompatibilityLinkResponse> compatibilityOf(UUID shopId, UUID productId) {
-        List<ProductCompatibility> links = compatibilityRepository.findByProductId(productId);
+        List<ProductCompatibility> links = compatibilityRepository.findByShopIdAndProductId(shopId, productId);
         if (links.isEmpty()) {
             return List.of();
         }
 
-        Map<UUID, CompatibilityGroup> groups = links.stream()
-                .map(ProductCompatibility::getCompatibilityGroupId)
-                .filter(java.util.Objects::nonNull)
-                .distinct()
-                .map(id -> groupRepository.findByIdAndShopId(id, shopId).orElse(null))
-                .filter(java.util.Objects::nonNull)
+        Map<UUID, CompatibilityGroup> groups = groupRepository.findByShopIdAndIdIn(shopId,
+                        distinct(links.stream().map(ProductCompatibility::getCompatibilityGroupId))).stream()
                 .collect(Collectors.toMap(CompatibilityGroup::getId, Function.identity()));
 
-        Map<UUID, DeviceModel> devices = links.stream()
-                .map(ProductCompatibility::getDeviceModelId)
-                .filter(java.util.Objects::nonNull)
-                .distinct()
-                .map(id -> deviceModelRepository.findByIdAndShopId(id, shopId).orElse(null))
-                .filter(java.util.Objects::nonNull)
+        Map<UUID, DeviceModel> devices = deviceModelRepository.findByShopIdAndIdIn(shopId,
+                        distinct(links.stream().map(ProductCompatibility::getDeviceModelId))).stream()
                 .collect(Collectors.toMap(DeviceModel::getId, Function.identity()));
+
+        Map<UUID, Long> groupSizes = groupDeviceRepository.findByCompatibilityGroupIdIn(groups.keySet()).stream()
+                .collect(Collectors.groupingBy(
+                        com.fixflow.catalog.domain.CompatibilityGroupDevice::getCompatibilityGroupId,
+                        Collectors.counting()));
 
         return links.stream().map(link -> {
             CompatibilityGroup group = link.getCompatibilityGroupId() == null ? null
@@ -270,7 +267,7 @@ public class ProductService {
             DeviceModel device = link.getDeviceModelId() == null ? null
                     : devices.get(link.getDeviceModelId());
             int deviceCount = group == null ? 1
-                    : (int) groupDeviceRepository.countDevices(group.getId());
+                    : groupSizes.getOrDefault(group.getId(), 0L).intValue();
             return new CompatibilityLinkResponse(link.getId(),
                     link.getCompatibilityGroupId(),
                     group == null ? null : group.getName(),
@@ -283,6 +280,10 @@ public class ProductService {
     }
 
     // -----------------------------------------------------------------
+
+    private static List<UUID> distinct(java.util.stream.Stream<UUID> ids) {
+        return ids.filter(java.util.Objects::nonNull).distinct().toList();
+    }
 
     private void apply(UUID shopId, Product product, ProductRequest request) {
         product.setCategoryId(request.categoryId());
@@ -389,7 +390,8 @@ public class ProductService {
     private ProductResponse toResponse(UUID shopId, Product product, Map<UUID, String> categoryNames,
                                        Map<UUID, String> brandNames, Map<UUID, String> supplierNames,
                                        boolean includeDetail) {
-        List<ProductVariant> variants = variantRepository.findByProductIdOrderByVariantNameAsc(product.getId());
+        List<ProductVariant> variants =
+                variantRepository.findByShopIdAndProductIdOrderByVariantNameAsc(shopId, product.getId());
         List<ProductVariantResponse> variantResponses = variants.stream()
                 .map(variant -> mapper.toResponse(variant, categoryNames, supplierNames))
                 .toList();

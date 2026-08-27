@@ -2,6 +2,7 @@ package com.fixflow.common.error;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.slf4j.MDC;
 
 import java.time.Instant;
 import java.util.List;
@@ -15,6 +16,8 @@ public record ApiError(
         String code,
         String message,
         String path,
+        @Schema(description = "Correlation id for this request; quote it when reporting a problem")
+        String requestId,
         List<FieldViolation> violations,
         Map<String, Object> details
 ) {
@@ -23,6 +26,12 @@ public record ApiError(
     }
 
     public static ApiError of(ErrorCode code, String message, String path) {
-        return new ApiError(Instant.now(), code.status().value(), code.name(), message, path, List.of(), Map.of());
+        return of(code, message, path, List.of(), Map.of());
+    }
+
+    public static ApiError of(ErrorCode code, String message, String path,
+                              List<FieldViolation> violations, Map<String, Object> details) {
+        return new ApiError(Instant.now(), code.status().value(), code.name(), message, path,
+                MDC.get(com.fixflow.common.web.CorrelationIdFilter.MDC_KEY), violations, details);
     }
 }

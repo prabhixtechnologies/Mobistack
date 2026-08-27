@@ -20,6 +20,8 @@ import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.notify.NotificationService;
 import com.fixflow.security.CurrentUser;
+import com.fixflow.security.Permission;
+import lombok.extern.slf4j.Slf4j;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
 import com.fixflow.user.repository.UserRepository;
@@ -36,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BillingService {
@@ -88,6 +91,7 @@ public class BillingService {
     private final ShopRepository shopRepository;
     private final UserRepository userRepository;
     private final com.fixflow.notify.MailGateway mailGateway;
+    private final com.fixflow.notify.WorkspaceNotifier notifier;
     private final PlanService planService;
     private final com.fixflow.auth.service.DeviceSessionService deviceSessionService;
 
@@ -248,6 +252,22 @@ public class BillingService {
         if (!hasCatalog(workspaceId)) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "This workspace needs an active plan that includes compatibility. Open Billing and pay.");
+        }
+    }
+
+    /**
+     * The single gate on growing a shop's roster: no account is created, invited,
+     * or activated in a workspace that has not paid for team access.
+     *
+     * <p>Checked on every path that ends in a live membership rather than only on
+     * the invite, because an invitation sent while paid could otherwise be
+     * accepted weeks after the plan lapsed.
+     */
+    public void requireMemberSeat(UUID workspaceId) {
+        if (!hasLive(workspaceId, "MEMBER_ADD")) {
+            throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
+                    "Adding people to this shop needs an active plan. "
+                            + "Open Billing, complete payment, then add your team.");
         }
     }
 
@@ -487,6 +507,81 @@ public class BillingService {
         return shops.size() + extraOff;
     }
 
+    /**
+     * Accepts a payment result straight from Razorpay.
+     *
+     * <p>This is the only path that can be trusted when the shopkeeper's browser
+     * never comes back — a closed tab after a successful UPI payment used to
+     * leave the money taken and the plan still unpaid. The raw body is verified
+     * against the webhook secret before anything is believed.
+     *
+     * @param rawBody   bytes exactly as received; re-serialised JSON will not verify
+     * @param signature value of the {@code X-Razorpay-Signature} header
+     * @param eventId   value of the {@code X-Razorpay-Event-Id} header, used for idempotency
+     */
+    @Transactional
+    public BillingOrder processRazorpayWebhook(String rawBody, String signature, String eventId) {
+        if (!razorpayGateway.webhooksConfigured()) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
+                    "No Razorpay webhook secret is configured, so webhooks are refused.");
+        }
+        if (!razorpayGateway.verifyWebhookSignature(rawBody, signature)) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "Webhook signature did not match.");
+        }
+        Map<String, Object> payload = readJson(rawBody);
+        String event = String.valueOf(payload.getOrDefault("event", ""));
+        Map<String, Object> entity = paymentEntity(payload);
+        String gatewayOrderId = text(entity.get("order_id"));
+        if (gatewayOrderId == null) {
+            // Razorpay sends account-level events we do not act on; acknowledging
+            // them keeps it from retrying for ever.
+            log.info("Ignoring Razorpay event {} with no order reference", event);
+            return null;
+        }
+        BillingOrder order = orderRepository.findByGatewayOrderId(gatewayOrderId).orElse(null);
+        if (order == null) {
+            log.warn("Razorpay event {} referenced unknown order {}", event, gatewayOrderId);
+            return null;
+        }
+        String status = event.endsWith(".failed") ? "FAILED" : "CAPTURED";
+        String reference = eventId == null || eventId.isBlank()
+                ? event + ":" + text(entity.get("id")) : eventId;
+        return processWebhook("RAZORPAY", reference, order.getId(), status, payload);
+    }
+
+    private Map<String, Object> readJson(String rawBody) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readValue(rawBody, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+                    });
+        } catch (Exception ex) {
+            throw new ApiException(ErrorCode.MALFORMED_REQUEST, "Webhook body was not readable JSON.");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> paymentEntity(Map<String, Object> payload) {
+        Object body = payload.get("payload");
+        if (!(body instanceof Map<?, ?> outer)) {
+            return Map.of();
+        }
+        for (String kind : List.of("payment", "order")) {
+            if (outer.get(kind) instanceof Map<?, ?> wrapper
+                    && wrapper.get("entity") instanceof Map<?, ?> entity) {
+                return (Map<String, Object>) entity;
+            }
+        }
+        return Map.of();
+    }
+
+    private static String text(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String asText = String.valueOf(value).trim();
+        return asText.isEmpty() ? null : asText;
+    }
+
     @Transactional
     public BillingOrder processWebhook(String provider, String eventId, UUID orderId, String status,
                                        Map<String, Object> payload) {
@@ -515,9 +610,26 @@ public class BillingService {
         if ("FAILED".equalsIgnoreCase(status)) {
             order.setStatus(PaymentStatus.FAILED);
             order.setUpdatedAt(Instant.now());
-            return orderRepository.save(order);
+            orderRepository.save(order);
+            notifyPaymentFailed(order);
+            return order;
         }
         return order;
+    }
+
+    /**
+     * A failed payment used to be silent, so a shop whose card was declined only
+     * found out when the plan lapsed and the app stopped taking sales.
+     */
+    private void notifyPaymentFailed(BillingOrder order) {
+        if (order.getWorkspaceId() == null) {
+            return;
+        }
+        notifier.broadcast(order.getWorkspaceId(), Permission.WORKSPACE_BILLING, "PAYMENT_FAILED",
+                "Payment did not go through",
+                "The %s payment was declined. Open Billing to try again before the plan lapses."
+                        .formatted(order.getPriceCode() == null ? "plan" : order.getPriceCode()),
+                "/billing");
     }
 
     private BillingOrder markCaptured(BillingOrder order, String paymentId) {

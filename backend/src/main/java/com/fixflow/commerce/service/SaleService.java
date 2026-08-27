@@ -47,8 +47,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -199,12 +204,58 @@ public class SaleService {
         return toResponse(sale);
     }
 
+    /**
+     * Assembles a whole page with a fixed number of queries. Mapping sale by sale
+     * cost four queries each plus one per line, which on a busy shop's history
+     * meant well over a hundred round trips for one screen.
+     */
     @Transactional(readOnly = true)
     public Page<SaleResponse> list(UUID shopId, UUID customerId, Pageable pageable) {
         Page<Sale> page = customerId == null
                 ? saleRepository.findByShopIdOrderByOccurredAtDesc(shopId, pageable)
                 : saleRepository.findByShopIdAndCustomerIdOrderByOccurredAtDesc(shopId, customerId, pageable);
-        return page.map(this::toResponse);
+        if (page.isEmpty()) {
+            return page.map(sale -> toResponse(sale, List.of(), List.of(), Map.of(), Map.of()));
+        }
+        List<UUID> saleIds = page.getContent().stream().map(Sale::getId).toList();
+
+        Map<UUID, List<SaleItem>> itemsBySale = saleItemRepository.findBySaleIdInOrderByCreatedAtAsc(saleIds)
+                .stream().collect(Collectors.groupingBy(SaleItem::getSaleId));
+        Map<UUID, List<Payment>> paymentsBySale = paymentRepository
+                .findByShopIdAndReferenceTypeAndReferenceIdInOrderByOccurredAtAsc(
+                        shopId, PaymentReferenceType.SALE, saleIds)
+                .stream().collect(Collectors.groupingBy(Payment::getReferenceId));
+        Map<UUID, String> variantNames = variantNames(shopId, itemsBySale.values().stream()
+                .flatMap(List::stream).map(SaleItem::getProductVariantId).toList());
+        Map<UUID, String> customerNames = customerNames(shopId, page.getContent().stream()
+                .map(Sale::getCustomerId).toList());
+
+        return page.map(sale -> toResponse(sale,
+                itemsBySale.getOrDefault(sale.getId(), List.of()),
+                paymentsBySale.getOrDefault(sale.getId(), List.of()),
+                variantNames, customerNames));
+    }
+
+    /**
+     * Names for the variants on a page, scoped to the shop. An item row could name
+     * a variant belonging elsewhere, and looking it up by id alone would print it.
+     */
+    private Map<UUID, String> variantNames(UUID shopId, Collection<UUID> variantIds) {
+        List<UUID> wanted = variantIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (wanted.isEmpty()) {
+            return Map.of();
+        }
+        return variantRepository.findByShopIdAndIdIn(shopId, wanted).stream()
+                .collect(Collectors.toMap(ProductVariant::getId, ProductVariant::getVariantName));
+    }
+
+    private Map<UUID, String> customerNames(UUID shopId, Collection<UUID> customerIds) {
+        List<UUID> wanted = customerIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (wanted.isEmpty()) {
+            return Map.of();
+        }
+        return customerRepository.findByShopIdAndIdIn(shopId, wanted).stream()
+                .collect(Collectors.toMap(Customer::getId, Customer::getName));
     }
 
     @Transactional(readOnly = true)
@@ -217,17 +268,19 @@ public class SaleService {
         Sale sale = require(shopId, id);
         Shop shop = shopRepository.findById(shopId).orElseThrow();
         List<SaleItem> items = saleItemRepository.findBySaleIdOrderByCreatedAtAsc(sale.getId());
+        Map<UUID, String> names = variantNames(shopId,
+                items.stream().map(SaleItem::getProductVariantId).toList());
         StringBuilder rows = new StringBuilder();
         for (SaleItem item : items) {
-            ProductVariant variant = variantRepository.findById(item.getProductVariantId()).orElse(null);
-            String name = variant == null ? item.getProductVariantId().toString() : variant.getVariantName();
+            String name = names.getOrDefault(item.getProductVariantId(), item.getProductVariantId().toString());
             rows.append("<tr><td>").append(escape(name)).append("</td><td>")
                     .append(item.getQuantity()).append("</td><td>")
                     .append(item.getUnitPrice()).append("</td><td>")
                     .append(item.getLineTotal()).append("</td></tr>");
         }
         String customerName = sale.getCustomerId() == null ? "Walk-in"
-                : customerRepository.findById(sale.getCustomerId()).map(Customer::getName).orElse("Walk-in");
+                : customerRepository.findByIdAndShopId(sale.getCustomerId(), shopId)
+                .map(Customer::getName).orElse("Walk-in");
         return """
                 <html><head><title>%s</title>
                 <style>body{font-family:sans-serif;padding:24px}table{width:100%%;border-collapse:collapse}
@@ -295,19 +348,25 @@ public class SaleService {
     }
 
     private SaleResponse toResponse(Sale sale, List<SaleItem> items, List<Payment> payments) {
-        String customerName = sale.getCustomerId() == null ? null
-                : customerRepository.findById(sale.getCustomerId()).map(Customer::getName).orElse(null);
+        UUID shopId = sale.getShopId();
+        return toResponse(sale, items, payments,
+                variantNames(shopId, items.stream().map(SaleItem::getProductVariantId).toList()),
+                customerNames(shopId, Collections.singletonList(sale.getCustomerId())));
+    }
+
+    private SaleResponse toResponse(Sale sale, List<SaleItem> items, List<Payment> payments,
+                                    Map<UUID, String> variantNames, Map<UUID, String> customerNames) {
+        String customerName = sale.getCustomerId() == null ? null : customerNames.get(sale.getCustomerId());
         return new SaleResponse(sale.getId(), sale.getInvoiceNumber(), sale.getStatus(), sale.getCustomerId(),
                 customerName, sale.getPricingFlag(), sale.getSubtotal(), sale.getDiscount(), sale.getTax(),
                 sale.getTotal(), sale.getPaid(), sale.getOutstanding(), sale.getProfit(), sale.getNotes(),
-                sale.getOccurredAt(), items.stream().map(this::toItem).toList(),
+                sale.getOccurredAt(), items.stream().map(item -> toItem(item, variantNames)).toList(),
                 payments.stream().map(this::toPayment).toList());
     }
 
-    private SaleItemResponse toItem(SaleItem item) {
-        String name = variantRepository.findById(item.getProductVariantId())
-                .map(ProductVariant::getVariantName).orElse(null);
-        return new SaleItemResponse(item.getId(), item.getProductVariantId(), name, item.getQuantity(),
+    private SaleItemResponse toItem(SaleItem item, Map<UUID, String> variantNames) {
+        return new SaleItemResponse(item.getId(), item.getProductVariantId(),
+                variantNames.get(item.getProductVariantId()), item.getQuantity(),
                 item.getUnitPrice(), item.getUnitCost(), item.getDiscount(), item.getLineTotal(), item.getProfit());
     }
 

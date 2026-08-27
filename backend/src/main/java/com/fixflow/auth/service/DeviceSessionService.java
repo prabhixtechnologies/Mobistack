@@ -16,10 +16,9 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -50,7 +49,8 @@ public class DeviceSessionService {
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final ShopRepository shopRepository;
-    private final Map<UUID, String> liveDeviceByUser = new ConcurrentHashMap<>();
+    private final com.fixflow.config.FixFlowProperties properties;
+    private final com.fixflow.notify.WorkspaceNotifier notifier;
 
     public String resolveDeviceId(AuthService.ClientInfo client) {
         if (client != null && client.deviceId() != null && !client.deviceId().isBlank()) {
@@ -61,18 +61,27 @@ public class DeviceSessionService {
     }
 
     /**
-     * One live session per user. A second sign-in on another screen ends the
-     * first. A shop may only have as many different people signed in as it has
-     * paid screen seats (one included, plus ₹50 extras).
+     * Seats a sign-in on one device.
+     *
+     * <p>Two different limits apply, and keeping them separate matters. A
+     * <em>screen seat</em> is a person: a shop may have as many different people
+     * signed in at once as it has paid seats (one included, plus ₹50 extras). A
+     * <em>device</em> is a screen belonging to one of those people: the same
+     * person may use the web console and their own phone together without
+     * consuming a second seat, up to the shop's per-user device cap.
+     *
+     * <p>Only the tokens for the device being seated are revoked, so signing in
+     * or refreshing on one device never ends a session on another.
      */
     @Transactional
     public String register(UUID userId, UUID shopId, AuthService.ClientInfo client, boolean bypassSeatLimit) {
         String deviceId = resolveDeviceId(client);
         Instant now = Instant.now();
-        boolean alreadySeated = refreshTokenRepository
-                .existsByUserIdAndRevokedAtIsNullAndExpiresAtAfter(userId, now);
+        List<RefreshToken> live = refreshTokenRepository
+                .findByUserIdAndRevokedAtIsNullAndExpiresAtAfterOrderByCreatedAtAsc(userId, now);
+        boolean knownDevice = live.stream().anyMatch(token -> deviceId.equals(token.getDeviceId()));
 
-        if (shopId != null && !bypassSeatLimit && !alreadySeated) {
+        if (shopId != null && !bypassSeatLimit && live.isEmpty()) {
             ScreenCapacity capacity = capacity(shopId);
             long others = refreshTokenRepository.countOtherSeatedUsers(
                     shopId, userId, MembershipStatus.ACTIVE, now);
@@ -84,26 +93,75 @@ public class DeviceSessionService {
             }
         }
 
-        refreshTokenRepository.revokeAllForUser(userId, now);
-        liveDeviceByUser.put(userId, deviceId);
+        if (!knownDevice) {
+            enforceDeviceCap(userId, shopId, deviceId, live, now, bypassSeatLimit);
+        }
+
+        // Replace only this device's chain. Other devices keep their sessions.
+        refreshTokenRepository.revokeByUserAndDevice(userId, deviceId, now);
         return deviceId;
     }
 
+    /**
+     * Keeps a user within their device cap by ending the least recently started
+     * device, which is what the product promises. When {@code over-limit} is
+     * configured as {@code reject} the new sign-in is refused instead.
+     */
+    private void enforceDeviceCap(UUID userId, UUID shopId, String deviceId, List<RefreshToken> live,
+                                  Instant now, boolean bypassCap) {
+        if (bypassCap) {
+            return;
+        }
+        int cap = deviceCap(shopId);
+        LinkedHashSet<String> devices = new LinkedHashSet<>();
+        for (RefreshToken token : live) {
+            if (token.getDeviceId() != null && !deviceId.equals(token.getDeviceId())) {
+                devices.add(token.getDeviceId());
+            }
+        }
+        if (devices.size() < cap) {
+            return;
+        }
+        if (!"evict".equalsIgnoreCase(properties.getDevices().getOverLimit())) {
+            throw new ApiException(ErrorCode.DEVICE_LIMIT_REACHED,
+                    "You are signed in on " + devices.size() + " device"
+                            + (devices.size() == 1 ? "" : "s")
+                            + " already. Sign out of one from Profile, then try again.");
+        }
+        // Oldest first: drop as many as needed to make room for this device.
+        int surplus = devices.size() - cap + 1;
+        for (String stale : devices) {
+            if (surplus-- <= 0) {
+                break;
+            }
+            refreshTokenRepository.revokeByUserAndDevice(userId, stale, now);
+        }
+    }
+
+    private int deviceCap(UUID shopId) {
+        int absolute = Math.max(1, properties.getDevices().getAbsoluteMaxPerUser());
+        int configured = properties.getDevices().getDefaultMaxPerUser();
+        if (shopId != null) {
+            Shop shop = shopRepository.findById(shopId).orElse(null);
+            if (shop != null && shop.getMaxDevicesPerUser() > 0) {
+                configured = shop.getMaxDevicesPerUser();
+            }
+        }
+        return Math.min(absolute, Math.max(1, configured));
+    }
+
+    /**
+     * True when the access token's device still holds a live refresh token.
+     * Read straight from the database so the answer is the same on every
+     * instance and survives a restart.
+     */
     @Transactional(readOnly = true)
     public boolean isLive(UUID userId, String deviceId) {
         if (userId == null || deviceId == null || deviceId.isBlank()) {
             return true;
         }
-        String known = liveDeviceByUser.get(userId);
-        if (known != null) {
-            return known.equals(deviceId);
-        }
-        boolean live = refreshTokenRepository.existsByUserIdAndDeviceIdAndRevokedAtIsNullAndExpiresAtAfter(
+        return refreshTokenRepository.existsByUserIdAndDeviceIdAndRevokedAtIsNullAndExpiresAtAfter(
                 userId, deviceId, Instant.now());
-        if (live) {
-            liveDeviceByUser.put(userId, deviceId);
-        }
-        return live;
     }
 
     @Transactional(readOnly = true)
@@ -127,19 +185,30 @@ public class DeviceSessionService {
         }
         token.setRevokedAt(Instant.now());
         refreshTokenRepository.save(token);
-        forgetIfMatch(userId, token.getDeviceId());
+        // Signing a device out is also what you do after losing a phone, so the
+        // account holder is told which device went and when.
+        notifier.toUser(null, userId, "DEVICE_REVOKED",
+                "A device was signed out",
+                "%s was signed out of MobiStack. If that was not you, change your password now."
+                        .formatted(describe(token)),
+                "/profile");
+    }
+
+    private static String describe(RefreshToken token) {
+        if (token.getUserAgent() != null && !token.getUserAgent().isBlank()) {
+            return token.getUserAgent().length() > 60
+                    ? token.getUserAgent().substring(0, 60) : token.getUserAgent();
+        }
+        return token.getDeviceId() == null ? "A device" : "Device " + token.getDeviceId();
     }
 
     @Transactional
     public int revokeUserDevice(UUID userId, String deviceId) {
-        int revoked = refreshTokenRepository.revokeByUserAndDevice(userId, deviceId, Instant.now());
-        forgetIfMatch(userId, deviceId);
-        return revoked;
+        return refreshTokenRepository.revokeByUserAndDevice(userId, deviceId, Instant.now());
     }
 
     @Transactional
     public int revokeAll(UUID userId) {
-        liveDeviceByUser.remove(userId);
         return refreshTokenRepository.revokeAllForUser(userId, Instant.now());
     }
 
@@ -168,7 +237,6 @@ public class DeviceSessionService {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "This shop already has the maximum number of screens.");
         }
         shop.setExtraScreens(shop.getExtraScreens() + 1);
-        shop.setMaxDevicesPerUser(1);
         if (shop.getExtraScreensPeriodEnd() == null || !shop.getExtraScreensPeriodEnd().isAfter(Instant.now())) {
             shop.setExtraScreensPeriodEnd(Instant.now().plus(31, ChronoUnit.DAYS));
         }
@@ -186,7 +254,6 @@ public class DeviceSessionService {
         Instant current = shop.getExtraScreensPeriodEnd();
         Instant base = current != null && current.isAfter(now) ? current : now;
         shop.setExtraScreensPeriodEnd(base.plus(31, ChronoUnit.DAYS));
-        shop.setMaxDevicesPerUser(1);
         shopRepository.save(shop);
         return shop.getExtraScreens();
     }
@@ -196,7 +263,6 @@ public class DeviceSessionService {
         Shop shop = requireShop(shopId);
         int extra = Math.max(0, Math.min(MAX_EXTRA_SCREENS, extraScreens));
         shop.setExtraScreens(extra);
-        shop.setMaxDevicesPerUser(1);
         if (extra == 0) {
             shop.setExtraScreensPeriodEnd(null);
         }
@@ -207,11 +273,6 @@ public class DeviceSessionService {
     private Shop requireShop(UUID shopId) {
         return shopRepository.findById(shopId)
                 .orElseThrow(() -> ApiException.notFound("Shop", shopId));
-    }
-
-    private void forgetIfMatch(UUID userId, String deviceId) {
-        liveDeviceByUser.compute(userId, (id, current) ->
-                current != null && current.equals(deviceId) ? null : current);
     }
 
     private static String sha256(String value) {

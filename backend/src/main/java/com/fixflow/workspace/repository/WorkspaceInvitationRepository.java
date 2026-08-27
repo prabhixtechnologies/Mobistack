@@ -11,5 +11,10 @@ public interface WorkspaceInvitationRepository extends JpaRepository<WorkspaceIn
 
     Optional<WorkspaceInvitation> findByTokenHash(String tokenHash);
 
+    /** Scoped lookup so one shop cannot reach another shop's invitation by id. */
+    Optional<WorkspaceInvitation> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
+
     List<WorkspaceInvitation> findByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId);
+
+    long countByWorkspaceIdAndStatus(UUID workspaceId, WorkspaceInvitation.Status status);
 }

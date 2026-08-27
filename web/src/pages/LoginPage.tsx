@@ -75,8 +75,11 @@ export function LoginPage() {
         .finally(() => setBusy(false));
       return;
     }
-    if (params.get("reason") === "session") {
-      setNotice("This account signed in on another screen. Sign in here to continue — the other screen will be signed out.");
+    const reason = params.get("reason");
+    if (reason === "session") {
+      setNotice("This browser was signed out, usually because the account is signed in on more devices than the shop allows. Sign in again to continue.");
+    } else if (reason === "expired") {
+      setNotice("Your session has expired. Please sign in again.");
     }
     const reset = params.get("reset");
     if (reset) {

@@ -59,6 +59,8 @@ class BillingServiceTest {
     @Mock
     private MailGateway mailGateway;
     @Mock
+    private com.fixflow.notify.WorkspaceNotifier notifier;
+    @Mock
     private PlanService planService;
     @Mock
     private com.fixflow.auth.service.DeviceSessionService deviceSessionService;
@@ -69,7 +71,7 @@ class BillingServiceTest {
     void setUp() {
         billingService = new BillingService(priceRepository, orderRepository, entitlementRepository,
                 webhookEventRepository, auditService, environment, razorpayGateway, notificationService,
-                shopRepository, userRepository, mailGateway, planService, deviceSessionService);
+                shopRepository, userRepository, mailGateway, notifier, planService, deviceSessionService);
     }
 
     @Test

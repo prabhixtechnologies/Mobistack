@@ -1,7 +1,12 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { api, apiText, money } from "../lib/api";
+import { useAccess } from "../lib/access";
+import { useAction } from "../lib/useAction";
+import { useDebounced } from "../lib/useDebounced";
+import { usePagedList } from "../lib/usePagedList";
+import { DataTable, type Column } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
-import type { PageResponse, PartSearchHit, GlobalSearchResponse } from "../lib/types";
+import type { PartSearchHit, GlobalSearchResponse } from "../lib/types";
 
 interface Sale {
   id: string;
@@ -24,43 +29,57 @@ interface Line {
 }
 
 export function SalesPage() {
-  const [sales, setSales] = useState<Sale[]>([]);
+  const access = useAccess();
+  const canSell = access.has("SALES_WRITE");
+  const canVoid = access.has("SALES_VOID");
+  const sales = usePagedList<Sale>("/api/v1/sales", { size: 25 });
   const [query, setQuery] = useState("");
+  const settled = useDebounced(query);
   const [hits, setHits] = useState<PartSearchHit[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [method, setMethod] = useState("CASH");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function load() {
-    const page = await api<PageResponse<Sale>>("/api/v1/sales?size=25");
-    setSales(page.content);
-  }
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   useEffect(() => {
-    load().catch((err: Error) => setError(err.message));
-  }, []);
-
-  useEffect(() => {
-    if (query.trim().length < 2) {
+    const term = settled.trim();
+    if (term.length < 2) {
       setHits([]);
       return;
     }
-    const handle = window.setTimeout(async () => {
-      const result = await api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(query)}`);
-      setHits(result.parts);
-    }, 140);
-    return () => window.clearTimeout(handle);
-  }, [query]);
+    let live = true;
+    api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(term)}`)
+      .then((result) => {
+        if (!live) {
+          return;
+        }
+        setHits(result.parts);
+        setSearchError(null);
+      })
+      .catch((err: unknown) => {
+        if (!live) {
+          return;
+        }
+        setHits([]);
+        setSearchError(err instanceof Error ? err.message : "Search is unavailable.");
+      });
+    return () => {
+      live = false;
+    };
+  }, [settled]);
 
   const total = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
 
-  async function checkout(event: FormEvent) {
-    event.preventDefault();
-    if (lines.length === 0) return;
-    setBusy(true);
-    setError(null);
-    try {
+  const openInvoice = useCallback(async (id: string) => {
+    const html = await apiText(`/api/v1/sales/${id}/invoice`);
+    const popup = window.open("", "_blank");
+    if (popup) {
+      popup.document.write(html);
+      popup.document.close();
+    }
+  }, []);
+
+  const checkout = useAction(
+    async () => {
       const sale = await api<Sale>("/api/v1/sales", {
         method: "POST",
         body: JSON.stringify({
@@ -76,33 +95,74 @@ export function SalesPage() {
       });
       setLines([]);
       setQuery("");
-      await load();
+      sales.reload();
       await openInvoice(sale.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not complete sale");
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+    { fallbackError: "Could not complete sale." },
+  );
 
-  async function openInvoice(id: string) {
-    const html = await apiText(`/api/v1/sales/${id}/invoice`);
-    const popup = window.open("", "_blank");
-    if (popup) {
-      popup.document.write(html);
-      popup.document.close();
-    }
-  }
-
-  async function voidSale(id: string) {
-    if (!window.confirm("Void this invoice and return the stock?")) return;
-    try {
+  const voidSale = useAction(
+    async (id: string) => {
       await api(`/api/v1/sales/${id}/void`, { method: "POST", body: JSON.stringify({ reason: "Counter void" }) });
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not void");
+      sales.reload();
+    },
+    { fallbackError: "Could not void that invoice." },
+  );
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (lines.length > 0) {
+      void checkout.run();
     }
   }
+
+  const columns: Column<Sale>[] = [
+    {
+      key: "invoice",
+      header: "Invoice",
+      render: (sale) => (
+        <div className="cell-identity">
+          <strong>{sale.invoiceNumber}</strong>
+          <span className="faint">{sale.status}</span>
+        </div>
+      ),
+    },
+    { key: "customer", header: "Customer", render: (sale) => sale.customerName ?? "Walk-in" },
+    { key: "total", header: "Total", align: "right", render: (sale) => money.format(sale.total) },
+    {
+      key: "profit",
+      header: "Profit",
+      align: "right",
+      need: "REPORT_READ",
+      render: (sale) => money.format(sale.profit),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (sale) => (
+        <div className="row" style={{ justifyContent: "flex-end" }}>
+          <button className="btn ghost" type="button" onClick={() => void openInvoice(sale.id)}>
+            Invoice
+          </button>
+          {canVoid && sale.status === "COMPLETED" && (
+            <button
+              className="btn ghost"
+              type="button"
+              disabled={voidSale.busy}
+              onClick={() => {
+                if (window.confirm("Void this invoice and return the stock?")) {
+                  void voidSale.run(sale.id);
+                }
+              }}
+            >
+              Void
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="page">
@@ -111,115 +171,128 @@ export function SalesPage() {
         title="Sales"
         subtitle="Scan or type a SKU, add the part, take the money. Stock leaves the ledger on complete."
       />
-      {error && <div className="error">{error}</div>}
+      {checkout.error && <div className="error">{checkout.error}</div>}
+      {voidSale.error && <div className="error">{voidSale.error}</div>}
+      {searchError && <div className="error">{searchError}</div>}
 
-      <form className="card stack" onSubmit={checkout}>
-        <strong>New invoice</strong>
-        <input className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Part, SKU, barcode…" />
-        {hits.length > 0 && (
-          <div className="card tight">
-            {hits.map((hit) => (
-              <button
-                key={hit.variantId}
-                className="category-row"
-                type="button"
-                onClick={() => {
-                  setLines((current) => {
-                    const existing = current.find((line) => line.variantId === hit.variantId);
-                    if (existing) {
-                      return current.map((line) =>
-                        line.variantId === hit.variantId ? { ...line, quantity: line.quantity + 1 } : line,
-                      );
-                    }
-                    return [...current, { variantId: hit.variantId, name: `${hit.productName} · ${hit.variantName}`, quantity: 1, unitPrice: hit.price }];
-                  });
-                  setQuery("");
-                  setHits([]);
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 650 }}>{hit.productName}</div>
-                  <div className="faint">{hit.sku} · {hit.availableQty} in stock</div>
-                </div>
-                <span>{money.format(hit.price)}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        {lines.map((line, index) => (
-          <div className="spread" key={line.variantId}>
-            <div>
-              {line.name}
-              <div className="faint">{money.format(line.unitPrice)}</div>
+      {canSell ? (
+        <form className="card stack" onSubmit={submit}>
+          <strong>New invoice</strong>
+          <input
+            className="field"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Part, SKU, barcode…"
+          />
+          {hits.length > 0 && (
+            <div className="card tight">
+              {hits.map((hit) => (
+                <button
+                  key={hit.variantId}
+                  className="category-row"
+                  type="button"
+                  onClick={() => {
+                    setLines((current) => {
+                      const existing = current.find((line) => line.variantId === hit.variantId);
+                      if (existing) {
+                        return current.map((line) =>
+                          line.variantId === hit.variantId ? { ...line, quantity: line.quantity + 1 } : line,
+                        );
+                      }
+                      return [
+                        ...current,
+                        {
+                          variantId: hit.variantId,
+                          name: `${hit.productName} · ${hit.variantName}`,
+                          quantity: 1,
+                          unitPrice: hit.price,
+                        },
+                      ];
+                    });
+                    setQuery("");
+                    setHits([]);
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 650 }}>{hit.productName}</div>
+                    <div className="faint">
+                      {hit.sku} · {hit.availableQty} in stock
+                    </div>
+                  </div>
+                  <span>{money.format(hit.price)}</span>
+                </button>
+              ))}
             </div>
-            <div className="row">
-              <input
-                className="field"
-                style={{ width: 72 }}
-                type="number"
-                min={1}
-                value={line.quantity}
-                onChange={(e) => {
-                  const quantity = Number(e.target.value);
-                  setLines((current) => current.map((row, i) => (i === index ? { ...row, quantity } : row)));
-                }}
-              />
-              <button className="btn ghost" type="button" onClick={() => setLines((current) => current.filter((_, i) => i !== index))}>
-                Remove
-              </button>
+          )}
+          {lines.map((line, index) => (
+            <div className="spread" key={line.variantId}>
+              <div>
+                {line.name}
+                <div className="faint">{money.format(line.unitPrice)}</div>
+              </div>
+              <div className="row">
+                <input
+                  className="field"
+                  style={{ width: 72 }}
+                  type="number"
+                  min={1}
+                  value={line.quantity}
+                  onChange={(e) => {
+                    const quantity = Number(e.target.value);
+                    setLines((current) => current.map((row, i) => (i === index ? { ...row, quantity } : row)));
+                  }}
+                />
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={() => setLines((current) => current.filter((_, i) => i !== index))}
+                >
+                  Remove
+                </button>
+              </div>
             </div>
+          ))}
+          <div className="spread">
+            <select className="select" value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 160 }}>
+              <option value="CASH">Cash</option>
+              <option value="UPI">UPI</option>
+              <option value="CARD">Card</option>
+              <option value="CREDIT">Credit</option>
+            </select>
+            <strong>{money.format(total)}</strong>
           </div>
-        ))}
-        <div className="spread">
-          <select className="select" value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 160 }}>
-            <option value="CASH">Cash</option>
-            <option value="UPI">UPI</option>
-            <option value="CARD">Card</option>
-            <option value="CREDIT">Credit</option>
-          </select>
-          <strong>{money.format(total)}</strong>
+          <button className="btn" disabled={checkout.busy || lines.length === 0}>
+            {checkout.busy ? "Saving…" : "Complete sale"}
+          </button>
+        </form>
+      ) : (
+        <div className="card tight faint">
+          Your role can read invoices but not raise them. Ask an owner for the “Take sales” permission.
         </div>
-        <button className="btn" disabled={busy || lines.length === 0}>
-          {busy ? "Saving…" : "Complete sale"}
-        </button>
-      </form>
+      )}
 
       <div className="card tight">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Invoice</th>
-              <th>Customer</th>
-              <th>Total</th>
-              <th>Profit</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sales.map((sale) => (
-              <tr key={sale.id}>
-                <td>
-                  <div style={{ fontWeight: 650 }}>{sale.invoiceNumber}</div>
-                  <div className="faint">{sale.status}</div>
-                </td>
-                <td>{sale.customerName ?? "Walk-in"}</td>
-                <td>{money.format(sale.total)}</td>
-                <td>{money.format(sale.profit)}</td>
-                <td className="row">
-                  <button className="btn ghost" type="button" onClick={() => void openInvoice(sale.id)}>
-                    Invoice
-                  </button>
-                  {sale.status === "COMPLETED" && (
-                    <button className="btn ghost" type="button" onClick={() => void voidSale(sale.id)}>
-                      Void
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {sales.length === 0 && <div className="empty">No sales yet today.</div>}
+        <DataTable
+          columns={columns}
+          rows={sales.loading && sales.rows.length === 0 ? undefined : sales.rows}
+          rowKey={(sale) => sale.id}
+          loading={sales.loading}
+          error={sales.error}
+          onRetry={sales.reload}
+          skeletonRows={8}
+          empty={{
+            icon: "cart",
+            title: "No sales yet",
+            hint: "Scan a part above and take the payment. Completed invoices appear here.",
+          }}
+          paging={{
+            total: sales.total,
+            hasMore: sales.hasMore,
+            loadingMore: sales.loadingMore,
+            onLoadMore: sales.loadMore,
+            noun: "invoices",
+          }}
+        />
       </div>
     </div>
   );

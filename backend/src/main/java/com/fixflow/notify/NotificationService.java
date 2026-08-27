@@ -10,6 +10,8 @@ import com.fixflow.notify.repository.NotificationPreferenceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,7 +31,7 @@ public class NotificationService {
             "USER_INVITED", "JOIN_REQUEST", "JOIN_REQUEST_APPROVED", "JOIN_REQUEST_CANCELLED",
             "SALE_COMPLETED", "REPAIR_READY", "LOW_STOCK",
             "SUPPORT_REPLY", "SUPPORT_TICKET", "DEVICE_REVOKED",
-            "PAYMENT_PENDING", "PAYMENT_RECEIVED", "BILLING_REMINDER");
+            "PAYMENT_PENDING", "PAYMENT_RECEIVED", "PAYMENT_FAILED", "BILLING_REMINDER");
 
     private final NotificationOutboxRepository outboxRepository;
     private final NotificationPreferenceRepository preferenceRepository;
@@ -38,6 +40,16 @@ public class NotificationService {
     private final PushDispatchService pushDispatchService;
 
     public void emit(UUID shopId, UUID userId, String eventType, String recipient, String subject, String body) {
+        emit(shopId, userId, eventType, recipient, subject, body, null);
+    }
+
+    /**
+     * Records an event and delivers it on every channel the person has left on.
+     *
+     * @param link in-app path the alert should open, or null for the inbox
+     */
+    public void emit(UUID shopId, UUID userId, String eventType, String recipient, String subject, String body,
+                     String link) {
         NotificationPreference prefs = userId == null
                 ? defaultPreference(null, eventType)
                 : preferenceRepository.findByUserIdAndEventType(userId, eventType)
@@ -62,20 +74,58 @@ public class NotificationService {
             inbox.setEventType(eventType);
             inbox.setTitle(subject == null ? eventType : subject);
             inbox.setBody(body);
+            inbox.setLink(link);
             inboxNotificationRepository.save(inbox);
             write(shopId, userId, eventType, "INBOX", recipient, subject, body, "SENT", "inbox", null);
             if (prefs.isPush()) {
-                write(shopId, userId, eventType, "PUSH", recipient, subject, body, "QUEUED", "expo", null);
-                pushDispatchService.sendToUser(userId, subject == null ? eventType : subject, body, null);
+                UUID pushRow = write(shopId, userId, eventType, "PUSH", recipient, subject, body,
+                        "QUEUED", "expo", null);
+                String title = subject == null ? eventType : subject;
+                // Sent after the surrounding business transaction commits: a push
+                // about a sale that then rolled back is worse than a late one, and
+                // an outbound call must not hold a database connection open.
+                afterCommit(() -> deliverPush(pushRow, userId, title, body, link));
             }
         }
         log.info("Notification {} to {}: {}", eventType, recipient, subject);
     }
 
+    private void deliverPush(UUID outboxId, UUID userId, String title, String body, String link) {
+        PushDispatchService.Delivery delivery = pushDispatchService.sendToUser(userId, title, body, link);
+        outboxRepository.findById(outboxId).ifPresent(row -> {
+            row.setStatus(delivery.status());
+            row.setProviderRef(delivery.detail());
+            row.setSentAt("SENT".equals(delivery.status()) ? Instant.now() : null);
+            outboxRepository.save(row);
+        });
+    }
+
+    /** Runs after the caller's transaction commits, or immediately if there is none. */
+    private static void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                action.run();
+            }
+        });
+    }
+
+    /**
+     * Events whose body carries a credential. These never reach the inbox, push
+     * or the outbox in readable form.
+     *
+     * <p>{@code USER_INVITED} belongs here: its body contains the join token, and
+     * the outbox is readable by every member of the shop. A junior member could
+     * otherwise read an invitation addressed to a new admin and claim it.
+     */
     public static boolean isAuthSecret(String eventType) {
         return "PASSWORD_RESET".equals(eventType) || "MAGIC_LINK".equals(eventType)
                 || "EMAIL_OTP".equals(eventType) || "PHONE_OTP".equals(eventType)
-                || "WHATSAPP_OTP".equals(eventType);
+                || "WHATSAPP_OTP".equals(eventType) || "USER_INVITED".equals(eventType);
     }
 
     public static String redactedBody(String eventType, String body) {
@@ -98,7 +148,7 @@ public class NotificationService {
         return prefs;
     }
 
-    private void write(UUID shopId, UUID userId, String eventType, String channel, String recipient,
+    private UUID write(UUID shopId, UUID userId, String eventType, String channel, String recipient,
                        String subject, String body, String status, String provider, String providerRef) {
         NotificationOutbox row = new NotificationOutbox();
         row.setShopId(shopId);
@@ -112,6 +162,6 @@ public class NotificationService {
         row.setProvider(provider);
         row.setProviderRef(providerRef);
         row.setSentAt("SENT".equals(status) ? Instant.now() : null);
-        outboxRepository.save(row);
+        return outboxRepository.save(row).getId();
     }
 }

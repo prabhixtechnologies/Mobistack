@@ -60,6 +60,21 @@ public class PartyService {
         return toCustomer(customer);
     }
 
+    /**
+     * Create used by the offline sync queue. A phone already on file means an
+     * earlier attempt did reach the server, so the existing customer is
+     * returned rather than failing an operation the phone will retry forever.
+     */
+    @Transactional
+    public CustomerResponse createCustomerForSync(UUID shopId, CustomerRequest request) {
+        if (request.phone() != null && !request.phone().isBlank()) {
+            return customerRepository.findByShopIdAndPhone(shopId, request.phone())
+                    .map(this::toCustomer)
+                    .orElseGet(() -> createCustomer(shopId, request));
+        }
+        return createCustomer(shopId, request);
+    }
+
     @Transactional
     public CustomerResponse updateCustomer(UUID shopId, UUID id, CustomerRequest request) {
         Customer customer = requireCustomer(shopId, id);

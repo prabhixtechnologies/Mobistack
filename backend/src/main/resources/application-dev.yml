@@ -6,6 +6,9 @@ fixflow:
       secret: fixflow-local-development-signing-key-do-not-use-in-production-0123456789
   auth:
     web-origin: ${FIXFLOW_WEB_ORIGIN:http://localhost:5173}
+    # Shortcuts that only exist here: a fixed OTP and an SSO bypass so a
+    # developer can sign in without mail or Twilio credentials.
+    dev-otp: "123456"
     dev-sso-enabled: true
   platform:
     public-origin: ${FIXFLOW_PUBLIC_ORIGIN:http://localhost:5173}

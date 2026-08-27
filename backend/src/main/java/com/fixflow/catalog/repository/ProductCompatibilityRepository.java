@@ -12,9 +12,9 @@ import java.util.UUID;
 
 public interface ProductCompatibilityRepository extends JpaRepository<ProductCompatibility, UUID> {
 
-    List<ProductCompatibility> findByProductId(UUID productId);
+    List<ProductCompatibility> findByShopIdAndProductId(UUID shopId, UUID productId);
 
-    List<ProductCompatibility> findByProductIdIn(Collection<UUID> productIds);
+    List<ProductCompatibility> findByShopIdAndProductIdIn(UUID shopId, Collection<UUID> productIds);
 
     Optional<ProductCompatibility> findByIdAndShopId(UUID id, UUID shopId);
 

@@ -97,7 +97,7 @@ public class SearchService {
 
         List<UUID> deviceIds = rows.stream().map(DeviceModelRepository.DeviceSearchRow::getId).toList();
         Map<UUID, List<String>> aliases = deviceAliasRepository
-                .findByDeviceModelIdInOrderByAliasAsc(deviceIds).stream()
+                .findByShopIdAndDeviceModelIdInOrderByAliasAsc(shopId, deviceIds).stream()
                 .collect(Collectors.groupingBy(DeviceAlias::getDeviceModelId,
                         Collectors.mapping(DeviceAlias::getAlias, Collectors.toList())));
 

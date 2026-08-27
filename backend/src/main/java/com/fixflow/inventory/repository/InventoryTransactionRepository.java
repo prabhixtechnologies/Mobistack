@@ -16,7 +16,12 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
 
     Page<InventoryTransaction> findByShopIdOrderByOccurredAtDesc(UUID shopId, Pageable pageable);
 
-    Page<InventoryTransaction> findByProductVariantIdOrderByOccurredAtDesc(UUID variantId, Pageable pageable);
+    /**
+     * Scoped by shop as well as variant. A variant id arriving from a query string
+     * is not proof that the caller owns the variant.
+     */
+    Page<InventoryTransaction> findByShopIdAndProductVariantIdOrderByOccurredAtDesc(
+            UUID shopId, UUID variantId, Pageable pageable);
 
     List<InventoryTransaction> findByReferenceTypeAndReferenceId(
             com.fixflow.inventory.domain.InventoryReferenceType referenceType, UUID referenceId);

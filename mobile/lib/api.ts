@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { getDeviceId } from "./device";
+import { setActiveScope } from "./db";
 
 const PRODUCTION_ORIGIN = "https://mobistack.prabhixtechnologies.com";
 
@@ -74,6 +75,30 @@ export function selectedWorkspaceId(user: AuthUser | null | undefined): string |
   return user?.workspaceId ?? user?.shopId ?? null;
 }
 
+/**
+ * A reply the server actually sent, as opposed to a request that never arrived.
+ *
+ * Callers used to see one undistinguished `Error` for both, so a shop whose plan
+ * had lapsed was told it had no internet connection — and kept retrying a call
+ * that would never succeed. Anything holding a status came back from the server.
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+
+  /** True when retrying cannot help: the server understood and said no. */
+  get permanent(): boolean {
+    return this.status >= 400 && this.status < 500 && this.status !== 408 && this.status !== 429;
+  }
+}
+
 async function readStore(current: string, legacy: string): Promise<string | null> {
   return (await SecureStore.getItemAsync(current)) ?? (await SecureStore.getItemAsync(legacy));
 }
@@ -99,6 +124,7 @@ export async function persistSession(auth: AuthResponse): Promise<void> {
   if (auth.workspaces) {
     await SecureStore.setItemAsync(WORKSPACES, JSON.stringify(auth.workspaces));
   }
+  setActiveScope(auth.user?.id, selectedWorkspaceId(auth.user));
 }
 
 export async function persistWorkspaces(workspaces: WorkspaceCard[]): Promise<void> {
@@ -114,6 +140,64 @@ export async function clearSession(): Promise<void> {
   await SecureStore.deleteItemAsync(LEGACY_REFRESH);
   await SecureStore.deleteItemAsync(LEGACY_USER);
   await SecureStore.deleteItemAsync(LEGACY_WORKSPACES);
+  setActiveScope(null, null);
+}
+
+/**
+ * Lets the auth provider react when the server ends a session mid-request.
+ * Clearing storage alone left the app rendering the signed-in tabs while every
+ * call failed.
+ */
+type SessionEndedListener = (reason: string) => void;
+const sessionEndedListeners = new Set<SessionEndedListener>();
+
+export function onSessionEnded(listener: SessionEndedListener): () => void {
+  sessionEndedListeners.add(listener);
+  return () => {
+    sessionEndedListeners.delete(listener);
+  };
+}
+
+async function endSession(reason: string): Promise<void> {
+  await clearSession();
+  for (const listener of sessionEndedListeners) {
+    listener(reason);
+  }
+}
+
+/**
+ * Shared refresh. Refresh tokens are single-use, so several screens hitting a
+ * expired token at once must rotate it once between them rather than racing.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const refreshToken = await readStore(REFRESH, LEGACY_REFRESH);
+      if (!refreshToken) {
+        return false;
+      }
+      try {
+        const deviceId = await getDeviceId();
+        const refreshed = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-MobiStack-Device": deviceId },
+          body: JSON.stringify({ refreshToken, deviceId }),
+        });
+        if (!refreshed.ok) {
+          return false;
+        }
+        await persistSession((await refreshed.json()) as AuthResponse);
+        return true;
+      } catch {
+        return false;
+      }
+    })().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -139,47 +223,39 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   let response = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (response.status === 401 && !anonymous && path !== "/api/v1/auth/refresh") {
+    let replaced = false;
     try {
       const payload = (await response.clone().json()) as { code?: string };
-      if (payload.code === "SESSION_REPLACED") {
-        await clearSession();
-        throw new Error(payload.code === "SESSION_REPLACED"
-          ? "This account signed in on another screen."
-          : "Session ended");
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message.includes("another screen")) {
-        throw error;
-      }
+      replaced = payload.code === "SESSION_REPLACED";
+    } catch {
+      // No JSON body: treat as an ordinary expiry and try to refresh.
     }
-    const refreshToken = await readStore(REFRESH, LEGACY_REFRESH);
-    if (refreshToken) {
-      const refreshed = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-MobiStack-Device": await getDeviceId(),
-        },
-        body: JSON.stringify({ refreshToken, deviceId: await getDeviceId() }),
-      });
-      if (refreshed.ok) {
-        await persistSession((await refreshed.json()) as AuthResponse);
-        headers.set("Authorization", `Bearer ${await getAccessToken()}`);
-        response = await fetch(`${API_BASE}${path}`, { ...init, headers });
-      } else {
-        await clearSession();
-      }
+    if (replaced) {
+      await endSession("replaced");
+      throw new Error("This phone was signed out, usually because the account is signed in on more devices than the shop allows. Please sign in again.");
+    }
+    // Another screen may have refreshed while this call was in flight.
+    const current = await getAccessToken();
+    const refreshed = current && current !== token ? true : await refreshSession();
+    if (refreshed) {
+      headers.set("Authorization", `Bearer ${await getAccessToken()}`);
+      response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    } else {
+      await endSession("expired");
+      throw new Error("Your session has expired. Please sign in again.");
     }
   }
   if (!response.ok) {
     let message = response.statusText;
+    let code: string | undefined;
     try {
-      const body = (await response.json()) as { message?: string };
+      const body = (await response.json()) as { message?: string; code?: string };
       if (body.message) message = body.message;
+      code = body.code;
     } catch {
       // keep status text
     }
-    throw new Error(message);
+    throw new ApiError(message, response.status, code);
   }
   if (response.status === 204) {
     return undefined as T;

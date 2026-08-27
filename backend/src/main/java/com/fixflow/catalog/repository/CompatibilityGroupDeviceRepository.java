@@ -18,6 +18,9 @@ public interface CompatibilityGroupDeviceRepository extends JpaRepository<Compat
 
     List<CompatibilityGroupDevice> findByDeviceModelId(UUID deviceModelId);
 
+    /** Group links for a page of devices, so listing does not query per device. */
+    List<CompatibilityGroupDevice> findByDeviceModelIdIn(Collection<UUID> deviceModelIds);
+
     Optional<CompatibilityGroupDevice> findByCompatibilityGroupIdAndDeviceModelId(UUID groupId, UUID deviceModelId);
 
     boolean existsByCompatibilityGroupIdAndDeviceModelId(UUID groupId, UUID deviceModelId);

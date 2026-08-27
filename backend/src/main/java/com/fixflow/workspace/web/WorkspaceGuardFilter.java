@@ -24,7 +24,8 @@ import java.util.UUID;
 /**
  * Re-checks membership on every business request so a suspended user cannot
  * keep working until their access token expires. Also rejects a workspace id
- * sent by the client that does not match the token.
+ * sent by the client that does not match the token, and refuses writes from a
+ * workspace that has not paid.
  */
 @Component
 @Order(20)
@@ -34,7 +35,21 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
     public static final String WORKSPACE_HEADER = "X-MobiStack-Workspace";
     public static final String WORKSPACE_HEADER_LEGACY = "X-FixFlow-Workspace";
 
+    /**
+     * What an unpaid shop is still allowed to change. Everything here is either
+     * how they pay, or something they need in order to pay: the plan itself,
+     * their own shop details, which workspace they are in, and how we contact
+     * them. Blocking these would leave a shop unable to buy its way out.
+     */
+    private static final String[] WRITABLE_WHILE_UNPAID = {
+            "/api/v1/billing",
+            "/api/v1/workspaces",
+            "/api/v1/shop",
+            "/api/v1/notifications",
+    };
+
     private final WorkspaceAccessService workspaceAccessService;
+    private final com.fixflow.billing.service.BillingService billingService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -75,10 +90,37 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
                         "Select a workspace before calling this endpoint.");
             }
             workspaceAccessService.requireActive(principal.getId(), principal.getShopId());
+            rejectUnpaidWrite(path, request.getMethod(), principal.getShopId());
             filterChain.doFilter(request, response);
         } catch (ApiException ex) {
             writeError(request, response, ex);
         }
+    }
+
+    /**
+     * One gate instead of a billing check in every service. Reads stay open so
+     * the app can still render and explain itself, but nothing new is recorded
+     * in a shop that has not paid — which is also the rule for adding people.
+     */
+    private void rejectUnpaidWrite(String path, String method, UUID workspaceId) {
+        if (!isMutation(method)) {
+            return;
+        }
+        for (String allowed : WRITABLE_WHILE_UNPAID) {
+            if (path.startsWith(allowed)) {
+                return;
+            }
+        }
+        if (billingService.paymentRequired(workspaceId)) {
+            throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
+                    "This shop has no active plan, so changes cannot be saved. "
+                            + "Open Billing and complete payment to start working.");
+        }
+    }
+
+    private static boolean isMutation(String method) {
+        return "POST".equals(method) || "PUT".equals(method)
+                || "PATCH".equals(method) || "DELETE".equals(method);
     }
 
     /**

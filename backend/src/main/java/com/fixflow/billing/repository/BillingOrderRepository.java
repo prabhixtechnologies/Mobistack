@@ -20,6 +20,12 @@ public interface BillingOrderRepository extends JpaRepository<BillingOrder, UUID
 
     Optional<BillingOrder> findByGatewayOrderIdAndWorkspaceId(String gatewayOrderId, UUID workspaceId);
 
+    /**
+     * Used by the gateway webhook, which knows the gateway's order id and
+     * nothing about our workspaces.
+     */
+    Optional<BillingOrder> findByGatewayOrderId(String gatewayOrderId);
+
     Optional<BillingOrder> findByGatewayOrderIdAndUserId(String gatewayOrderId, UUID userId);
 
     Optional<BillingOrder> findByIdAndUserId(UUID id, UUID userId);

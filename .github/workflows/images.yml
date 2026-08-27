@@ -33,6 +33,47 @@ permissions:
   contents: read
 
 jobs:
+  # Cheap guards for mistakes that only surface on the server, where the cost of
+  # finding them is a broken deploy rather than a red build.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No duplicate Flyway versions
+        run: |
+          set -euo pipefail
+          dupes=$(ls backend/src/main/resources/db/migration/V*.sql \
+            | xargs -n1 basename \
+            | sed 's/__.*//' \
+            | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "Two migrations share a version, so Flyway will refuse to start:"
+            echo "$dupes"
+            exit 1
+          fi
+          echo "Migration versions are unique."
+
+      - name: Development sign-in shortcuts stay out of the default profile
+        run: |
+          set -euo pipefail
+          # dev-otp accepts one fixed code for every number, and dev-sso-enabled
+          # signs in as anybody without a credential. Either reaching production
+          # is a full authentication bypass, so the defaults must stay off and be
+          # turned on only in application-dev.yml.
+          base=backend/src/main/resources/application.yml
+          if ! grep -qE '^\s+dev-otp:\s*""\s*$' "$base"; then
+            echo "dev-otp is not blank in $base:"
+            grep -nE '^\s+dev-otp:' "$base" || echo "  (setting is missing entirely)"
+            exit 1
+          fi
+          if ! grep -qE '^\s+dev-sso-enabled:\s*false\s*$' "$base"; then
+            echo "dev-sso-enabled is not false in $base:"
+            grep -nE '^\s+dev-sso-enabled:' "$base" || echo "  (setting is missing entirely)"
+            exit 1
+          fi
+          echo "Dev sign-in shortcuts are off by default."
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -54,11 +95,13 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
-      - name: Web typecheck
+      # `npm run build` is tsc plus a real Vite bundle: an import that only
+      # resolves in dev fails here rather than after the image is pushed.
+      - name: Web typecheck and build
         working-directory: web
         run: |
           npm ci
-          npx tsc --noEmit
+          npm run build
 
       - uses: actions/setup-node@v4
         with:
@@ -73,7 +116,7 @@ jobs:
           npx tsc --noEmit
 
   push:
-    needs: test
+    needs: [checks, test]
     runs-on: ubuntu-latest
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

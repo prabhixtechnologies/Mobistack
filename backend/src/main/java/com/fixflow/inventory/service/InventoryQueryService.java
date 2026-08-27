@@ -49,7 +49,8 @@ public class InventoryQueryService {
     public Page<InventoryTransactionResponse> history(UUID shopId, UUID variantId, Pageable pageable) {
         Page<InventoryTransaction> page = variantId == null
                 ? transactionRepository.findByShopIdOrderByOccurredAtDesc(shopId, pageable)
-                : transactionRepository.findByProductVariantIdOrderByOccurredAtDesc(variantId, pageable);
+                : transactionRepository.findByShopIdAndProductVariantIdOrderByOccurredAtDesc(
+                shopId, variantId, pageable);
         return page.map(this::toResponse);
     }
 

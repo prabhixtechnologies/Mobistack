@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Text, TextInput } from "react-native";
 import { Card, PrimaryButton, Screen } from "../components/Screen";
+import { Empty, Failed, Loading, Problem } from "../components/ListState";
 import { api } from "../lib/api";
+import { useAction } from "../lib/useAction";
+import { useScreenData } from "../lib/useScreenData";
 import { money, useTheme } from "../lib/theme";
 
 interface Supplier {
@@ -14,53 +17,86 @@ interface Supplier {
 
 export default function SuppliersScreen() {
   const { colors } = useTheme();
-  const [rows, setRows] = useState<Supplier[]>([]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     const page = await api<{ content: Supplier[] }>("/api/v1/suppliers?size=40");
-    setRows(page.content);
-  }
-
-  useEffect(() => {
-    load().catch((err: Error) => setError(err.message));
+    return page.content;
   }, []);
+  const suppliers = useScreenData<Supplier[]>("suppliers", load);
+
+  const add = useAction(
+    async () => {
+      await api("/api/v1/suppliers", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), phone, city }),
+      });
+      setName("");
+      setPhone("");
+      setCity("");
+      suppliers.refresh();
+    },
+    { fallbackError: "Could not save that supplier." },
+  );
+
+  const rows = suppliers.data ?? [];
 
   return (
-    <Screen title="Suppliers" copy="People you buy parts from." back>
-      {error ? <Text style={{ color: colors.bad, marginBottom: 10 }}>{error}</Text> : null}
-      <TextInput style={field(colors)} placeholder="Name" placeholderTextColor={colors.faint} value={name} onChangeText={setName} />
-      <TextInput style={field(colors)} placeholder="Phone" placeholderTextColor={colors.faint} value={phone} onChangeText={setPhone} />
-      <TextInput style={field(colors)} placeholder="City" placeholderTextColor={colors.faint} value={city} onChangeText={setCity} />
-      <PrimaryButton
-        label="Add supplier"
-        disabled={!name.trim()}
-        onPress={() => {
-          void api("/api/v1/suppliers", {
-            method: "POST",
-            body: JSON.stringify({ name: name.trim(), phone, city }),
-          })
-            .then(() => {
-              setName("");
-              setPhone("");
-              setCity("");
-              return load();
-            })
-            .catch((err: Error) => setError(err.message));
-        }}
+    <Screen
+      title="Suppliers"
+      copy="People you buy parts from."
+      back
+      onRefresh={suppliers.refresh}
+      refreshing={suppliers.refreshing}
+    >
+      {add.error ? <Problem message={add.error} /> : null}
+      <TextInput
+        style={field(colors)}
+        placeholder="Name"
+        placeholderTextColor={colors.faint}
+        value={name}
+        onChangeText={setName}
       />
-      {rows.map((row) => (
-        <Card key={row.id}>
-          <Text style={{ fontWeight: "700", color: colors.ink }}>{row.name}</Text>
-          <Text style={{ color: colors.soft, marginTop: 4 }}>
-            {[row.phone, row.city].filter(Boolean).join(" · ") || "No contact"}
-            {` · due ${money(row.outstandingAmount ?? 0)}`}
-          </Text>
-        </Card>
-      ))}
+      <TextInput
+        style={field(colors)}
+        placeholder="Phone"
+        placeholderTextColor={colors.faint}
+        keyboardType="phone-pad"
+        value={phone}
+        onChangeText={setPhone}
+      />
+      <TextInput
+        style={field(colors)}
+        placeholder="City"
+        placeholderTextColor={colors.faint}
+        value={city}
+        onChangeText={setCity}
+      />
+      <PrimaryButton
+        label={add.busy ? "Saving…" : "Add supplier"}
+        disabled={add.busy || !name.trim()}
+        onPress={() => void add.run()}
+      />
+
+      {suppliers.loading && rows.length === 0 ? (
+        <Loading label="Loading suppliers…" />
+      ) : suppliers.error ? (
+        <Failed message={suppliers.error} onRetry={suppliers.refresh} />
+      ) : rows.length === 0 ? (
+        <Empty title="No suppliers yet" hint="Add the people you buy from so purchases post against them." />
+      ) : (
+        rows.map((row) => (
+          <Card key={row.id}>
+            <Text style={{ fontWeight: "700", color: colors.ink }}>{row.name}</Text>
+            <Text style={{ color: colors.soft, marginTop: 4 }}>
+              {[row.phone, row.city].filter(Boolean).join(" · ") || "No contact"}
+              {` · due ${money(row.outstandingAmount ?? 0)}`}
+            </Text>
+          </Card>
+        ))
+      )}
     </Screen>
   );
 }

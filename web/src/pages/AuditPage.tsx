@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { usePagedList } from "../lib/usePagedList";
+import { DataTable, type Column } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
-import type { PageResponse } from "../lib/types";
 
 interface AuditRow {
   id: string;
@@ -12,30 +11,57 @@ interface AuditRow {
 }
 
 export function AuditPage() {
-  const [rows, setRows] = useState<AuditRow[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const trail = usePagedList<AuditRow>("/api/v1/audit", { size: 40 });
 
-  useEffect(() => {
-    api<PageResponse<AuditRow>>("/api/v1/audit?size=40")
-      .then((page) => setRows(page.content))
-      .catch((err: Error) => setError(err.message));
-  }, []);
+  const columns: Column<AuditRow>[] = [
+    {
+      key: "action",
+      header: "What happened",
+      render: (row) => (
+        <div className="cell-identity">
+          <strong>{row.action.replaceAll("_", " ")}</strong>
+          {row.summary && <span className="faint">{row.summary}</span>}
+        </div>
+      ),
+    },
+    { key: "actor", header: "Who", render: (row) => row.actorName ?? "—" },
+    {
+      key: "when",
+      header: "When",
+      align: "right",
+      render: (row) => <span className="faint">{new Date(row.createdAt).toLocaleString("en-IN")}</span>,
+    },
+  ];
 
   return (
     <div className="page">
-      <PageHeader kicker="Insights" title="Audit" subtitle="Who changed stock, people, or prices. The ledger of decisions." />
-      {error && <div className="error">{error}</div>}
+      <PageHeader
+        kicker="Insights"
+        title="Audit"
+        subtitle="Who changed stock, people, or prices. The ledger of decisions."
+      />
       <div className="card tight">
-        {rows.map((row) => (
-          <div className="category-row" key={row.id}>
-            <div>
-              <div style={{ fontWeight: 650 }}>{row.action.replaceAll("_", " ")}</div>
-              <div className="faint">{row.summary}</div>
-            </div>
-            <span className="faint">{row.actorName}</span>
-          </div>
-        ))}
-        {rows.length === 0 && <div className="empty">Nothing recorded yet.</div>}
+        <DataTable
+          columns={columns}
+          rows={trail.loading && trail.rows.length === 0 ? undefined : trail.rows}
+          rowKey={(row) => row.id}
+          loading={trail.loading}
+          error={trail.error}
+          onRetry={trail.reload}
+          skeletonRows={10}
+          empty={{
+            icon: "shield",
+            title: "Nothing recorded yet",
+            hint: "Stock adjustments, price changes and staff changes are logged here as they happen.",
+          }}
+          paging={{
+            total: trail.total,
+            hasMore: trail.hasMore,
+            loadingMore: trail.loadingMore,
+            onLoadMore: trail.loadMore,
+            noun: "entries",
+          }}
+        />
       </div>
     </div>
   );
