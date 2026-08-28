@@ -70,17 +70,26 @@ On EC2:
 
 ```bash
 cd /opt/mobistack
-git pull --ff-only          # only needed when compose/Caddy files change
-./deploy/ec2-up.sh          # pulls IMAGE_TAG (default latest) and restarts
+git pull --ff-only          # compose and the Caddyfile are read from here, not the image
+bash deploy/ec2-up.sh       # pulls IMAGE_TAG (default latest) and restarts
 ```
 
-Pin a SHA to roll forward or back:
+Pin a SHA to roll forward or back. CI tags images `latest` and the **full**
+40-character commit SHA, so the short SHA git prints is not a tag — expand it
+first, or the pull fails as an unknown manifest:
 
 ```bash
-IMAGE_TAG=abc123def ./deploy/ec2-up.sh
+IMAGE_TAG=$(git rev-parse HEAD) bash deploy/ec2-up.sh
 ```
 
+The **Deploy to EC2** workflow does that expansion for you, so a short SHA is
+fine there.
+
 Optional: GitHub **Deploy to EC2** (manual). Add secrets `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`, `EC2_APP_DIR` (absolute path of the clone).
+
+When a run fails, read the **Annotations** box on the run summary rather than
+hunting through the log: the remote output sits in a collapsed group, and the
+workflow copies the tail of the failure up into an annotation for that reason.
 
 ## 5. Backups
 
