@@ -19,14 +19,14 @@ if [[ -z "${dump}" || ! -f "${dump}" ]]; then
 fi
 
 CONTAINER="${POSTGRES_CONTAINER:-mobistack-postgres}"
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
-fi
-DB="${POSTGRES_DB:-fixflow}"
-USER="${POSTGRES_USER:-fixflow}"
+
+# Read the settings from the container rather than sourcing .env, which follows
+# Compose's rules and not the shell's: a value there like "-Xms256m -Xmx512m" is
+# perfectly legal for Compose but runs as a command when sourced.
+DB="$(docker exec "${CONTAINER}" printenv POSTGRES_DB 2>/dev/null || true)"
+DB="${DB:-${POSTGRES_DB:-fixflow}}"
+DB_USER="$(docker exec "${CONTAINER}" printenv POSTGRES_USER 2>/dev/null || true)"
+DB_USER="${DB_USER:-${POSTGRES_USER:-fixflow}}"
 
 gzip -t "${dump}"
 
@@ -46,7 +46,7 @@ echo "Restoring..."
 # ON_ERROR_STOP makes psql exit on the first failed statement, so a restore that
 # goes wrong halfway does not report success.
 gunzip -c "${dump}" | docker exec -i "${CONTAINER}" psql \
-  --username="${USER}" \
+  --username="${DB_USER}" \
   --dbname="${DB}" \
   --set ON_ERROR_STOP=on \
   --quiet
@@ -56,4 +56,4 @@ docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml u
 
 echo "Restored ${DB} from ${dump}."
 echo "Check the site, then confirm the Flyway history matches this image:"
-echo "  docker exec ${CONTAINER} psql -U ${USER} -d ${DB} -c 'select version, description, success from flyway_schema_history order by installed_rank desc limit 5;'"
+echo "  docker exec ${CONTAINER} psql -U ${DB_USER} -d ${DB} -c 'select version, description, success from flyway_schema_history order by installed_rank desc limit 5;'"

@@ -19,20 +19,20 @@ BACKUP_DIR="${BACKUP_DIR:-./backups}"
 KEEP="${KEEP:-14}"
 CONTAINER="${POSTGRES_CONTAINER:-mobistack-postgres}"
 
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
-fi
-
-DB="${POSTGRES_DB:-fixflow}"
-USER="${POSTGRES_USER:-fixflow}"
-
 if ! docker ps --format '{{.Names}}' | grep -qx "${CONTAINER}"; then
   echo "Postgres container '${CONTAINER}' is not running. Nothing was backed up." >&2
   exit 1
 fi
+
+# Ask the container what it was initialised with, rather than reading .env. That
+# file follows Compose's rules, not the shell's: a legal value there such as
+# "-Xms256m -Xmx512m" becomes a command when the file is sourced. The container
+# is also the more truthful answer, since it is what Postgres actually started
+# with even if .env has been edited since.
+DB="$(docker exec "${CONTAINER}" printenv POSTGRES_DB 2>/dev/null || true)"
+DB="${DB:-${POSTGRES_DB:-fixflow}}"
+DB_USER="$(docker exec "${CONTAINER}" printenv POSTGRES_USER 2>/dev/null || true)"
+DB_USER="${DB_USER:-${POSTGRES_USER:-fixflow}}"
 
 mkdir -p "${BACKUP_DIR}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -45,7 +45,7 @@ trap 'rm -f "${partial}"' ERR
 
 echo "Dumping ${DB} from ${CONTAINER}..."
 docker exec -i "${CONTAINER}" pg_dump \
-  --username="${USER}" \
+  --username="${DB_USER}" \
   --dbname="${DB}" \
   --clean --if-exists --no-owner --no-privileges \
   | gzip -9 > "${partial}"
@@ -53,12 +53,24 @@ docker exec -i "${CONTAINER}" pg_dump \
 # gzip -t proves the archive is complete; a truncated pipe would otherwise be
 # discovered only during a restore, which is the worst possible moment.
 gzip -t "${partial}"
-size="$(wc -c < "${partial}")"
-if (( size < 4096 )); then
-  echo "Dump is only ${size} bytes, which is too small to be the real database." >&2
-  rm -f "${partial}"
-  exit 1
-fi
+
+# pg_dump writes this line last, so finding it proves the dump ran to the end
+# rather than dying midway with a valid gzip trailer. A byte-count threshold
+# cannot tell the difference: gzip -9 takes a small but entirely real database
+# down to a few hundred bytes, and the deploy would abort on a good backup.
+#
+# Matched with a case statement rather than piping into grep -q, because grep -q
+# exits at the first match, tail then dies of SIGPIPE, and pipefail reports the
+# whole pipeline as failed -- discarding a perfectly good dump now and then.
+dump_tail="$(gunzip -c "${partial}" | tail -20)"
+case "${dump_tail}" in
+  *"PostgreSQL database dump complete"*) ;;
+  *)
+    echo "The dump has no completion marker from pg_dump, so it stopped early." >&2
+    rm -f "${partial}"
+    exit 1
+    ;;
+esac
 
 mv "${partial}" "${target}"
 trap - ERR
