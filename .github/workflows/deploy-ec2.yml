@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Image tag to pull on EC2 (latest or a git SHA)
+        description: Image tag to pull on EC2 (latest, or a commit SHA -- short is fine)
         required: true
         default: latest
 
@@ -45,20 +45,52 @@ jobs:
               git checkout -- deploy 2>/dev/null || true
               git pull --ff-only
             fi
-            export IMAGE_TAG="${{ github.event.inputs.tag }}"
+            # Images are tagged "latest" and the full 40-character commit SHA, but
+            # the SHA people have at hand is the short one git and the GitHub UI
+            # show. Expand it here -- the checkout knows the mapping -- so a short
+            # SHA does not fail the pull as an unknown manifest.
+            requested="${{ github.event.inputs.tag }}"
+            if [ "$requested" != "latest" ]; then
+              if resolved=$(git rev-parse --verify --quiet "${requested}^{commit}"); then
+                if [ "$resolved" != "$requested" ]; then
+                  echo "Tag $requested resolves to $resolved"
+                fi
+                requested="$resolved"
+              else
+                echo "WARNING: $requested is not a commit in this checkout; using it as a literal tag." >&2
+              fi
+            fi
+            export IMAGE_TAG="$requested"
             # Last resort for a tree git does not manage: strip carriage returns,
             # since a CR reaches the shebang and the kernel then reports the
             # interpreter missing because it is looking for "bash\r".
             for script in deploy/*.sh; do
-              [ -f "$script" ] && sed -i 's/\r$//' "$script"
+              # Guarded with a full if: under `set -e` a trailing failed test in an
+              # && list takes the whole script down with it.
+              if [ -f "$script" ]; then
+                sed -i 's/\r$//' "$script"
+              fi
             done
             if [ -f .env ] && grep -q "$(printf '\r')" .env; then
               echo "WARNING: .env contains carriage returns, so secrets read from it" >&2
               echo "may carry a trailing CR and fail signature checks." >&2
             fi
+            # Lift the tail of a failed deploy into a workflow annotation. Remote
+            # output lands inside a collapsed log group, so four failures in a row
+            # showed nothing but "exited with status 1"; annotations render on the
+            # run summary without expanding anything.
+            annotate_failure() {
+              tail -n 20 "$1" \
+                | sed -e 's/%/%25/g' -e 's/\r//g' \
+                | awk '{ printf "%s%%0A", $0 }'
+            }
+
             # Called through bash rather than executed, so a missing exec bit on a
             # fresh checkout cannot stop the deploy either.
-            bash deploy/ec2-up.sh
+            if ! bash deploy/ec2-up.sh 2>&1 | tee /tmp/mobistack-deploy.log; then
+              echo "::error title=EC2 deploy failed::$(annotate_failure /tmp/mobistack-deploy.log)"
+              exit 1
+            fi
 
             # A restart that keeps serving the old build is a failed deploy, and the
             # last two attempts looked fine from the outside while changing nothing.
@@ -77,8 +109,13 @@ jobs:
             done
             rm -f /tmp/mobistack-headers
             if [ "$live" != "1" ]; then
-              echo "The API never reported the new build. Inspect with:" >&2
-              echo "  docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml logs --tail=120 backend" >&2
+              # Containers started but the API is not answering as the new build,
+              # which usually means it died on boot -- a failed migration or a
+              # setting it refuses to start without. Its own logs say which.
+              docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml \
+                logs --tail=60 --no-color backend >/tmp/mobistack-backend.log 2>&1 || true
+              cat /tmp/mobistack-backend.log
+              echo "::error title=API never reported the new build::$(annotate_failure /tmp/mobistack-backend.log)"
               exit 1
             fi
             echo "New build is live and answering."

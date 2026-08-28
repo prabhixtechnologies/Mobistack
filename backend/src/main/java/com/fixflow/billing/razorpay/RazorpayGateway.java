@@ -92,14 +92,19 @@ public class RazorpayGateway {
     }
 
     /**
-     * Says once, at boot, what a missing webhook secret costs. Checkout still
-     * activates a plan on its own, so the gap is narrow: a customer whose
-     * browser died between paying and confirming stays locked out until
-     * someone reconciles the order by hand.
+     * Says once, at boot, what is missing and what it costs. Deliberately a log
+     * line rather than a failed startup: payment settings are not worth taking a
+     * running site down for, and a deploy that refuses to run is one an operator
+     * cannot use to fix anything.
      */
     @PostConstruct
-    void reportWebhookReadiness() {
-        if (configured() && !webhooksConfigured()) {
+    void reportReadiness() {
+        if (!configured()) {
+            log.error("Razorpay is not configured: set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET. "
+                    + "Nobody can pay, and because access is gated on payment, no workspace can be activated.");
+            return;
+        }
+        if (!webhooksConfigured()) {
             log.warn("Razorpay webhooks are off: RAZORPAY_WEBHOOK_SECRET is unset. Payments still activate through "
                     + "checkout, but a payment confirmed only by Razorpay will not reach us.");
         }

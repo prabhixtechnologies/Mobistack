@@ -20,13 +20,12 @@ services:
       FIXFLOW_REQUIRE_HTTPS: "true"
       FIXFLOW_REDIS_ENABLED: "true"
       FIXFLOW_CACHE_TYPE: redis
-      # Payment gates workspace access, so the live keys and the webhook secret
-      # are all required: without the secret a successful payment never lands.
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?set RAZORPAY_KEY_ID in .env}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?set RAZORPAY_KEY_SECRET in .env}
-      # Not required to boot: checkout verification already activates a plan.
-      # Without it we lose only the fallback for a customer who paid and then
-      # closed the tab before the browser could confirm.
+      # Payment gates workspace access, so these matter -- but none of them block
+      # a deploy. Refusing to start would take a running site down over a setting
+      # the backend can complain about at boot instead, and an operator cannot fix
+      # a deploy that will not run. RazorpayGateway logs what is missing.
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
 
   web:
