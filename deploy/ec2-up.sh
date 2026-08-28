@@ -38,7 +38,13 @@ fi
 # database is most likely to change shape. Take a dump first while rolling back
 # is still an option. SKIP_BACKUP=1 for the very first deploy, when there is no
 # database yet.
-if [[ "${SKIP_BACKUP:-0}" != "1" ]] && docker ps --format '{{.Names}}' | grep -qx mobistack-postgres; then
+#
+# Asked of docker directly rather than piped into `grep -q`: grep exits on the
+# first match, docker then takes SIGPIPE, and under `pipefail` the whole test
+# reads as false -- which would skip the backup, silently, on exactly the deploy
+# that is about to migrate the database.
+postgres_running=$(docker ps --filter 'name=^mobistack-postgres$' --format '{{.Names}}')
+if [[ "${SKIP_BACKUP:-0}" != "1" && -n "${postgres_running}" ]]; then
   mark "backing up the database before migrations"
   # Invoked through bash rather than executed directly: the file arrives from a
   # Windows checkout without an exec bit, and a permission error here would abort

@@ -224,14 +224,32 @@ jobs:
             echo "New build is live and answering."
             }
 
-            # Deliberately not `if ! deploy | tee`. Errexit is suppressed for every
-            # command inside a condition, function bodies included, and a `set -e`
-            # within the function does not win it back -- so a failing deploy ran
-            # on to the end and reported the site live. Check the status by hand.
+            # `deploy` records its own status in a file instead of the caller
+            # reading PIPESTATUS. Errexit is suppressed inside an `if` condition,
+            # function bodies included, so `if ! deploy | tee` reported a failed
+            # deploy as a success; PIPESTATUS fixed that but then a run that
+            # deployed the site cleanly reported failure. The status of a function
+            # on the left of a pipeline is simply too easy to lose. An empty file
+            # means the subshell died under `set -e` before recording anything,
+            # which is a failure by definition.
+            #
+            # Stdin comes from /dev/null because the script itself arrives over
+            # stdin: a command inside that reads it would swallow the rest.
+            rc_file=/tmp/mobistack-deploy.rc
+            : > "$rc_file"
             set +e
-            deploy 2>&1 | tee /tmp/mobistack-deploy.log
-            rc=${PIPESTATUS[0]}
+            { deploy; echo "$?" > "$rc_file"; } </dev/null 2>&1 \
+              | tee /tmp/mobistack-deploy.log
+            rc=$(cat "$rc_file" 2>/dev/null)
             set -e
+            case "$rc" in
+              '' | *[!0-9]*) rc=1 ;;
+            esac
+            rm -f "$rc_file"
+
+            # Always stated, so the next surprise is one line to diagnose rather
+            # than a guess about which layer lost the status.
+            echo "deploy finished with status ${rc}"
             if [ "$rc" -ne 0 ]; then
               # Fold the tail into a workflow annotation: annotations render on the
               # run summary, which is the only part of a failed run that is legible

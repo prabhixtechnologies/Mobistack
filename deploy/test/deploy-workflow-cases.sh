@@ -32,6 +32,10 @@ seed="$root/seed"
 mkdir -p "$seed/deploy"
 cp ../ec2-up.sh ../db-backup.sh ../db-restore.sh "$seed/deploy/"
 cp ../../docker-compose.yml ../../docker-compose.prod.yml "$seed/"
+# The real backup wants a live Postgres container. Only whether the deploy calls
+# it is in question here, so the seeded copy just says it ran. The script itself
+# is exercised against a real container elsewhere.
+printf '#!/usr/bin/env bash\necho "STUB BACKUP RAN"\n' > "$seed/deploy/db-backup.sh"
 (
   cd "$seed"
   git init -q
@@ -69,7 +73,10 @@ case "$*" in
       exit 1
     fi ;;
   *"compose"*"logs"*) echo "stub backend log line" ;;
-  *"ps"*"--format"*) : ;;   # no postgres container, so the backup is skipped
+  *"ps"*"--filter"*"mobistack-postgres"*)
+    # Named only when asked for: otherwise there is no database and the deploy
+    # skips its pre-migration backup.
+    if [ -n "${STUB_POSTGRES_UP:-}" ]; then echo mobistack-postgres; fi ;;
   *) : ;;
 esac
 exit 0
@@ -142,7 +149,8 @@ printf '#!/usr/bin/env bash\r\necho stale\r\n' > "$app/stale.sh"
 newenv "$app"
 out=$(attempt adopt "$app" latest); rc=$?
 report "adopts the directory and reaches the end" "$rc" "$out" \
-  "Previous config saved to" "syncing the checkout to origin/master" "New build is live"
+  "Previous config saved to" "syncing the checkout to origin/master" "New build is live" \
+  "deploy finished with status 0"
 expect_rc "adopt" zero "$rc"
 if [ -f "$app/.env" ]; then pass ".env survived the hard reset"; else fail ".env was destroyed"; fi
 
@@ -216,6 +224,24 @@ if [ "$count" = "1" ] && printf '%s' "$ann" | grep -q '%0A'; then
 else
   fail "expected exactly 1 folded annotation, found $count"
 fi
+
+echo
+echo "=== 8b. a database that is up gets backed up before migrations"
+# The detection used to pipe `docker ps` into `grep -q`. grep exits on the first
+# match, docker takes SIGPIPE, and pipefail turned the test false -- skipping the
+# backup on precisely the deploy that migrates the schema.
+app="$root/app8b"; git clone -q "$origin" "$app"; newenv "$app"
+out=$(STUB_POSTGRES_UP=1 attempt backup "$app" latest); rc=$?
+report "backs up when postgres is running" "$rc" "$out" \
+  "backing up the database before migrations" "STUB BACKUP RAN" "New build is live"
+expect_rc "backup path" zero "$rc"
+
+echo
+echo "=== 8c. no database means no backup attempt"
+app="$root/app8c"; git clone -q "$origin" "$app"; newenv "$app"
+out=$(attempt nobackup "$app" latest); rc=$?
+refute "skips the backup when postgres is absent" "$out" "STUB BACKUP RAN"
+expect_rc "no-backup path" zero "$rc"
 
 echo
 echo "=== 9. choosing which build to deploy"
