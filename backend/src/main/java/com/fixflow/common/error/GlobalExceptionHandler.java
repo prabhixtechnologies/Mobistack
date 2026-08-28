@@ -5,11 +5,14 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -19,6 +22,7 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @RestControllerAdvice
@@ -102,6 +106,31 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiError.of(ErrorCode.UNAUTHENTICATED, "Authentication required.", request.getRequestURI()));
+    }
+
+    /**
+     * A wrong method or content type is the caller's mistake. Left to the
+     * catch-all below they answered 500 and logged a stack trace at error level,
+     * which misleads the client and buries genuine faults in the noise.
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex,
+                                                           HttpServletRequest request) {
+        ResponseEntity.BodyBuilder response = ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED);
+        Set<HttpMethod> allowed = ex.getSupportedHttpMethods();
+        if (allowed != null && !allowed.isEmpty()) {
+            response.allow(allowed.toArray(new HttpMethod[0]));
+        }
+        return response.body(ApiError.of(ErrorCode.METHOD_NOT_ALLOWED,
+                ex.getMethod() + " is not allowed on this endpoint.", request.getRequestURI()));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex,
+                                                               HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(ApiError.of(ErrorCode.UNSUPPORTED_MEDIA_TYPE,
+                        "This endpoint expects application/json.", request.getRequestURI()));
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)
