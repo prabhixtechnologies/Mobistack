@@ -1,15 +1,106 @@
+# Puts a build live: restarts the server on it and refreshes the APK the site
+# offers. Hand-triggered, and only builds that passed build.yml can be chosen --
+# the images and the APK both come out of a single run of it, so the server and
+# the download stay the same commit.
+#
+# Needs secrets EC2_HOST, EC2_USER, EC2_SSH_KEY, EC2_APP_DIR (absolute path of
+# the checkout on the server).
+
 name: Deploy to EC2
 
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: Image tag to pull on EC2 (latest, or a commit SHA -- short is fine)
+      build:
+        description: Build to deploy (latest, or a commit SHA -- short is fine)
         required: true
         default: latest
+      refresh_apk:
+        description: Also replace the APK the site offers for download
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+# Two deploys at once would race over the same containers.
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+      run_id: ${{ steps.pick.outputs.run_id }}
+    steps:
+      - name: Check the server secrets are present
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_APP_DIR: ${{ secrets.EC2_APP_DIR }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in EC2_HOST EC2_USER EC2_SSH_KEY EC2_APP_DIR; do
+            if [ -z "${!name:-}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=Deploy is not configured::Missing repository secrets:$missing"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          # Needed to turn a short SHA or a branch name into a commit.
+          fetch-depth: 0
+
+      # Only a build that passed can go out. Images are pushed by build.yml and
+      # nothing else, so asking for a commit it never built would otherwise fail
+      # much later, on the server, as an unknown manifest.
+      - name: Pick a build that passed
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REQUESTED: ${{ inputs.build }}
+        run: |
+          set -euo pipefail
+          runs=$(gh run list --repo "$REPO" --workflow build.yml --branch master \
+            --status success --limit 100 --json databaseId,headSha,createdAt)
+
+          if [ "$REQUESTED" = latest ]; then
+            picked=$(printf '%s' "$runs" | jq -c '.[0] // empty')
+          else
+            if ! sha=$(git rev-parse --verify --quiet "${REQUESTED}^{commit}"); then
+              echo "::error title=Unknown build::\"$REQUESTED\" is not a commit in this repository."
+              exit 1
+            fi
+            picked=$(printf '%s' "$runs" \
+              | jq -c --arg sha "$sha" '[.[] | select(.headSha == $sha)][0] // empty')
+          fi
+
+          if [ -z "$picked" ]; then
+            echo "::error title=Nothing to deploy::No successful \"Build and verify\" run for \"$REQUESTED\". Only a build that passed has images on the registry; check the Build and verify workflow."
+            exit 1
+          fi
+
+          sha=$(printf '%s' "$picked" | jq -r .headSha)
+          run_id=$(printf '%s' "$picked" | jq -r .databaseId)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "Deploying commit [\`${sha:0:7}\`](https://github.com/$REPO/commit/$sha)"
+            echo "from build run [$run_id](https://github.com/$REPO/actions/runs/$run_id)."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Deploying $sha from build run $run_id"
+
+  server:
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - name: Pull and restart on EC2
@@ -72,7 +163,7 @@ jobs:
             # the SHA people have at hand is the short one git and the GitHub UI
             # show. Expand it here -- the checkout knows the mapping -- so a short
             # SHA does not fail the pull as an unknown manifest.
-            requested="${{ github.event.inputs.tag }}"
+            requested="${{ needs.resolve.outputs.sha }}"
             if [ "$requested" != "latest" ]; then
               if resolved=$(git rev-parse --verify --quiet "${requested}^{commit}"); then
                 if [ "$resolved" != "$requested" ]; then
@@ -151,3 +242,58 @@ jobs:
               echo "::error title=EC2 deploy failed::${detail}"
               exit "$rc"
             fi
+
+  # Runs after the server, and only if the server came up: a download that is
+  # newer than the API it talks to is worse than a stale one.
+  apk:
+    needs: [resolve, server]
+    if: ${{ inputs.refresh_apk }}
+    runs-on: ubuntu-latest
+    steps:
+      # The APK from that same build, rather than a fresh one. Rebuilding would
+      # produce a different artifact from the one the build verified, and this
+      # workflow is meant to ship a decided-upon build.
+      - name: Take the APK from that build
+        uses: actions/download-artifact@v4
+        with:
+          name: mobistack-android-apk
+          path: apk
+          run-id: ${{ needs.resolve.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Copy it to the server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: apk/app-release.apk
+          target: /tmp
+          strip_components: 1
+          overwrite: true
+
+      - name: Replace the live download
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            dest="${{ secrets.EC2_APP_DIR }}/downloads/MobiStack.apk"
+            mkdir -p "$(dirname "$dest")"
+            src=""
+            for candidate in /tmp/app-release.apk /tmp/apk/app-release.apk; do
+              if [ -f "$candidate" ]; then src="$candidate"; break; fi
+            done
+            if [ -z "$src" ]; then
+              echo "::error title=APK not delivered::Nothing to install at /tmp/app-release.apk; the copy step did not leave a file."
+              ls -la /tmp
+              exit 1
+            fi
+            # Same path the site links to, replaced in one move so nobody can
+            # download a half-written file.
+            mv "$src" "$dest"
+            chmod 644 "$dest"
+            ls -lh "$dest"

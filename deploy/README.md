@@ -40,7 +40,19 @@ Or push `master` to GitHub after adding repository secrets:
 
 Optional repository variable: `DOCKERHUB_NAMESPACE` if images live under an org that is not the login user.
 
-The **Build and push images** workflow tests the backend, typechecks the web app, then publishes `latest` and the commit SHA.
+The **Build and verify** workflow tests the backend, typechecks the web app, then publishes `latest` and the commit SHA.
+
+### The three workflows
+
+Building and shipping are deliberately separate. A push proves a commit works; putting it in front of users is a decision someone makes afterwards.
+
+| Workflow | Trigger | What it does |
+| --- | --- | --- |
+| **Build and verify** | every push to `master` | Guards, tests, typechecks, pushes images to Hub, builds the signed APK/AAB |
+| **Deploy to EC2** | by hand | Restarts the server on a chosen build and replaces the APK the site offers |
+| **Release to Google Play** | by hand | Uploads a build to a Play track |
+
+Only a build that passed can be deployed. Images and the APK come out of one run of **Build and verify**, so the server and the download on the site are always the same commit. Choosing `latest` takes the most recent run that passed; a commit SHA takes that commit's run, and fails if it never had one.
 
 ## 3. First time on EC2
 
@@ -64,9 +76,9 @@ Production does **not** seed a demo shop. Register the first workspace from the 
 
 ## 4. Every later release
 
-On the laptop (or via GitHub Actions): test, then publish.
+Normally: wait for **Build and verify** to pass, then run **Deploy to EC2** and pick `latest`. That restarts the server and refreshes the APK download together. Clear `refresh_apk` to leave the download alone.
 
-On EC2:
+By hand on EC2, when the workflow is not an option:
 
 ```bash
 cd /opt/mobistack
@@ -83,9 +95,8 @@ IMAGE_TAG=$(git rev-parse HEAD) bash deploy/ec2-up.sh
 ```
 
 The **Deploy to EC2** workflow does that expansion for you, so a short SHA is
-fine there.
-
-Optional: GitHub **Deploy to EC2** (manual). Add secrets `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`, `EC2_APP_DIR` (absolute path of the clone).
+fine there. It needs secrets `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`, and
+`EC2_APP_DIR` (absolute path of the clone).
 
 When a run fails, read the **Annotations** box on the run summary rather than
 hunting through the log: the remote output sits in a collapsed group, and the

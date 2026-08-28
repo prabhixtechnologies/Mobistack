@@ -95,7 +95,10 @@ newenv() {
 
 attempt() {
   local label="$1" appdir="$2" tag="$3"
-  "$PY" extract-workflow-script.py "$appdir" "$tag" "$origin" "$root/remote.sh" >/dev/null || return 99
+  "$PY" extract-workflow-script.py \
+    --step "Pull and restart on EC2" --key script \
+    --app-dir "$appdir" --tag "$tag" --origin "$origin" \
+    --out "$root/remote.sh" >/dev/null || return 99
   # sleep is stubbed so the health-probe retry loop does not take three minutes.
   bash -c "sleep() { :; }; source '$root/remote.sh'" 2>&1
 }
@@ -212,6 +215,94 @@ if [ "$count" = "1" ] && printf '%s' "$ann" | grep -q '%0A'; then
   pass "one folded annotation line, $(printf '%s' "$ann" | wc -c) chars"
 else
   fail "expected exactly 1 folded annotation, found $count"
+fi
+
+echo
+echo "=== 9. choosing which build to deploy"
+# Runs the real text of the resolve step, with gh stubbed and a throwaway repo
+# standing in for the checkout. Picking the wrong run here would put an older
+# build live while reporting success, which no later check would catch.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "SKIP: jq is not installed, cannot exercise the build-selection step"
+else
+  "$PY" extract-workflow-script.py \
+    --step "Pick a build that passed" --key run --out "$root/pick.sh" >/dev/null
+
+  history="$root/history"
+  git init -q "$history"
+  git -C "$history" config user.email t@t.t
+  git -C "$history" config user.name t
+  declare -a shas=()
+  for n in 1 2 3; do
+    echo "$n" > "$history/f"
+    git -C "$history" add f
+    git -C "$history" commit -qm "commit $n"
+    shas+=("$(git -C "$history" rev-parse HEAD)")
+  done
+  built_old="${shas[0]}"
+  unbuilt="${shas[1]}"
+  built_new="${shas[2]}"
+
+  # Newest first, as gh returns them, and deliberately missing the middle commit.
+  printf '[{"databaseId":300,"headSha":"%s"},{"databaseId":100,"headSha":"%s"}]\n' \
+    "$built_new" "$built_old" > "$root/runs.json"
+  cat > "$stub/gh" <<STUB
+#!/usr/bin/env bash
+cat "$root/runs.json"
+STUB
+  chmod +x "$stub/gh"
+
+  choose() {
+    (
+      cd "$history"
+      export REQUESTED="$1" REPO="prabhixtechnologies/Mobistack" GH_TOKEN=stub
+      export GITHUB_OUTPUT="$root/out.txt" GITHUB_STEP_SUMMARY="$root/summary.md"
+      : > "$GITHUB_OUTPUT"
+      : > "$GITHUB_STEP_SUMMARY"
+      bash "$root/pick.sh" 2>&1
+    )
+  }
+  chose() { sed -nE "s/^$1=(.*)/\1/p" "$root/out.txt"; }
+
+  out=$(choose latest); rc=$?
+  if [ "$rc" -eq 0 ] && [ "$(chose sha)" = "$built_new" ] && [ "$(chose run_id)" = "300" ]; then
+    pass "latest picks the newest run that passed"
+  else
+    fail "latest gave rc=$rc sha=$(chose sha) run_id=$(chose run_id)"
+    printf '%s\n' "$out" | sed 's/^/      | /'
+  fi
+
+  out=$(choose "${built_old:0:7}"); rc=$?
+  if [ "$rc" -eq 0 ] && [ "$(chose sha)" = "$built_old" ] && [ "$(chose run_id)" = "100" ]; then
+    pass "a short SHA picks that commit's run, not the newest"
+  else
+    fail "pinned commit gave rc=$rc sha=$(chose sha) run_id=$(chose run_id)"
+    printf '%s\n' "$out" | sed 's/^/      | /'
+  fi
+
+  out=$(choose "$unbuilt"); rc=$?
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF 'Nothing to deploy'; then
+    pass "a commit with no successful build is refused"
+  else
+    fail "unbuilt commit gave rc=$rc out=$out"
+  fi
+
+  out=$(choose "definitely-not-a-ref"); rc=$?
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF 'Unknown build'; then
+    pass "an unknown ref is refused"
+  else
+    fail "unknown ref gave rc=$rc out=$out"
+  fi
+
+  echo '[]' > "$root/runs.json"
+  out=$(choose latest); rc=$?
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF 'Nothing to deploy'; then
+    pass "no successful build at all is refused"
+  else
+    fail "empty history gave rc=$rc out=$out"
+  fi
+
+  rm -f "$stub/gh"
 fi
 
 echo
