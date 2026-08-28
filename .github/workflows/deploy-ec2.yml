@@ -21,6 +21,20 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
+
+            # Everything the deploy does runs inside this function so that a single
+            # wrapper at the bottom can capture it. Six runs reported nothing but
+            # "exited with status 1": remote output sits in a log group the viewer
+            # collapses, hiding both ends of it, and the previous attempt at this
+            # only wrapped the deploy script -- so a failure in the git sync above
+            # it still vanished. Nothing may fail outside the wrapper.
+            deploy() {
+            set -euo pipefail
+            phase="connecting"
+            trap 'echo; echo "FAILED during: ${phase}" >&2' ERR
+            at() { phase="$1"; echo ">>> ${phase}"; }
+
+            at "entering ${{ secrets.EC2_APP_DIR }}"
             cd "${{ secrets.EC2_APP_DIR }}"
             if [ ! -d .git ]; then
               # This directory began as a hand-copied snapshot, which is how its
@@ -28,23 +42,32 @@ jobs:
               # as a checkout here rather than asking someone to do it by hand: the
               # images carry the code, but compose and the Caddyfile are read on the
               # host, so the host has to be able to update them.
+              at "adopting $PWD as a git checkout"
               backup="$HOME/mobistack-config-$(date -u +%Y%m%dT%H%M%SZ)"
               mkdir -p "$backup"
               cp -a docker-compose*.yml deploy "$backup"/ 2>/dev/null || true
-              echo "Adopting $PWD as a git checkout. Previous config saved to $backup"
+              echo "Previous config saved to $backup"
               git init
               git remote add origin https://github.com/prabhixtechnologies/Mobistack.git
-              git fetch origin master
-              # .env and downloads/*.apk are untracked, so this cannot touch them.
-              git reset --hard origin/master
-              git branch --set-upstream-to=origin/master
-            else
-              # Deploy scripts come from git, so discard local edits before pulling:
-              # a copy that arrived from Windows differs from the index by its line
-              # endings alone, which is enough to block a fast-forward.
-              git checkout -- deploy 2>/dev/null || true
-              git pull --ff-only
+              # Plumbing, because `git branch -m` cannot rename a branch that has
+              # no commits yet on the git versions Amazon Linux ships.
+              git symbolic-ref HEAD refs/heads/master
             fi
+
+            # Fetch and reset rather than pull. Nothing on the server should ever
+            # hold an edit worth keeping, and a pull can fail on a local change or a
+            # diverged branch -- which is a deploy blocked by a file nobody meant to
+            # edit. Reset always lands exactly on origin, with the line endings
+            # .gitattributes asks for. .env and downloads/ are untracked, so they
+            # survive it.
+            at "syncing the checkout to origin/master"
+            git remote set-url origin https://github.com/prabhixtechnologies/Mobistack.git
+            git fetch origin master
+            git reset --hard FETCH_HEAD
+            git branch --set-upstream-to=origin/master master 2>/dev/null || true
+            echo "Checkout now at $(git rev-parse --short HEAD)"
+
+            at "resolving the requested image tag"
             # Images are tagged "latest" and the full 40-character commit SHA, but
             # the SHA people have at hand is the short one git and the GitHub UI
             # show. Expand it here -- the checkout knows the mapping -- so a short
@@ -61,6 +84,8 @@ jobs:
               fi
             fi
             export IMAGE_TAG="$requested"
+
+            at "normalising line endings on the deploy scripts"
             # Last resort for a tree git does not manage: strip carriage returns,
             # since a CR reaches the shebang and the kernel then reports the
             # interpreter missing because it is looking for "bash\r".
@@ -75,28 +100,16 @@ jobs:
               echo "WARNING: .env contains carriage returns, so secrets read from it" >&2
               echo "may carry a trailing CR and fail signature checks." >&2
             fi
-            # Lift the tail of a failed deploy into a workflow annotation. Remote
-            # output lands inside a collapsed log group, so four failures in a row
-            # showed nothing but "exited with status 1"; annotations render on the
-            # run summary without expanding anything.
-            annotate_failure() {
-              tail -n 20 "$1" \
-                | sed -e 's/%/%25/g' -e 's/\r//g' \
-                | awk '{ printf "%s%%0A", $0 }'
-            }
-
+            at "running deploy/ec2-up.sh"
             # Called through bash rather than executed, so a missing exec bit on a
             # fresh checkout cannot stop the deploy either.
-            if ! bash deploy/ec2-up.sh 2>&1 | tee /tmp/mobistack-deploy.log; then
-              echo "::error title=EC2 deploy failed::$(annotate_failure /tmp/mobistack-deploy.log)"
-              exit 1
-            fi
+            bash deploy/ec2-up.sh
 
             # A restart that keeps serving the old build is a failed deploy, and the
             # last two attempts looked fine from the outside while changing nothing.
             # X-Request-Id is set on every response by a filter this release adds, so
             # its presence is proof the new image is the one answering.
-            echo "Waiting for the new build to answer..."
+            at "waiting for the new build to answer"
             live=0
             for _ in $(seq 1 40); do
               if curl -fsS -m 5 -D /tmp/mobistack-headers -o /dev/null \
@@ -112,10 +125,29 @@ jobs:
               # Containers started but the API is not answering as the new build,
               # which usually means it died on boot -- a failed migration or a
               # setting it refuses to start without. Its own logs say which.
+              echo "The API never reported the new build. Its last 60 log lines:" >&2
               docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml \
-                logs --tail=60 --no-color backend >/tmp/mobistack-backend.log 2>&1 || true
-              cat /tmp/mobistack-backend.log
-              echo "::error title=API never reported the new build::$(annotate_failure /tmp/mobistack-backend.log)"
+                logs --tail=60 --no-color backend 2>&1 || true
               exit 1
             fi
             echo "New build is live and answering."
+            }
+
+            # Deliberately not `if ! deploy | tee`. Errexit is suppressed for every
+            # command inside a condition, function bodies included, and a `set -e`
+            # within the function does not win it back -- so a failing deploy ran
+            # on to the end and reported the site live. Check the status by hand.
+            set +e
+            deploy 2>&1 | tee /tmp/mobistack-deploy.log
+            rc=${PIPESTATUS[0]}
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              # Fold the tail into a workflow annotation: annotations render on the
+              # run summary, which is the only part of a failed run that is legible
+              # without expanding a collapsed log group.
+              detail=$(tail -n 25 /tmp/mobistack-deploy.log \
+                | sed -e 's/%/%25/g' -e 's/\r//g' \
+                | awk '{ printf "%s%%0A", $0 }')
+              echo "::error title=EC2 deploy failed::${detail}"
+              exit "$rc"
+            fi

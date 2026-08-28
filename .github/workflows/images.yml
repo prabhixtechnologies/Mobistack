@@ -74,6 +74,13 @@ jobs:
           fi
           echo "Dev sign-in shortcuts are off by default."
 
+      # The deploy script only ever runs on the server, where a mistake in it
+      # costs a failed release and a blind log. This drives the real text of it
+      # against stubbed docker and curl: it exists because a version of the
+      # wrapper exited 0 on a failed deploy and reported the site live.
+      - name: Deploy workflow behaves on failure
+        run: bash deploy/test/deploy-workflow-cases.sh
+
   test:
     runs-on: ubuntu-latest
     steps:

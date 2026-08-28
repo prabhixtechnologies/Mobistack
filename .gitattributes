@@ -3,6 +3,7 @@
 # literally "bash\r" -- which is how the first EC2 deploy failed. eol=lf pins the
 # checkout regardless of core.autocrlf on whichever machine does the clone.
 *.sh            eol=lf
+*.py            eol=lf
 gradlew         eol=lf
 Dockerfile      eol=lf
 *.Dockerfile    eol=lf
