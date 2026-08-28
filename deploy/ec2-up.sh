@@ -25,7 +25,17 @@ if [[ "${SKIP_BACKUP:-0}" != "1" ]] && docker ps --format '{{.Names}}' | grep -q
 fi
 
 echo "Pulling ${IMAGE_TAG} and starting Caddy + API + web..."
-docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml pull
+# The Hub repositories are private, and a pull without credentials fails with a
+# bare "pull access denied" that reads like the tag is missing. Say what it
+# actually means before handing the error back.
+if ! docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml pull; then
+  echo >&2
+  echo "Pull failed. If the message mentions access or authorisation, this host is" >&2
+  echo "not signed in to Docker Hub and the images are private. Fix with:" >&2
+  echo "  docker login -u <hub-user>            # paste an access token, not a password" >&2
+  echo "Nothing was restarted, so the site is still serving the previous build." >&2
+  exit 1
+fi
 docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
 docker compose --profile prod -f docker-compose.yml -f docker-compose.prod.yml restart caddy
 docker image prune -f >/dev/null

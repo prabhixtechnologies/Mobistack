@@ -22,16 +22,22 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ secrets.EC2_APP_DIR }}"
-            if [ -d .git ]; then
-              # Deploy scripts come from git, so discard local edits to them before
-              # pulling. A copy that arrived from Windows differs from the index by
-              # its line endings alone, which is enough to block a fast-forward.
-              git checkout -- deploy 2>/dev/null || true
-              git pull --ff-only
-            else
-              echo "WARNING: $PWD is not a git checkout, so compose files, Caddy config" >&2
-              echo "and deploy scripts are whatever was last copied there by hand." >&2
+            if [ ! -d .git ]; then
+              # Refusing rather than warning: without git the compose files and
+              # scripts here are a hand-copied snapshot, so a deploy would start
+              # new images against old configuration and appear to succeed.
+              echo "ERROR: $PWD is not a git checkout, so it cannot be updated." >&2
+              echo "Make it one, keeping the untracked .env and downloads:" >&2
+              echo "  git init -b master" >&2
+              echo "  git remote add origin https://github.com/prabhixtechnologies/Mobistack.git" >&2
+              echo "  git fetch --depth=1 origin master && git reset --hard origin/master" >&2
+              exit 1
             fi
+            # Deploy scripts come from git, so discard local edits to them before
+            # pulling. A copy that arrived from Windows differs from the index by
+            # its line endings alone, which is enough to block a fast-forward.
+            git checkout -- deploy 2>/dev/null || true
+            git pull --ff-only
             export IMAGE_TAG="${{ github.event.inputs.tag }}"
             # Last resort for a tree git does not manage: strip carriage returns,
             # since a CR reaches the shebang and the kernel then reports the
