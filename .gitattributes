@@ -1,0 +1,28 @@
+# Linux runs these files directly. A carriage return left by a Windows checkout
+# survives into the shebang, and the kernel then looks for an interpreter named
+# literally "bash\r" -- which is how the first EC2 deploy failed. eol=lf pins the
+# checkout regardless of core.autocrlf on whichever machine does the clone.
+*.sh            eol=lf
+gradlew         eol=lf
+Dockerfile      eol=lf
+*.Dockerfile    eol=lf
+Caddyfile       eol=lf
+*.yml           eol=lf
+*.yaml          eol=lf
+
+# Windows tooling reads these, so leave them with CRLF.
+*.ps1           eol=crlf
+*.bat           eol=crlf
+*.cmd           eol=crlf
+
+# Never touched as text: normalising these corrupts them.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.webp          binary
+*.ico           binary
+*.keystore      binary
+*.jks           binary
+*.apk           binary
+*.aab           binary
+*.ipa           binary
