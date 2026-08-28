@@ -22,7 +22,7 @@ export default function MoreScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [stuck, setStuck] = useState<FailedOp | null>(null);
   const styles = makeStyles(colors);
-  const version = `${Constants.expoConfig?.version ?? "1.2.0"} (${Application.nativeBuildVersion ?? "4"})`;
+  const version = `${Constants.expoConfig?.version ?? "1.2.0"} (${Application.nativeBuildVersion ?? "5"})`;
   const openShop = !user?.catalogOnly && !user?.paymentRequired && (user?.features?.length ?? 0) === 0;
   const show = (feature: string, permission: string) =>
     hasFeature(user, feature) || hasPermission(user, permission) || openShop;
