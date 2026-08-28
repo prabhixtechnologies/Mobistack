@@ -332,6 +332,47 @@ STUB
 fi
 
 echo
+echo "=== 10. the ssh action must not be allowed to rewrite the script"
+# script_stop sounds like errexit. What it actually does is split the script on
+# newlines and inject an exit-code test after every line that does not end in a
+# backslash. That has now broken two deploys: `case "$x" in` got a command
+# injected where a pattern must go, which is a parse error the shell only reaches
+# after the deploy has already run; and the line after a pipeline got one
+# injected before it, so PIPESTATUS held the injected test's status instead of
+# the pipeline's, and a clean deploy reported failure.
+if grep -rnE '^[[:space:]]*script_stop[[:space:]]*:' ../../.github/workflows >/dev/null 2>&1; then
+  fail "a workflow opts into script_stop, which rewrites multi-line scripts"
+else
+  pass "no workflow opts into script_stop"
+fi
+
+# Not a theoretical guard: apply the same rewrite and the script stops parsing.
+awk '{
+  line = $0
+  sub(/^[[:space:]]+/, "", line); sub(/[[:space:]]+$/, "", line)
+  if (line == "") next
+  print line
+  if (line !~ /\\$/) print "DRONE_SSH_PREV_COMMAND_EXIT_CODE=$? ; if [ $DRONE_SSH_PREV_COMMAND_EXIT_CODE -ne 0 ]; then exit $DRONE_SSH_PREV_COMMAND_EXIT_CODE; fi;"
+}' "$root/remote.sh" > "$root/rewritten.sh"
+if bash -n "$root/rewritten.sh" 2>/dev/null; then
+  fail "the rewrite still parses, so this case no longer proves anything"
+else
+  pass "the rewrite breaks the script, which is what the server was reporting"
+fi
+
+# And the scripts we do send have to parse before a deploy finds out for us.
+for step in "Pull and restart on EC2" "Replace the live download"; do
+  if "$PY" extract-workflow-script.py --step "$step" --key script \
+       --app-dir /opt/mobistack --tag latest --origin "$origin" \
+       --out "$root/parse.sh" >/dev/null 2>&1 \
+     && bash -n "$root/parse.sh" 2>"$root/parse.err"; then
+    pass "$step parses"
+  else
+    fail "$step does not parse: $(tr -d '\r' < "$root/parse.err" | tr '\n' ' ')"
+  fi
+done
+
+echo
 if [ "$failures" -eq 0 ]; then
   echo "All deploy workflow cases passed."
 else

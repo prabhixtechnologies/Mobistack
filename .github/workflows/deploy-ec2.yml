@@ -109,7 +109,15 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script_stop: true
+          # No script_stop. It sounds like errexit but is not: the action splits
+          # the script on newlines and injects an exit-code test after every line
+          # that does not end in a backslash. That mangles multi-line shell two
+          # ways, and both have already cost a run here. `case "$x" in` gets a
+          # command injected where a pattern must go, which is a parse error; and
+          # a line after a pipeline gets injected before it, so PIPESTATUS is the
+          # injected test's rather than the pipeline's -- a clean deploy reported
+          # failure for exactly that reason. `set -euo pipefail` on the next line
+          # does the intended job properly.
           script: |
             set -euo pipefail
 
@@ -296,7 +304,8 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script_stop: true
+          # Omitted for the same reason as the server step above: it rewrites
+          # multi-line scripts, and this one has a loop and an if.
           script: |
             set -euo pipefail
             dest="${{ secrets.EC2_APP_DIR }}/downloads/MobiStack.apk"
