@@ -36,6 +36,15 @@ public final class Authorize {
     public static final String COMPATIBILITY_APPROVE = "hasAuthority('COMPATIBILITY_APPROVE')";
     public static final String SALES_VOID = "hasAuthority('SALES_VOID')";
 
+    /**
+     * Settling a dispute in the shared catalog, and promoting contributors.
+     *
+     * <p>Deliberately not {@link #COMPATIBILITY_APPROVE}, which is about a shop's own private
+     * compatibility groups. Reviewing the commons changes what every other shop reads, so it is a
+     * different authority even though the two words sound alike.
+     */
+    public static final String COMMONS_REVIEW = "hasAuthority('COMMONS_REVIEW')";
+
     private Authorize() {
     }
 }

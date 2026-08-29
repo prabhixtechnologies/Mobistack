@@ -39,6 +39,19 @@ public class ProductVariant extends AuditableEntity {
     @Column(name = "supplier_id")
     private UUID supplierId;
 
+    /**
+     * Which part in the shared catalog this variant actually is.
+     *
+     * <p>The join that makes both halves of MobiStack worth more together: once set, "I have twelve of
+     * these, and they fit these forty models" is one query instead of a shop maintaining its own
+     * private compatibility list.
+     *
+     * <p>Nullable on purpose. A shop that has linked nothing keeps working exactly as before, and
+     * linking is a per-variant decision rather than a migration that guesses.
+     */
+    @Column(name = "catalog_component_id")
+    private UUID catalogComponentId;
+
     @Column(name = "sku", nullable = false, length = 64)
     private String sku;
 

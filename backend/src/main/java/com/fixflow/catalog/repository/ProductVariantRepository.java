@@ -76,6 +76,34 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     List<ProductVariant> findCompatibleWithDevice(@Param("shopId") UUID shopId,
                                                   @Param("deviceModelId") UUID deviceModelId);
 
+    /**
+     * This shop's stock of the parts a device takes, according to the shared catalog.
+     *
+     * <p>The commons half of {@link #findCompatibleWithDevice}, and the reason for the join: that
+     * query can only find what this shop has itself recorded as compatible, so a shop that never built
+     * its private graph gets nothing. This one answers from the catalog everyone contributes to, and
+     * still returns only rows belonging to the calling shop.
+     *
+     * <p>Disputed edges are excluded. Somebody is being told what to sell a customer, and a contested
+     * claim is not a good enough basis for that — the commons endpoints show the dispute, this does not
+     * quietly act on it.
+     */
+    @EntityGraph(attributePaths = {"product"})
+    @Query("""
+            select v from ProductVariant v
+            where v.shopId = :shopId and v.active
+              and v.product.active
+              and v.catalogComponentId in (
+                  select f.componentId from CatalogFitment f
+                  where f.deviceId = :catalogDeviceId and f.disputed = false
+              )
+            order by v.product.name, v.variantName
+            """)
+    List<ProductVariant> findStockForCatalogDevice(@Param("shopId") UUID shopId,
+                                                   @Param("catalogDeviceId") UUID catalogDeviceId);
+
+    List<ProductVariant> findByShopIdAndCatalogComponentId(UUID shopId, UUID catalogComponentId);
+
     @EntityGraph(attributePaths = {"product"})
     @Query("""
             select v from ProductVariant v

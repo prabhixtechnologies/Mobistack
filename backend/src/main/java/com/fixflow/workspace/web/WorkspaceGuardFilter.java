@@ -65,7 +65,13 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/v1/admin")
                 || path.startsWith("/api/v1/support")
                 || path.startsWith("/api/v1/presence")
-                || path.startsWith("/api/v1/inbox");
+                || path.startsWith("/api/v1/inbox")
+                // The shared compatibility catalog belongs to no shop, so requiring a selected
+                // workspace would be asking which tenant owns a fact that is true for everyone. It is
+                // also the free half of the product: somebody looks up what fits before they have a
+                // shop at all, and an unpaid shop can still contribute — which is why this exemption
+                // covers writes too, and is the only one here that does so deliberately.
+                || path.startsWith("/api/v1/commons");
     }
 
     @Override
