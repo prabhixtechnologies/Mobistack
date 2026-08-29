@@ -6,7 +6,6 @@ export const BRAND = {
   copyrightYear: 2026,
   publicOrigin: "https://mobistack.prabhixtechnologies.com",
   supportEmail: "support@prabhixtechnologies.com",
-  designer: "Abhishek Singh",
 } as const;
 
 export function copyrightLine(): string {

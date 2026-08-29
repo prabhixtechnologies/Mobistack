@@ -67,7 +67,7 @@ class WorkspaceGuardFilterTest {
 
     @Test
     void mismatchedWorkspaceHeaderIsRejectedNotTrusted() throws Exception {
-        authenticate(new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Abhishek", true,
+        authenticate(new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Rohan", true,
                 java.util.Set.of("OWNER"), java.util.Set.of()));
 
         MockHttpServletResponse response = run("GET", "/api/v1/inventory", UUID.randomUUID().toString());
@@ -80,7 +80,7 @@ class WorkspaceGuardFilterTest {
 
     @Test
     void matchingHeaderReChecksMembershipThenContinues() throws Exception {
-        authenticate(new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Abhishek", true,
+        authenticate(new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Rohan", true,
                 java.util.Set.of("OWNER"), java.util.Set.of()));
         when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
 
@@ -206,7 +206,7 @@ class WorkspaceGuardFilterTest {
     }
 
     private UserPrincipal scopedPrincipal() {
-        return new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Abhishek", true,
+        return new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Rohan", true,
                 java.util.Set.of("OWNER"), java.util.Set.of());
     }
 
@@ -219,7 +219,7 @@ class WorkspaceGuardFilterTest {
         User user = new User();
         user.setId(userId);
         user.setEmail("owner@prabhixtechnologies.com");
-        user.setFullName("Abhishek Sharma");
+        user.setFullName("Rohan Deshmukh");
         user.setActive(true);
         return user;
     }

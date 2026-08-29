@@ -36,7 +36,7 @@ export function BrandFooter() {
     <footer className="brand-footer">
       <p className="brand-footer__copy">© {BRAND.copyrightYear} {BRAND.product}</p>
       <p className="brand-footer__credit">
-        Designed &amp; Developed by <span className="brand-footer__author">{BRAND.designer}</span>
+        Built by <span className="brand-footer__author">{BRAND.organization}</span>
         {APP_VERSION ? <span className="brand-footer__ver"> · v{APP_VERSION}</span> : null}
       </p>
       <div className="brand-footer__end">

@@ -85,7 +85,7 @@ class WorkspaceAccessServiceTest {
 
         user = new User();
         user.setId(userId);
-        user.setFullName("Abhishek Sharma");
+        user.setFullName("Rohan Deshmukh");
         user.setEmail("owner@prabhixtechnologies.com");
         user.setActive(true);
         user.setRoles(Set.of(ownerRole));
@@ -194,8 +194,8 @@ class WorkspaceAccessServiceTest {
                 ownerId,
                 "JOIN_REQUEST",
                 "owner@shop.test",
-                "Abhishek Sharma asked to join Mobile Care Hub",
-                "Abhishek Sharma (owner@prabhixtechnologies.com) paid and requested access. Switch to this shop, then open People to approve or reject.");
+                "Rohan Deshmukh asked to join Mobile Care Hub",
+                "Rohan Deshmukh (owner@prabhixtechnologies.com) paid and requested access. Switch to this shop, then open People to approve or reject.");
     }
 
     @Test
@@ -288,8 +288,8 @@ class WorkspaceAccessServiceTest {
         UUID targetId = UUID.randomUUID();
         User target = new User();
         target.setId(targetId);
-        target.setFullName("Abhishek Singh");
-        target.setEmail("abhishek734891@gmail.com");
+        target.setFullName("Kavya Iyer");
+        target.setEmail("kavya.iyer@example.com");
         target.setShopId(workspaceA);
 
         WorkspaceMembership removed = membership(workspaceA, MembershipStatus.REMOVED, staffRole);
@@ -313,8 +313,8 @@ class WorkspaceAccessServiceTest {
         UUID targetId = UUID.randomUUID();
         User target = new User();
         target.setId(targetId);
-        target.setFullName("Abhishek Singh");
-        target.setEmail("abhishek734891@gmail.com");
+        target.setFullName("Kavya Iyer");
+        target.setEmail("kavya.iyer@example.com");
         target.setShopId(workspaceA);
 
         WorkspaceMembership removed = membership(workspaceA, MembershipStatus.REMOVED, staffRole);

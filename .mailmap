@@ -1,0 +1,12 @@
+# Attributes the work to the company rather than to an individual.
+#
+# git log, git shortlog and git blame read this and substitute the name on the left for any commit
+# authored by an identity on the right, so past commits present under one umbrella without rewriting
+# a single SHA. That matters here in particular: one early commit was authored from an employer
+# address, and removing it for real would mean a force push that changes every commit id.
+#
+# Note what this does not do — GitHub's web UI ignores .mailmap and still shows the original author
+# on a commit page. Only a history rewrite changes that, which is a separate decision.
+Prabhix Technologies <engineering@prabhixtechnologies.com> Abhishek <abhishek@prabhixtechnologies.com>
+Prabhix Technologies <engineering@prabhixtechnologies.com> abhis <abhis@users.noreply.github.com>
+Prabhix Technologies <engineering@prabhixtechnologies.com> abhishs23 <abhishs23@amdocs.com>

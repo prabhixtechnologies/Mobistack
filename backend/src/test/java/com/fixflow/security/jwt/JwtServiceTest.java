@@ -30,7 +30,7 @@ class JwtServiceTest {
         jwtService.init();
 
         principal = new UserPrincipal(UUID.randomUUID(), UUID.randomUUID(), "owner@prabhixtechnologies.com",
-                "Abhishek Sharma", true, Set.of("OWNER"), Set.of(Permission.INVENTORY_READ, Permission.SALES_WRITE));
+                "Rohan Deshmukh", true, Set.of("OWNER"), Set.of(Permission.INVENTORY_READ, Permission.SALES_WRITE));
     }
 
     @Test

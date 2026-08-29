@@ -96,7 +96,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         log.info("Seeding MobiStack demo shop...");
         var provisioned = shopProvisioningService.provision(new ShopProvisioningService.NewShop(
                 "Mobile Care Hub",
-                "Abhishek Sharma",
+                "Rohan Deshmukh",
                 properties.getDemo().getOwnerEmail(),
                 properties.getDemo().getOwnerPassword(),
                 "9876543210",

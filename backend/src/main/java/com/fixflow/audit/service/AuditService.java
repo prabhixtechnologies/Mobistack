@@ -15,7 +15,7 @@ import java.util.UUID;
 
 /**
  * Writes the business audit trail, e.g.
- * "Abhishek changed iPhone 11 Display price from 4,300 to 4,500".
+ * "Rohan changed iPhone 11 Display price from 4,300 to 4,500".
  *
  * <p>Auditing must never break the operation it is recording, so failures are
  * logged and swallowed.
