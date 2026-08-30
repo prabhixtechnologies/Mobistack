@@ -124,7 +124,7 @@ aws s3 sync ./backups s3://your-bucket/mobistack/ --storage-class STANDARD_IA
 To restore:
 
 ```bash
-bash deploy/db-restore.sh backups/mobistack-fixflow-20260827T021500Z.sql.gz
+bash deploy/db-restore.sh backups/mobistack-20260827T021500Z.sql.gz
 ```
 
 That stops the API, replaces the database, and starts it again. It asks you to type the database name first, because there is no undo.

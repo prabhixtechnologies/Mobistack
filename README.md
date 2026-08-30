@@ -13,7 +13,7 @@ This repository is a monorepo:
 
 | Path | Stack | Role |
 | --- | --- | --- |
-| `backend/` | Java 21, Spring Boot 3.5, PostgreSQL, Flyway | API, domain, pricing, inventory ledger |
+| `backend/` | Java 25, Spring Boot 4.1, PostgreSQL, Flyway | API, domain, pricing, inventory ledger |
 | `web/` | React 19, TypeScript, Vite | Owner / manager console |
 | `mobile/` | React Native, Expo, TypeScript | Native Android + iOS counter app with SQLite offline cache |
 | `docs/` | Markdown | API notes |
@@ -40,7 +40,7 @@ A workspace is still the `shops` row — same UUID. Access is `User → Membersh
 
 ## Prerequisites
 
-- JDK 21 (the `pom.xml` targets 21; it also compiles on 17 if you pass `-Djava.version=17`)
+- JDK 25 (the `pom.xml` targets 25; it also compiles on 17 if you pass `-Djava.version=17`)
 - Maven 3.8+
 - Node 20+
 - PostgreSQL 16
@@ -49,8 +49,8 @@ A workspace is still the `shops` row — same UUID. Access is `User → Membersh
 ### PostgreSQL without Docker
 
 ```sql
-CREATE USER fixflow WITH PASSWORD 'fixflow';
-CREATE DATABASE fixflow OWNER fixflow;
+CREATE USER mobistack WITH PASSWORD 'mobistack';
+CREATE DATABASE mobistack OWNER mobistack;
 ```
 
 ```sql
