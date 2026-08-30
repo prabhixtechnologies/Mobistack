@@ -6,15 +6,18 @@
 #   deploy-ec2.yml    restarts the server on a chosen build, refreshes the APK download
 #   play-release.yml  uploads a build to Google Play
 #
-# Images go to Amazon ECR when the AWS_CI_ROLE_ARN variable is set, and to Docker Hub otherwise.
-# ECR is the destination this is migrating to; the Hub path stays until every repository has moved.
+# Images go to Amazon ECR, and only there. The migration is finished and the Docker Hub path is
+# gone, so there is nothing to configure per repository: no DOCKERHUB_* secrets, no
+# AWS_CI_ROLE_ARN variable. The role is named in the push job and assumed through GitHub's OIDC
+# provider, so no long-lived key is stored anywhere.
 #
-#   ECR         variable AWS_CI_ROLE_ARN — the role GitHub assumes through OIDC. No stored key.
-#   Docker Hub  secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (an access token, not the password),
-#               optional variable DOCKERHUB_NAMESPACE (defaults to the username)
+# The repositories prabhix/mobistack-backend and prabhix/mobistack-web must exist before the first
+# push; deploy/aws/ecr-create-repos.sh in the Platform repository creates them.
 #
-# Either way the repositories mobistack-backend and mobistack-web must exist before the first push.
-# Tests still run, and the build still passes, when neither is configured.
+# The push job now fails rather than skipping when it cannot reach the registry. It used to skip, so
+# that a fork without credentials still got a green build, but that also meant a missing variable
+# produced a passing run that pushed nothing.
+#
 # The Android build needs ANDROID_RELEASE_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
 # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
 
@@ -423,72 +426,49 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Mints the OIDC token AWS exchanges for temporary credentials. Harmless when the ECR branch
-      # below is not taken.
+      # Mints the OIDC token AWS exchanges for temporary credentials.
       id-token: write
-    env:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
-      AWS_CI_ROLE_ARN: ${{ vars.AWS_CI_ROLE_ARN }}
     steps:
-      # Three outcomes rather than two: ECR, Docker Hub, or skip. ECR wins when a role is configured
-      # so the migration is a repository-variable change, and clearing that variable is the rollback.
-      # Skipping when neither is configured is deliberate and predates this — a fork with no
-      # credentials should still get a green build rather than a failed push.
-      - name: Decide where images go
-        id: dest
-        run: |
-          if [ -n "${AWS_CI_ROLE_ARN}" ]; then
-            echo "registry=ecr" >> "$GITHUB_OUTPUT"
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-            echo "Pushing to Amazon ECR via ${AWS_CI_ROLE_ARN}."
-          elif [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
-            echo "registry=hub" >> "$GITHUB_OUTPUT"
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-            echo "prefix=${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}/" >> "$GITHUB_OUTPUT"
-            echo "Pushing to Docker Hub."
-          else
-            echo "registry=none" >> "$GITHUB_OUTPUT"
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Image push skipped. Either set the AWS_CI_ROLE_ARN variable for ECR, or add"
-            echo "DOCKERHUB_USERNAME and DOCKERHUB_TOKEN in repo Settings → Secrets."
-            echo "The registry repositories mobistack-backend and mobistack-web must exist first."
-          fi
-
+      # Amazon ECR is the only registry. The three-way choice that used to open this job -- ECR,
+      # Docker Hub, or skip -- is gone with the Docker Hub account itself.
+      #
+      # The "skip" branch went too, and that is the substantive part. It existed so a fork with no
+      # credentials got a green build rather than a failed push, but it also meant this repository
+      # reported success while pushing nothing if a variable was ever unset. Nothing here is
+      # configured per repository any more, so there is no state in which that can happen: OIDC
+      # either works or the job fails.
       - uses: actions/checkout@v4
-        if: steps.dest.outputs.configured == 'true'
 
       - uses: docker/setup-buildx-action@v3
-        if: steps.dest.outputs.configured == 'true'
 
+      # The role ARN is written here rather than read from a repository variable. With one registry a
+      # variable is not a cutover switch, only a way to be silently misconfigured, and the account ID
+      # it contains is not a secret.
       - name: Configure AWS credentials
-        if: steps.dest.outputs.registry == 'ecr'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_CI_ROLE_ARN }}
+          role-to-assume: arn:aws:iam::029096972251:role/prabhix-github-ecr-push
           # Same region as the EC2 instance that pulls these, so a deploy is not billed as
           # inter-region transfer.
           aws-region: ap-south-1
 
+      # No long-lived key: the role is assumed through GitHub's OIDC provider and the docker
+      # credentials this produces expire in twelve hours.
       - name: Log in to Amazon ECR
         id: ecr
-        if: steps.dest.outputs.registry == 'ecr'
         uses: aws-actions/amazon-ecr-login@v2
 
-      - uses: docker/login-action@v3
-        if: steps.dest.outputs.registry == 'hub'
-        with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_TOKEN }}
-
       - name: Resolve image tags
-        if: steps.dest.outputs.configured == 'true'
         id: tags
         env:
-          # One of the two is set. The ECR host comes from the login step rather than a variable, so
-          # the account ID cannot drift from the role that was actually assumed.
-          PREFIX: ${{ steps.ecr.outputs.registry && format('{0}/', steps.ecr.outputs.registry) || steps.dest.outputs.prefix }}
+          # The host comes from the login step rather than a variable, so the account ID cannot drift
+          # from the role that was actually assumed.
+          #
+          # Both images sit under the shared prabhix/ namespace, and the slash is required rather
+          # than tidy: the deployer policy scopes ECR to repository/prabhix/*, and that pattern only
+          # matches a name containing a slash. They keep their mobistack- prefix inside it, so the
+          # repositories are prabhix/mobistack-backend and prabhix/mobistack-web.
+          PREFIX: ${{ steps.ecr.outputs.registry }}/prabhix/
           EXTRA: ${{ github.event.inputs.tag }}
         run: |
           {
@@ -505,7 +485,6 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Push backend
-        if: steps.dest.outputs.configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -515,7 +494,6 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Push web
-        if: steps.dest.outputs.configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./web

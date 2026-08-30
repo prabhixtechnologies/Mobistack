@@ -46,7 +46,7 @@ services:
     profiles: ["full", "prod"]
     # REGISTRY is the ECR host, e.g. 123456789012.dkr.ecr.ap-south-1.amazonaws.com, and replaces
     # DOCKERHUB_NAMESPACE for pulls. Defaulted to the Hub namespace so an unmigrated box still works.
-    image: ${REGISTRY:-prabhixtechnologies}/mobistack-backend:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-029096972251.dkr.ecr.ap-south-1.amazonaws.com}/prabhix/mobistack-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
     container_name: mobistack-backend
@@ -102,7 +102,7 @@ services:
 
   web:
     profiles: ["full", "prod"]
-    image: ${REGISTRY:-prabhixtechnologies}/mobistack-web:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-029096972251.dkr.ecr.ap-south-1.amazonaws.com}/prabhix/mobistack-web:${IMAGE_TAG:-latest}
     build:
       context: ./web
       args:
