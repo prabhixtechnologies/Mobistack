@@ -41,26 +41,22 @@ start a database and to bind ports the platform's Caddy already holds.
 profile and nothing else, so the parked containers stay parked. `--profile prod` would bring the
 second Caddy back.
 
-`--pull never`, which is a workaround and should be deleted once ECR is in place. `mobistack-backend`
-is a **private** Docker Hub repository and this box has no registry credential, so the pull fails —
-and the failure mode is not an error. The prod overlay sets `pull_policy: always`, and when that pull
-fails compose falls back to *building the image from source on the box*. On a 4 GiB production
-instance that is the one thing the overlay's own header tells you not to do. It was caught in a
-`--dry-run`, which is worth doing before any change to these files.
+`--pull never` was a workaround for the Docker Hub era and is now gone. It existed because the Hub
+repositories were private and this box held no registry credential, so the pull failed — and the
+failure mode was not an error. The prod overlay sets `pull_policy: always`, and when that pull failed
+compose fell back to *building the image from source on the box*. On a 4 GiB production instance that
+is the one thing the overlay's own header tells you not to do. It was caught in a `--dry-run`, which
+is worth doing before any change to these files.
 
-Until ECR exists, a new image reaches this box by hand:
+ECR replaced that. The instance role carries pull rights, `ec2-up.sh` refreshes the twelve-hour login
+before every pull, and a new image now reaches the box the ordinary way:
 
-```powershell
-docker pull --platform linux/amd64 prabhixtechnologies/mobistack-backend:<sha>
-docker save -o ms.tar prabhixtechnologies/mobistack-backend:<sha> `
-                      prabhixtechnologies/mobistack-web:<sha>
-scp -i <key> ms.tar prabhix@35.154.59.116:/tmp/
-ssh ... 'docker load -i /tmp/ms.tar && rm /tmp/ms.tar'
+```bash
+IMAGE_TAG=<full-sha> bash deploy/ec2-up.sh
 ```
 
 CI tags MobiStack images with the **full** commit sha as well as `latest`. The platform's images use
-the short sha, so a seven-character tag will not be found here. Do not pipe `docker save` through
-PowerShell; it corrupts the stream and `docker load` reports `archive/tar: invalid tar header`.
+the short sha, so a seven-character tag will not be found here.
 
 ## Why both products carry network aliases
 

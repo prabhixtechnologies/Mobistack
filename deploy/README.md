@@ -1,13 +1,15 @@
-# Ship MobiStack: laptop → Docker Hub → EC2
+# Ship MobiStack: CI → Amazon ECR → EC2
 
 Canonical site: **https://mobistack.prabhixtechnologies.com**
 
-The laptop builds and tests. Docker Hub stores the images. EC2 only pulls and runs them. Java and Node are never compiled on the server.
+CI builds and tests. Amazon ECR stores the images. EC2 only pulls and runs them. Java and Node are never compiled on the server.
 
-Images (change the namespace if your Hub user is different):
+Amazon ECR is the only registry. The Docker Hub account is gone, and nothing pushes to or pulls from it.
 
-- `prabhixtechnologies/mobistack-backend`
-- `prabhixtechnologies/mobistack-web`
+Images, under the shared `prabhix/` namespace in account `029096972251`, region `ap-south-1`:
+
+- `029096972251.dkr.ecr.ap-south-1.amazonaws.com/prabhix/mobistack-backend`
+- `029096972251.dkr.ecr.ap-south-1.amazonaws.com/prabhix/mobistack-web`
 
 ## 1. Test on this laptop
 
@@ -20,27 +22,21 @@ API: http://localhost:8080
 
 Do not start Caddy on the laptop (`--profile prod`).
 
-## 2. Push images to Docker Hub
+## 2. Publish images
 
-Create two Hub repositories (`mobistack-backend`, `mobistack-web`) if the first push does not create them.
+The usual route is to push `master` and let CI do it. **Build and verify** tests the backend, typechecks the web app, then publishes `latest` and the commit SHA to ECR.
+
+Nothing needs configuring per repository: no registry secrets, no namespace variable. The workflow assumes `arn:aws:iam::029096972251:role/prabhix-github-ecr-push` through GitHub's OIDC provider, so no long-lived key exists to leak or rotate.
+
+The ECR repositories `prabhix/mobistack-backend` and `prabhix/mobistack-web` must exist before the first push. `deploy/aws/ecr-create-repos.sh` in the Platform repository creates them.
+
+When CI is unavailable, publish from a laptop instead:
 
 ```powershell
-docker login
 .\deploy\publish.ps1
 ```
 
-That tags the git SHA and `latest`, then pushes both. Use `-SkipTests` only if you already ran tests. Override the Hub user with `$env:DOCKERHUB_NAMESPACE = "youruser"`.
-
-Or push `master` to GitHub after adding repository secrets:
-
-| Secret | Value |
-| --- | --- |
-| `DOCKERHUB_USERNAME` | Hub user (also the image namespace unless you set the variable below) |
-| `DOCKERHUB_TOKEN` | Hub access token (not your password) |
-
-Optional repository variable: `DOCKERHUB_NAMESPACE` if images live under an org that is not the login user.
-
-The **Build and verify** workflow tests the backend, typechecks the web app, then publishes `latest` and the commit SHA.
+That logs in to ECR with your local AWS credentials, tags the git SHA and `latest`, then pushes both. Use `-SkipTests` only if you already ran tests. Prefer CI: a laptop build is not reproducible the way the workflow is.
 
 ### The three workflows
 
@@ -48,7 +44,7 @@ Building and shipping are deliberately separate. A push proves a commit works; p
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| **Build and verify** | every push to `master` | Guards, tests, typechecks, pushes images to Hub, builds the signed APK/AAB |
+| **Build and verify** | every push to `master` | Guards, tests, typechecks, pushes images to ECR, builds the signed APK/AAB |
 | **Deploy to EC2** | by hand | Restarts the server on a chosen build and replaces the APK the site offers |
 | **Release to Google Play** | by hand | Uploads a build to a Play track |
 
@@ -64,8 +60,6 @@ Install Docker Engine + the Compose plugin + git, clone this repo, then:
 cd /opt/mobistack   # or wherever you cloned
 cp deploy/.env.prod.example .env
 nano .env           # JWT secret ≥ 64 chars, a real Postgres password, ACME email
-# If the Hub repos are private:
-docker login
 chmod +x deploy/ec2-up.sh
 ./deploy/ec2-up.sh
 ```

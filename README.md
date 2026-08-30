@@ -80,14 +80,14 @@ docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml 
 Web: [http://localhost:4173](http://localhost:4173). API: [http://localhost:8080](http://localhost:8080).  
 Do not start `--profile prod` / Caddy on the laptop.
 
-## Production (Docker Hub → EC2)
+## Production (Amazon ECR → EC2)
 
 Canonical origin: **https://mobistack.prabhixtechnologies.com**
 
 Magic links, Google redirects, invoices, CORS, and release-app URLs use that host.
 
 1. Test on the laptop with the command above.
-2. `docker login` then `.\deploy\publish.ps1` — or push `master` and let GitHub Actions publish (secrets `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`).
+2. Push `master` and let GitHub Actions publish to ECR — no registry secrets, the workflow assumes an IAM role through OIDC. `.\deploy\publish.ps1` does the same from a laptop when CI is unavailable.
 3. On the EC2 that the subdomain points at: copy `deploy/.env.prod.example` to `.env`, then `./deploy/ec2-up.sh`.
 
 EC2 only pulls images. It does not build Java or Node. Caddy terminates TLS (Let's Encrypt) on ports 80 and 443. Postgres and Redis are not published on the host.

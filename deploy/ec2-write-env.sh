@@ -10,7 +10,7 @@ fi
 JWT=$(openssl rand -base64 64 | tr -d '\n')
 PG=$(openssl rand -base64 24 | tr -d '\n')
 cat > .env <<EOF
-DOCKERHUB_NAMESPACE=prabhixtechnologies
+REGISTRY=029096972251.dkr.ecr.ap-south-1.amazonaws.com
 IMAGE_TAG=latest
 POSTGRES_DB=mobistack
 POSTGRES_USER=mobistack

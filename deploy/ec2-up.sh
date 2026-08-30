@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pull Hub images and start the HTTPS stack on EC2.
+# Pull images from Amazon ECR and start the HTTPS stack on EC2.
 # Run from the cloned repo after `.env` exists at the repo root.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -53,15 +53,31 @@ if [[ "${SKIP_BACKUP:-0}" != "1" && -n "${postgres_running}" ]]; then
   echo
 fi
 
+# ECR tokens last twelve hours, so a box that deployed yesterday is signed out today. Logging in
+# every time is cheaper than diagnosing the expiry, and needs no stored credential: the instance
+# role supplies them.
+mark "logging in to ECR"
+AWS_REGION="${AWS_REGION:-ap-south-1}"
+# `sed -n` rather than `grep`: grep exits 1 when it matches nothing, and under `set -e` a failing
+# command substitution in an assignment aborts the script. A .env with no REGISTRY line is a
+# perfectly ordinary case that should fall through to the default, not end the deploy.
+REGISTRY="${REGISTRY:-$(sed -n 's/^REGISTRY=//p' .env | head -1 | tr -d "\"'")}"
+REGISTRY="${REGISTRY:-029096972251.dkr.ecr.${AWS_REGION}.amazonaws.com}"
+if ! aws ecr get-login-password --region "${AWS_REGION}" \
+     | docker login --username AWS --password-stdin "${REGISTRY}"; then
+  echo >&2
+  echo "Could not log in to ${REGISTRY}." >&2
+  echo "This instance authenticates with its IAM role, so there is no password to fix:" >&2
+  echo "check that the role is still attached and still carries ecr:GetAuthorizationToken." >&2
+  echo "Nothing was restarted, so the site is still serving the previous build." >&2
+  exit 1
+fi
+
 mark "pulling images tagged ${IMAGE_TAG}"
-# The Hub repositories are private, and a pull without credentials fails with a
-# bare "pull access denied" that reads like the tag is missing. Say what it
-# actually means before handing the error back.
 if ! "${COMPOSE[@]}" pull; then
   echo >&2
-  echo "Pull failed. If the message mentions access or authorisation, this host is" >&2
-  echo "not signed in to Docker Hub and the images are private. Fix with:" >&2
-  echo "  docker login -u <hub-user>            # paste an access token, not a password" >&2
+  echo "Pull failed. If the message mentions access or authorisation, the instance role" >&2
+  echo "has lost pull rights on prabhix/mobistack-* in ECR." >&2
   echo "If it mentions the tag or manifest, ${IMAGE_TAG} was never pushed." >&2
   echo "Nothing was restarted, so the site is still serving the previous build." >&2
   exit 1

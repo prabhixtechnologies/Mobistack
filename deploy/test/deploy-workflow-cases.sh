@@ -63,7 +63,7 @@ case "$*" in
     fi ;;
   *"compose"*"pull"*)
     if [ -n "${STUB_PULL_FAILS:-}" ]; then
-      echo 'Error response from daemon: manifest for prabhixtechnologies/mobistack-backend:deadbeef not found' >&2
+      echo 'Error response from daemon: manifest for 029096972251.dkr.ecr.ap-south-1.amazonaws.com/prabhix/mobistack-backend:deadbeef not found' >&2
       exit 1
     fi
     echo "pulled ${IMAGE_TAG:-unset}" ;;
