@@ -77,6 +77,7 @@ case "$*" in
     # Named only when asked for: otherwise there is no database and the deploy
     # skips its pre-migration backup.
     if [ -n "${STUB_POSTGRES_UP:-}" ]; then echo mobistack-postgres; fi ;;
+  *"login"*) cat >/dev/null ;;
   *) : ;;
 esac
 exit 0
@@ -90,7 +91,18 @@ for arg in "$@"; do
 done
 exit 0
 STUB
-chmod +x "$stub/docker" "$stub/curl"
+# The runner has a real aws CLI and no credentials, so without this the ECR login
+# fails on every case and the suite tests nothing but that one line.
+cat > "$stub/aws" <<'STUB'
+#!/usr/bin/env bash
+if [ -n "${STUB_ECR_LOGIN_FAILS:-}" ]; then
+  echo 'An error occurred (AccessDeniedException) when calling the GetAuthorizationToken operation' >&2
+  exit 254
+fi
+echo "stub-ecr-token"
+exit 0
+STUB
+chmod +x "$stub/docker" "$stub/curl" "$stub/aws"
 export PATH="$stub:$PATH"
 
 # A .env good enough for the script's own checks.
@@ -189,6 +201,18 @@ report "annotates the pull failure and says nothing restarted" "$rc" "$out" \
   "::error title=EC2 deploy failed::" "Nothing was restarted"
 expect_rc "bad tag" nonzero "$rc"
 refute "does not claim the site is live after a failed pull" "$out" "New build is live"
+
+echo
+echo "=== 5b. the instance role can no longer get an ECR token"
+# Reachable in one ordinary way: the role gets detached or edited. The failure has
+# to name the role rather than suggest a password, because there is no password to
+# try -- and it has to stop before the pull, so the previous build keeps serving.
+app="$root/app5b"; git clone -q "$origin" "$app"; newenv "$app"
+out=$(STUB_ECR_LOGIN_FAILS=1 attempt ecr "$app" latest); rc=$?
+report "annotates the ECR login failure and points at the role" "$rc" "$out" \
+  "::error title=EC2 deploy failed::" "ecr:GetAuthorizationToken" "Nothing was restarted"
+expect_rc "ECR login" nonzero "$rc"
+refute "does not claim the site is live after a failed login" "$out" "New build is live"
 
 echo
 echo "=== 6. containers start but the API never answers"
