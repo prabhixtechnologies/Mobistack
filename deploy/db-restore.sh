@@ -6,7 +6,7 @@
 # restore in progress.
 #
 # Usage:
-#   ./deploy/db-restore.sh backups/mobistack-fixflow-20260827T021500Z.sql.gz
+#   ./deploy/db-restore.sh backups/mobistack-20260827T021500Z.sql.gz
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,9 +24,9 @@ CONTAINER="${POSTGRES_CONTAINER:-mobistack-postgres}"
 # Compose's rules and not the shell's: a value there like "-Xms256m -Xmx512m" is
 # perfectly legal for Compose but runs as a command when sourced.
 DB="$(docker exec "${CONTAINER}" printenv POSTGRES_DB 2>/dev/null || true)"
-DB="${DB:-${POSTGRES_DB:-fixflow}}"
+DB="${DB:-${POSTGRES_DB:-mobistack}}"
 DB_USER="$(docker exec "${CONTAINER}" printenv POSTGRES_USER 2>/dev/null || true)"
-DB_USER="${DB_USER:-${POSTGRES_USER:-fixflow}}"
+DB_USER="${DB_USER:-${POSTGRES_USER:-mobistack}}"
 
 gzip -t "${dump}"
 

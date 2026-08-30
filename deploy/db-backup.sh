@@ -30,13 +30,13 @@ fi
 # is also the more truthful answer, since it is what Postgres actually started
 # with even if .env has been edited since.
 DB="$(docker exec "${CONTAINER}" printenv POSTGRES_DB 2>/dev/null || true)"
-DB="${DB:-${POSTGRES_DB:-fixflow}}"
+DB="${DB:-${POSTGRES_DB:-mobistack}}"
 DB_USER="$(docker exec "${CONTAINER}" printenv POSTGRES_USER 2>/dev/null || true)"
-DB_USER="${DB_USER:-${POSTGRES_USER:-fixflow}}"
+DB_USER="${DB_USER:-${POSTGRES_USER:-mobistack}}"
 
 mkdir -p "${BACKUP_DIR}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-target="${BACKUP_DIR}/mobistack-${DB}-${stamp}.sql.gz"
+target="${BACKUP_DIR}/${DB}-${stamp}.sql.gz"
 
 # Write to a .partial name first: a dump interrupted halfway through is worse
 # than no dump, because it looks like a usable one in the directory listing.
@@ -78,7 +78,7 @@ echo "Wrote ${target} ($(du -h "${target}" | cut -f1))"
 
 # Rotation is oldest-first by filename, which sorts chronologically because the
 # stamp is a fixed-width UTC timestamp.
-mapfile -t dumps < <(find "${BACKUP_DIR}" -maxdepth 1 -name "mobistack-${DB}-*.sql.gz" | sort)
+mapfile -t dumps < <(find "${BACKUP_DIR}" -maxdepth 1 -name "${DB}-*.sql.gz" | sort)
 excess=$(( ${#dumps[@]} - KEEP ))
 if (( excess > 0 )); then
   for ((i = 0; i < excess; i++)); do

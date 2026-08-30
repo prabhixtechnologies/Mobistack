@@ -1,18 +1,69 @@
 # EC2 overlay. Pull published images — do not compile on the server.
-# Postgres and Redis stay on the Docker network. Only Caddy is public (80/443).
+# Postgres stays on the Docker network; Redis does not — production uses the `mobistack`
+# ElastiCache Valkey cache. Only Caddy is public (80/443).
+#
+# Memory limits on every service, because this stack is destined to share one t3.medium (4 GiB) with
+# the Prabhix platform. Docker imposes no limit by default, so the first service to leak is resolved
+# by the kernel OOM killer picking the largest process — which is rarely the one at fault.
 
 services:
   postgres:
+    # Transitional. This container goes away when the database moves to RDS, which has to happen
+    # before both products share a box: 512m here does not fit alongside the platform's stack.
+    deploy:
+      resources:
+        limits:
+          memory: 512m
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-fixflow}
-      POSTGRES_USER: ${POSTGRES_USER:-fixflow}
+      POSTGRES_DB: ${POSTGRES_DB:-mobistack}
+      POSTGRES_USER: ${POSTGRES_USER:-mobistack}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+
+  # Switched off rather than deleted from the base file, which local development still uses.
+  # `never` is a profile nothing activates.
+  redis:
+    profiles:
+      - never
 
   backend:
     pull_policy: always
+    deploy:
+      resources:
+        limits:
+          memory: 640m
+    # !override, not a merge: depends_on is a mapping, so a merge would keep the base file's wait on
+    # a redis container that production does not run.
+    depends_on: !override
+      postgres:
+        condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      # This image's Dockerfile sets no JVM options at all, which means MaxRAMPercentage keeps its
+      # default of 25% — a 160m heap inside a 640m container, small enough for Hibernate and the
+      # connection pool to spend their time collecting garbage. 60% rather than a higher number
+      # because metaspace, code cache and direct buffers are not counted against that percentage
+      # and still have to fit in the same 640m.
+      #
+      # ExitOnOutOfMemoryError so a heap exhaustion becomes a restart instead of a process that
+      # stays up, keeps passing its health check and fails requests.
+      #
+      # UseCompactObjectHeaders takes every object header from 12 bytes to 8. A product option in
+      # JDK 25 rather than the experimental flag it was in 24, so no unlock flag is needed, but still
+      # off by default. It earns its place in the smallest heap on the box, where the working set is
+      # inventory rows and their DTOs — small objects, so the header is a large share of each.
+      # Delete the line to back it out; nothing depends on it.
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=60
+        -XX:+UseContainerSupport
+        -XX:+UseCompactObjectHeaders
+        -XX:+ExitOnOutOfMemoryError
+      # `valkey` switches Redis config to the cluster endpoint with TLS, which is the only way to
+      # reach ElastiCache Serverless.
+      SPRING_PROFILES_ACTIVE: prod,valkey
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Serverless endpoint of the `mobistack` cache, host:port. Deliberately a different cache from
+      # the one the Prabhix services share, so an eviction or a stray FLUSHALL cannot cross between
+      # the two products.
+      REDIS_CLUSTER_NODES: ${REDIS_CLUSTER_NODES:?set REDIS_CLUSTER_NODES in .env}
       FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:?set a 64+ character JWT secret in .env}
       FIXFLOW_WEB_ORIGIN: ${FIXFLOW_WEB_ORIGIN:-https://mobistack.prabhixtechnologies.com}
       FIXFLOW_PUBLIC_ORIGIN: ${FIXFLOW_PUBLIC_ORIGIN:-https://mobistack.prabhixtechnologies.com}
@@ -30,3 +81,14 @@ services:
 
   web:
     pull_policy: always
+    # nginx serving a built bundle. The page cache does the real work and lives outside the cgroup.
+    deploy:
+      resources:
+        limits:
+          memory: 48m
+
+  caddy:
+    deploy:
+      resources:
+        limits:
+          memory: 128m

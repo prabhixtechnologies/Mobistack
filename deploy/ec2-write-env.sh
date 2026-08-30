@@ -12,8 +12,8 @@ PG=$(openssl rand -base64 24 | tr -d '\n')
 cat > .env <<EOF
 DOCKERHUB_NAMESPACE=prabhixtechnologies
 IMAGE_TAG=latest
-POSTGRES_DB=fixflow
-POSTGRES_USER=fixflow
+POSTGRES_DB=mobistack
+POSTGRES_USER=mobistack
 POSTGRES_PASSWORD=${PG}
 FIXFLOW_SECURITY_JWT_SECRET=${JWT}
 ACME_EMAIL=ops@prabhixtechnologies.com

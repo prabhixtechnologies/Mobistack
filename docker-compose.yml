@@ -17,9 +17,9 @@ services:
     image: postgres:16-alpine
     container_name: mobistack-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-fixflow}
-      POSTGRES_USER: ${POSTGRES_USER:-fixflow}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fixflow}
+      POSTGRES_DB: ${POSTGRES_DB:-mobistack}
+      POSTGRES_USER: ${POSTGRES_USER:-mobistack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mobistack}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -44,7 +44,9 @@ services:
 
   backend:
     profiles: ["full", "prod"]
-    image: ${DOCKERHUB_NAMESPACE:-prabhixtechnologies}/mobistack-backend:${IMAGE_TAG:-latest}
+    # REGISTRY is the ECR host, e.g. 123456789012.dkr.ecr.ap-south-1.amazonaws.com, and replaces
+    # DOCKERHUB_NAMESPACE for pulls. Defaulted to the Hub namespace so an unmigrated box still works.
+    image: ${REGISTRY:-prabhixtechnologies}/mobistack-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
     container_name: mobistack-backend
@@ -55,9 +57,9 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-fixflow}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-fixflow}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-fixflow}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-mobistack}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-mobistack}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-mobistack}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       FIXFLOW_REDIS_ENABLED: ${FIXFLOW_REDIS_ENABLED:-true}
@@ -100,7 +102,7 @@ services:
 
   web:
     profiles: ["full", "prod"]
-    image: ${DOCKERHUB_NAMESPACE:-prabhixtechnologies}/mobistack-web:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-prabhixtechnologies}/mobistack-web:${IMAGE_TAG:-latest}
     build:
       context: ./web
       args:
