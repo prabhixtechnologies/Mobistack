@@ -27,6 +27,11 @@ import java.util.UUID;
  *
  * <p>Grouped in one file because they are one model and are always read together; splitting them into
  * six files with three lines of imports each would make the shape harder to see, not easier.
+ *
+ * <p>Every {@code @Entity} below names itself explicitly. For a nested class the default entity name
+ * is derived from the enclosing class as well, so it is not the simple name these queries use, and
+ * JPQL saying {@code from CatalogFitment f} fails to resolve a root that is plainly there. Naming
+ * them removes the dependence on how a given Hibernate derives that default.
  */
 public final class CatalogEntities {
 
@@ -45,7 +50,7 @@ public final class CatalogEntities {
 
     @Getter
     @Setter
-    @Entity
+    @Entity(name = "CatalogBrand")
     @Table(name = "catalog_brands")
     public static class CatalogBrand extends AuditableEntity {
 
@@ -58,7 +63,7 @@ public final class CatalogEntities {
 
     @Getter
     @Setter
-    @Entity
+    @Entity(name = "CatalogDevice")
     @Table(name = "catalog_devices")
     public static class CatalogDevice extends AuditableEntity {
 
@@ -89,7 +94,7 @@ public final class CatalogEntities {
 
     @Getter
     @Setter
-    @Entity
+    @Entity(name = "CatalogDeviceAlias")
     @Table(name = "catalog_device_aliases")
     public static class CatalogDeviceAlias extends BaseEntity {
 
@@ -108,7 +113,7 @@ public final class CatalogEntities {
      */
     @Getter
     @Setter
-    @Entity
+    @Entity(name = "CatalogComponent")
     @Table(name = "catalog_components")
     public static class CatalogComponent extends AuditableEntity {
 
@@ -138,7 +143,7 @@ public final class CatalogEntities {
     /** The edge: this component fits that device. */
     @Getter
     @Setter
-    @Entity
+    @Entity(name = "CatalogFitment")
     @Table(name = "catalog_fitments")
     public static class CatalogFitment extends AuditableEntity {
 

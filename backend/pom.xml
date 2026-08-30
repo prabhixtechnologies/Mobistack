@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.16</version>
+        <version>4.1.1</version>
         <relativePath/>
     </parent>
 
@@ -18,17 +18,43 @@
     <description>MobiStack - Mobile Repair Shop Management Platform (API)</description>
 
     <properties>
-        <java.version>21</java.version>
+        <!-- 25, the current LTS, matching the platform and Identity so one JDK covers the whole
+             fleet. The Expo/React Native app is unaffected; it does not run on a JVM at all. -->
+        <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <springdoc.version>2.8.17</springdoc.version>
+        <!--
+          3.x is the line that targets Boot 4; 2.8.x reads
+          org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties, which Boot 4 moved, so
+          SwaggerConfig fails to introspect and the context does not start. Not a compile error —
+          springdoc is only on the classpath — so the integration test is what catches it.
+        -->
+        <springdoc.version>3.1.0</springdoc.version>
         <jjwt.version>0.12.6</jjwt.version>
-        <testcontainers.version>1.21.4</testcontainers.version>
+        <!--
+          Testcontainers is version-managed by the Boot parent from 4.x onwards, so the pin is gone
+          and the modules below inherit it. Pinning it separately is how a build ends up resolving a
+          Testcontainers that the managed JUnit does not match.
+        -->
     </properties>
 
     <dependencies>
+        <!--
+          webmvc, not web. spring-boot-starter-web still resolves in Boot 4 but is deprecated for
+          removal, and it is the classic aggregate: it drags in HTTP clients and JSON support that
+          this module may or may not want, which is the coupling the 4.x split exists to undo.
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <!--
+          webmvc no longer brings a JSON library, so the mapper that serialises every response has to
+          be asked for explicitly. Omitting it does not fail the build; it produces controllers that
+          cannot write their return values.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jackson</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -59,9 +85,14 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!--
+          The starter rather than flyway-core on its own: Boot 4 moved Flyway's auto-configuration out
+          of the monolithic autoconfigure jar into spring-boot-flyway, which only the starter pulls.
+          With bare flyway-core the migrations silently do not run at startup.
+        -->
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
@@ -103,26 +134,57 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- Tests -->
+        <!--
+          Tests. The per-technology test starters replace the single spring-boot-starter-test, which
+          they all bring transitively anyway. This is not cosmetic: in Boot 4 the test
+          auto-configuration ships alongside each technology, so @WithMockUser and friends need
+          spring-boot-starter-security-test to be on the classpath to do anything, and the old
+          arrangement left them quietly inert.
+        -->
+        <!--
+          Kept after the Boot 4 upgrade rather than removed with it. Boot ignores a configuration key
+          it no longer recognises without saying anything, so a renamed property does not fail, it just
+          silently reverts to the default — which is how server.error.include-stacktrace stopped being
+          configured here and nothing noticed. Test scope, so it costs production nothing and reports
+          in the build instead.
+        -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <artifactId>spring-boot-properties-migrator</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Testcontainers 2.x, which Boot 4 manages, renamed every module to carry a testcontainers-
+          prefix: org.testcontainers:postgresql stops at 1.21.4 and does not exist at 2.x at all.
+          ${testcontainers.version} is inherited from the Boot parent rather than declared here so the
+          modules always match the Testcontainers that Boot's own test support was built against; Boot
+          sets the property but does not list these artifacts in its dependency management, hence the
+          explicit version.
+        -->
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>postgresql</artifactId>
+            <artifactId>testcontainers-postgresql</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
@@ -155,12 +217,28 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
+            <!-- Sets the groupId:artifactId:type properties surefire uses to locate the agent jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>resolve-agent-paths</id>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <!-- Integration tests need Docker (Testcontainers); opt in with -Pintegration -->
                     <excludedGroups>integration</excludedGroups>
+                    <!-- Loads Mockito's agent at startup instead of letting it attach to a running
+                         JVM, which the JDK warns about now and will refuse later. -->
+                    <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
                 </configuration>
             </plugin>
         </plugins>
@@ -175,7 +253,18 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <excludedGroups/>
+                            <!--
+                              combine.self, because Maven treats an empty leaf element as "not set"
+                              and keeps the inherited value. Without it the profile parsed fine and
+                              changed nothing: -Pintegration still excluded the `integration` group.
+
+                              Nothing is tagged with that group here yet — unlike the platform and
+                              Identity, this module has no Testcontainers test — so the profile is
+                              currently inert either way. Fixed rather than deleted because the first
+                              test tagged `integration` would otherwise be silently skipped by the
+                              profile written to run it, and a skipped test reports as a pass.
+                            -->
+                            <excludedGroups combine.self="override"/>
                         </configuration>
                     </plugin>
                 </plugins>

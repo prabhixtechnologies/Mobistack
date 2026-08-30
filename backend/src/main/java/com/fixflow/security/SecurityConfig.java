@@ -1,6 +1,6 @@
 package com.fixflow.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;

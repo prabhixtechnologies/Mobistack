@@ -1,6 +1,6 @@
 package com.fixflow.imports;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.catalog.domain.Brand;
 import com.fixflow.catalog.domain.DeviceModel;

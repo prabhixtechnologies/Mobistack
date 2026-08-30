@@ -1,6 +1,6 @@
 package com.fixflow.workspace.web;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.billing.service.BillingService;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.UserPrincipal;
@@ -44,7 +44,7 @@ class WorkspaceGuardFilterTest {
     @BeforeEach
     void setUp() {
         filter = new WorkspaceGuardFilter(workspaceAccessService, billingService,
-                new ObjectMapper().findAndRegisterModules());
+                new ObjectMapper());
         userId = UUID.randomUUID();
         workspaceId = UUID.randomUUID();
     }

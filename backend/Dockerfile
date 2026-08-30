@@ -1,11 +1,11 @@
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /app
 COPY pom.xml .
 COPY src src
 RUN apk add --no-cache maven \
     && mvn -q -B -DskipTests -Dmaven.test.skip=true package
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 RUN apk add --no-cache wget \
     && addgroup -S fixflow && adduser -S fixflow -G fixflow

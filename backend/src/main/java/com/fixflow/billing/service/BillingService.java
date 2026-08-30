@@ -551,8 +551,8 @@ public class BillingService {
 
     private Map<String, Object> readJson(String rawBody) {
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper()
-                    .readValue(rawBody, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+            return new tools.jackson.databind.ObjectMapper()
+                    .readValue(rawBody, new tools.jackson.core.type.TypeReference<Map<String, Object>>() {
                     });
         } catch (Exception ex) {
             throw new ApiException(ErrorCode.MALFORMED_REQUEST, "Webhook body was not readable JSON.");

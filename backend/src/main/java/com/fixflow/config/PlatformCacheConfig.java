@@ -1,6 +1,6 @@
 package com.fixflow.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.presence.MemoryPresenceStore;
 import com.fixflow.presence.PresenceStore;
 import com.fixflow.presence.RedisPresenceStore;
@@ -16,7 +16,7 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -35,11 +35,19 @@ public class PlatformCacheConfig {
 
     @Bean
     @ConditionalOnProperty(name = "fixflow.redis.enabled", havingValue = "true")
-    public CacheManager redisCacheManager(RedisConnectionFactory factory, FixFlowProperties properties) {
+    public CacheManager redisCacheManager(RedisConnectionFactory factory, FixFlowProperties properties,
+                                         ObjectMapper objectMapper) {
         RedisCacheConfiguration base = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                // The unsuffixed serializer is the Jackson 3 one; GenericJackson2JsonRedisSerializer
+                // is deprecated alongside Jackson 2 itself. Both write the same shape, and cache
+                // entries are disposable in any case, so no migration of existing keys is needed.
+                //
+                // It takes the mapper rather than making its own, which is the better arrangement
+                // anyway: cached values now serialise exactly as API responses do, instead of under
+                // whatever a default mapper happens to be configured with.
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer()))
+                        .fromSerializer(new GenericJacksonJsonRedisSerializer(objectMapper)))
                 .disableCachingNullValues()
                 .entryTtl(properties.getRedis().getDashboardTtl());
         return RedisCacheManager.builder(factory)

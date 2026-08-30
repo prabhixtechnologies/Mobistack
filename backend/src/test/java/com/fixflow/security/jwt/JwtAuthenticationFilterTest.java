@@ -1,7 +1,6 @@
 package com.fixflow.security.jwt;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.auth.service.DeviceSessionService;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;
@@ -107,7 +106,7 @@ class JwtAuthenticationFilterTest {
     }
 
     private static ObjectMapper objectMapper() {
-        return new ObjectMapper().registerModule(new JavaTimeModule());
+        return new ObjectMapper();
     }
 
     private void propertiesTtl(Duration ttl) {

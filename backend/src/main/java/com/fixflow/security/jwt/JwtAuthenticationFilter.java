@@ -1,6 +1,6 @@
 package com.fixflow.security.jwt;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.auth.service.DeviceSessionService;
 import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ApiException;

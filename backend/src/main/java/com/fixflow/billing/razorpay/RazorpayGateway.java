@@ -1,7 +1,7 @@
 package com.fixflow.billing.razorpay;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;

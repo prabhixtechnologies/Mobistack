@@ -3,7 +3,7 @@ spring:
     name: fixflow-backend
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/fixflow}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mobistack}
     username: ${SPRING_DATASOURCE_USERNAME:fixflow}
     password: ${SPRING_DATASOURCE_PASSWORD:fixflow}
     hikari:
@@ -29,14 +29,46 @@ spring:
 
   flyway:
     enabled: true
-    baseline-on-migrate: true
+    # Off: the database is created empty and the schema is one baseline migration. With this on, a
+    # schema that has tables but no history would be marked as already migrated at version 1 and the
+    # baseline skipped, which is a mistake worth failing on rather than papering over.
+    baseline-on-migrate: false
     locations: classpath:db/migration
 
+  # Jackson 3 split the feature enums up, and Spring binds each of these blocks to a different one.
+  # A key under the wrong block is not ignored: binding fails, so the mapper cannot be built, so the
+  # application does not start. Which block a feature belongs to is therefore worth stating.
   jackson:
     default-property-inclusion: non_null
     serialization:
-      write-dates-as-timestamps: false
+      # SerializationFeature
       indent-output: false
+      order-map-entries-by-keys: false
+    datatype:
+      datetime:
+        # Moved out of SerializationFeature into DateTimeFeature. Left explicit even though false is
+        # now the Jackson default, because ISO-8601 strings rather than epoch numbers is a contract
+        # with the clients, not a preference.
+        write-dates-as-timestamps: false
+    mapper:
+      # MapperFeature, and on by default in Jackson 3, which would reorder the keys of every
+      # response. No client here reads JSON positionally, so nothing should break — but it rewrites
+      # the bytes on the wire for the whole API in a release whose only purpose is a framework
+      # upgrade, and that is not a diff worth reasoning about when something else goes wrong.
+      sort-properties-alphabetically: false
+
+  # Moved here from server.error.* in the Boot 4 upgrade. The old keys bind to a different enum, so
+  # Boot could not carry them across and ignored them in silence — no warning, no failure, just the
+  # defaults. They happen to default to never as well, so nothing leaked, but "the safe thing was the
+  # default" is luck rather than configuration and only the properties migrator revealed it.
+  #
+  # never on both: an error response carries a status and a correlation id, and nothing else. An
+  # exception message names internal classes and often quotes the input that broke, and a stack trace
+  # maps the whole application for whoever is probing it.
+  web:
+    error:
+      include-message: never
+      include-stacktrace: never
 
   threads:
     virtual:
@@ -70,9 +102,6 @@ server:
   compression:
     enabled: true
     mime-types: application/json,text/html,text/css,application/javascript
-  error:
-    include-message: never
-    include-stacktrace: never
   shutdown: graceful
 
 management:
@@ -189,3 +218,26 @@ logging:
     # requestId comes from CorrelationIdFilter and is echoed to the caller in the
     # X-Request-Id header, so a reported failure can be found in the log.
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{requestId:-no-request}] %-40.40logger{39} : %m%n"
+
+---
+# ElastiCache Serverless for Valkey is always cluster mode and always TLS, so the host/port
+# settings above cannot reach it. Activate with SPRING_PROFILES_ACTIVE=prod,valkey.
+#
+# Points at the `mobistack` cache, not the one the Prabhix services share. Separate caches keep the
+# eviction policy and a stray FLUSHALL from crossing between the two products.
+spring:
+  config:
+    activate:
+      on-profile: valkey
+  data:
+    redis:
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES}
+        max-redirects: 3
+      ssl:
+        enabled: true
+      lettuce:
+        cluster:
+          refresh:
+            adaptive: true
+            period: 60s

@@ -7,9 +7,10 @@ import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.actuate.health.CompositeHealth;
-import org.springframework.boot.actuate.health.HealthComponent;
-import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.health.actuate.endpoint.CompositeHealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.health.actuate.endpoint.IndicatedHealthDescriptor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -63,14 +64,14 @@ public class SystemHealthController {
     @PreAuthorize(Authorize.SETTINGS_READ)
     @Operation(summary = "Dependency health and runtime metrics for this instance")
     public SystemStatus health() {
-        HealthComponent root = healthEndpoint.health();
+        HealthDescriptor root = healthEndpoint.health();
         return new SystemStatus(root.getStatus().getCode(), components(root), runtime());
     }
 
-    private List<ComponentHealth> components(HealthComponent root) {
+    private List<ComponentHealth> components(HealthDescriptor root) {
         List<ComponentHealth> components = new ArrayList<>();
-        if (root instanceof CompositeHealth composite) {
-            Map<String, HealthComponent> children = composite.getComponents();
+        if (root instanceof CompositeHealthDescriptor composite) {
+            Map<String, HealthDescriptor> children = composite.getComponents();
             if (children != null) {
                 children.forEach((name, child) -> components.add(
                         new ComponentHealth(name, child.getStatus().getCode(), describe(child))));
@@ -84,13 +85,21 @@ public class SystemHealthController {
      * Names the implementation behind a component without echoing the whole detail
      * map, which can carry connection strings and version banners.
      */
-    private String describe(HealthComponent component) {
-        if (component instanceof org.springframework.boot.actuate.health.Health health) {
-            Object database = health.getDetails().get("database");
+    private String describe(HealthDescriptor component) {
+        // A leaf is an IndicatedHealthDescriptor rather than a Health: Health is still what an
+        // indicator returns, but the endpoint wraps it before handing it out, and only the wrapper
+        // carries the details map. Details are also absent, not empty, when the endpoint's group
+        // configuration withholds them, so the map is checked rather than dereferenced.
+        if (component instanceof IndicatedHealthDescriptor indicated) {
+            Map<String, Object> details = indicated.getDetails();
+            if (details == null) {
+                return null;
+            }
+            Object database = details.get("database");
             if (database != null) {
                 return String.valueOf(database);
             }
-            Object version = health.getDetails().get("version");
+            Object version = details.get("version");
             if (version != null) {
                 return String.valueOf(version);
             }

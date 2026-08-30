@@ -1,7 +1,7 @@
 package com.fixflow.imports;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.fixflow.audit.service.AuditAction;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.catalog.DeviceLabels;

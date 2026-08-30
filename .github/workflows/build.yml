@@ -2,16 +2,19 @@
 # workflow decides whether a commit is deployable, and the two hand-triggered
 # workflows decide when it goes out.
 #
-#   build.yml         checks, tests, pushes images to Hub, builds the APK/AAB   (this file)
+#   build.yml         checks, tests, pushes images, builds the APK/AAB   (this file)
 #   deploy-ec2.yml    restarts the server on a chosen build, refreshes the APK download
 #   play-release.yml  uploads a build to Google Play
 #
-# Image push needs repository secrets (Settings → Secrets and variables → Actions):
-#   DOCKERHUB_USERNAME
-#   DOCKERHUB_TOKEN   (Hub access token, not the account password)
-# Optional variable: DOCKERHUB_NAMESPACE (defaults to the username)
-# Create private Hub repos mobistack-backend and mobistack-web before the first push.
-# Tests still run when Hub secrets are missing.
+# Images go to Amazon ECR when the AWS_CI_ROLE_ARN variable is set, and to Docker Hub otherwise.
+# ECR is the destination this is migrating to; the Hub path stays until every repository has moved.
+#
+#   ECR         variable AWS_CI_ROLE_ARN — the role GitHub assumes through OIDC. No stored key.
+#   Docker Hub  secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (an access token, not the password),
+#               optional variable DOCKERHUB_NAMESPACE (defaults to the username)
+#
+# Either way the repositories mobistack-backend and mobistack-web must exist before the first push.
+# Tests still run, and the build still passes, when neither is configured.
 # The Android build needs ANDROID_RELEASE_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
 # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
 
@@ -111,6 +114,231 @@ jobs:
       - name: Deploy workflow behaves on failure
         run: bash deploy/test/deploy-workflow-cases.sh
 
+  # The schema is one generated baseline (Platform's deploy/squash-baseline.py produced it), and
+  # nothing else in CI runs it, so without this job a broken baseline reaches a real database first.
+  #
+  # The version-uniqueness check above is about filenames. This is about the SQL: the platform's
+  # history contained a migration that recreated an existing index, which no existing database could
+  # hit because they were all past it, and which made building an empty database impossible.
+  migrations:
+    name: Schema (empty database)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: schemacheck
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baseline applies to an empty database
+        run: |
+          set -euo pipefail
+          # --network host so the container can reach the service on localhost.
+          docker run --rm --network host \
+            -v "$PWD/backend/src/main/resources/db/migration:/flyway/sql:ro" \
+            flyway/flyway:11-alpine \
+            -url=jdbc:postgresql://localhost:5432/schemacheck \
+            -user=postgres -password=ci \
+            -locations=filesystem:/flyway/sql \
+            -connectRetries=10 \
+            migrate
+
+      - name: Schema and seed data arrived
+        env:
+          PGPASSWORD: ci
+        run: |
+          set -euo pipefail
+          # A baseline truncated to nothing still "applies" cleanly, so check it left something
+          # behind. Floors, not equalities: adding a table or a permission should not fail the
+          # build, losing them should. Raise them when the schema grows.
+          check() {
+            actual=$(psql -h localhost -U postgres -d schemacheck -tAc "$2")
+            if [ "$actual" -lt "$3" ]; then
+              echo "FAIL: $1 is $actual, expected at least $3"
+              exit 1
+            fi
+            printf '%-18s %s\n' "$1" "$actual"
+          }
+          check tables \
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'" 55
+          # Without these two the schema loads and every user silently has no permissions at all.
+          check permissions "SELECT count(*) FROM permissions" 29
+          check role_permissions "SELECT count(*) FROM role_permissions" 106
+          check billing_plans "SELECT count(*) FROM billing_plans" 4
+          # The compatibility graph and inventory rely on triggers, which a hand-edited baseline
+          # would be the easiest thing in the file to drop. pg_trigger rather than
+          # information_schema.triggers, which reports a row per event and so counts one trigger on
+          # INSERT OR UPDATE twice.
+          check triggers "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal" 20
+
+      # The baseline creates no user, so a wiped database has nobody who can reach /api/v1/admin and
+      # no way to get one. deploy/seed.sql is that account, and deploy/seed-commons.sql is the shared
+      # compatibility catalog, which the baseline also leaves empty — the COMPATIBILITY plan sells
+      # exactly one thing, and on an empty catalog it sells a blank screen.
+      #
+      # Both run twice. The catalog's natural keys are expression indexes on lower(name), so a guard
+      # that compares without lowering inserts a duplicate on the second run and errors on neither.
+      - name: Seeds apply twice without drift
+        env:
+          PGPASSWORD: ci
+        run: |
+          set -euo pipefail
+          psql() { command psql -h localhost -U postgres -d schemacheck "$@"; }
+
+          seed() {
+            psql -q -v ON_ERROR_STOP=1 \
+              -v admin_email=ci@prabhixtechnologies.com \
+              -v admin_password=ci-seed-password \
+              -v admin_name='CI Seed' \
+              -f deploy/seed.sql > /dev/null
+            psql -q -v ON_ERROR_STOP=1 -f deploy/seed-commons.sql > /dev/null
+          }
+
+          counts() {
+            psql -tAc "SELECT concat_ws(' ',
+              (SELECT count(*) FROM users),
+              (SELECT count(*) FROM shops),
+              (SELECT count(*) FROM catalog_brands),
+              (SELECT count(*) FROM catalog_devices),
+              (SELECT count(*) FROM catalog_components),
+              (SELECT count(*) FROM catalog_fitments))"
+          }
+
+          seed; first=$(counts)
+          seed; second=$(counts)
+          echo "users shops brands models parts fitments"
+          echo "after one run:  $first"
+          echo "after two runs: $second"
+          if [ "$first" != "$second" ]; then
+            echo "FAIL: the seeds are not idempotent"
+            exit 1
+          fi
+
+      - name: Seeded admin can sign in
+        env:
+          PGPASSWORD: ci
+        run: |
+          set -euo pipefail
+          psql() { command psql -h localhost -U postgres -d schemacheck "$@"; }
+
+          expect() {
+            actual=$(psql -tAc "$2")
+            if [ "$actual" != "$3" ]; then
+              echo "FAIL: $1 is '$actual', expected '$3'"
+              exit 1
+            fi
+            printf '%-40s %s\n' "$1" "$actual"
+          }
+
+          # crypt() against the stored hash is the comparison BCryptPasswordEncoder makes, and the
+          # cost matters: a weaker hash still verifies, so nothing else would notice the drift.
+          expect "password verifies" \
+            "SELECT crypt('ci-seed-password', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
+          expect "a wrong password does not" \
+            "SELECT crypt('wrong', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" f
+          expect "bcrypt cost is 12" \
+            "SELECT left(password_hash, 7) FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" '$2a$12$'
+          expect "admin, active and unlocked" \
+            "SELECT system_admin AND active AND email_verified AND locked_until IS NULL FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
+          # No shop on purpose: real shops provision themselves, and principalFor falls through to an
+          # unscoped principal, which the admin console does not need a workspace for.
+          expect "no placeholder workspace was created" \
+            "SELECT count(*) FROM shops" 0
+
+      # The seed's other job, and the one that gets used in anger: rerunning it is how a locked-out
+      # operator gets back in, because there is no other way to reset the only admin account. If the
+      # UPDATE ever stopped running on a second pass the script would still report success, still be
+      # idempotent, and quietly no longer do the one thing it is reached for.
+      - name: Re-running the seed recovers a locked-out admin
+        env:
+          PGPASSWORD: ci
+        run: |
+          set -euo pipefail
+          psql() { command psql -h localhost -U postgres -d schemacheck "$@"; }
+
+          # Every way the account can be shut out at once.
+          psql -q -c "UPDATE users SET failed_logins = 9,
+                                       locked_until = now() + interval '1 day',
+                                       active = false,
+                                       must_change_pw = true,
+                                       system_admin = false
+                      WHERE lower(email) = 'ci@prabhixtechnologies.com'"
+
+          psql -q -v ON_ERROR_STOP=1 \
+            -v admin_email=ci@prabhixtechnologies.com \
+            -v admin_password=rotated-password \
+            -v admin_name='CI Seed' \
+            -f deploy/seed.sql > /dev/null
+
+          expect() {
+            actual=$(psql -tAc "$2")
+            if [ "$actual" != "$3" ]; then
+              echo "FAIL: $1 is '$actual', expected '$3'"
+              exit 1
+            fi
+            printf '%-40s %s\n' "$1" "$actual"
+          }
+
+          expect "the new password works" \
+            "SELECT crypt('rotated-password', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
+          expect "the old password no longer does" \
+            "SELECT crypt('ci-seed-password', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" f
+          expect "lockout and admin flag restored" \
+            "SELECT locked_until IS NULL AND failed_logins = 0 AND active AND NOT must_change_pw AND system_admin FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
+          expect "no second account was created" \
+            "SELECT count(*) FROM users" 1
+
+      # The catalog's own consistency. Every part is named "<model> <part>" and fits the model it is
+      # named for, so a mismatch means a part was attached to something else — which in this product
+      # is a shop ordering forty of the wrong screen.
+      - name: Catalog is self-consistent
+        env:
+          PGPASSWORD: ci
+        run: |
+          set -euo pipefail
+          psql() { command psql -h localhost -U postgres -d schemacheck "$@"; }
+
+          expect() {
+            actual=$(psql -tAc "$2")
+            if [ "$actual" != "$3" ]; then
+              echo "FAIL: $1 is '$actual', expected '$3'"
+              exit 1
+            fi
+            printf '%-40s %s\n' "$1" "$actual"
+          }
+
+          expect "no EXACT fitment on another model" "
+            SELECT count(*) FROM catalog_fitments f
+            JOIN catalog_components c ON c.id = f.component_id
+            JOIN catalog_devices d ON d.id = f.device_id
+            WHERE f.fit_quality = 'EXACT' AND lower(c.name) NOT LIKE lower(d.name) || ' %'" 0
+          # category_code is meant to match categories.code, and no constraint enforces it, so a typo
+          # would file a part under a category no shop's sidebar has.
+          expect "no part in an unknown category" "
+            SELECT count(DISTINCT category_code) FROM catalog_components
+            WHERE category_code NOT IN ('TEMPERED_GLASS','TOUCH_OCA','DISPLAY_FOLDER',
+              'DISPLAY_CONNECTOR','FRAME','BACK_COVER','BATTERY','POWER_VOLUME_FLEX',
+              'CHARGING_BOARD','CAMERA','SPEAKER','MICROPHONE','IC_CHIP','OTHER')" 0
+          # Nothing shipped here has been on a bench. If a seeded row ever claims otherwise, a shop
+          # sees "confirmed" against data nobody confirmed.
+          expect "nothing claims to be verified" \
+            "SELECT count(*) FROM catalog_fitments WHERE verified_at IS NOT NULL OR verified_by IS NOT NULL OR confirmations > 0" 0
+          expect "every model has its six parts" "
+            SELECT count(*) FROM catalog_devices d
+            WHERE (SELECT count(*) FROM catalog_fitments f WHERE f.device_id = d.id) < 6" 0
+          # The generated column depends on fixflow_normalize, which a hand-edited baseline could drop
+          # while every INSERT above still succeeded.
+          expect "normalized_name is generated" \
+            "SELECT normalized_name FROM catalog_devices WHERE name = 'Nothing Phone (1)'" 'nothing phone 1'
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -119,12 +347,50 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "25"
           cache: maven
 
+      # Logged as well as printed so the next step can read it without running the suite again.
+      # pipefail matters here: without it the step's exit code would be tee's, not Maven's.
+      # -Pintegration, which clears the excludedGroups that would otherwise skip
+      # ApplicationContextIntegrationTest — the only test here that starts the application rather
+      # than constructing its classes with mocks. Every other test in this module passed throughout
+      # the Boot 4 upgrade while the context was in fact unbuildable, so the default build's opinion
+      # on "does this run" is worth nothing without it. Needs Docker, which this runner has.
       - name: Backend tests
         working-directory: backend
-        run: mvn -B test
+        run: |
+          set -euo pipefail
+          mvn -B test -Pintegration 2>&1 | tee build.log
+
+      # The pom hands Mockito's agent to the JVM at startup rather than letting it attach to a
+      # running one, which the JDK warns about now and will refuse. Checked rather than assumed
+      # because Mockito falls back to self-attaching and the suite still passes — so a green build is
+      # not evidence the configuration is intact.
+      - name: Mockito is not self-attaching
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          fail=0
+
+          if grep -q 'Mockito is currently self-attaching' build.log; then
+            echo "::error::Mockito is self-attaching. The -javaagent in the surefire argLine is not reaching the test JVM."
+            fail=1
+          fi
+          if grep -q 'A Java agent has been loaded dynamically' build.log; then
+            echo "::error::An agent was loaded dynamically, which a future JDK disallows by default."
+            grep -m3 'loaded dynamically' build.log
+            fail=1
+          fi
+          # A log with no tests in it has no warnings in it either.
+          if ! grep -qE 'Tests run: [0-9]+' build.log; then
+            echo "::error::No test results in the output, so the absence of warnings proves nothing."
+            fail=1
+          fi
+
+          [ "$fail" -eq 0 ] || exit 1
+          grep -hoE 'Tests run: [0-9]+, Failures: [0-9]+, Errors: [0-9]+, Skipped: [0-9]+' build.log | tail -1
+          echo "The agent is loaded up front."
 
       - uses: actions/setup-node@v4
         with:
@@ -153,59 +419,93 @@ jobs:
           npx tsc --noEmit
 
   push:
-    needs: [checks, test]
+    needs: [checks, migrations, test]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Mints the OIDC token AWS exchanges for temporary credentials. Harmless when the ECR branch
+      # below is not taken.
+      id-token: write
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+      AWS_CI_ROLE_ARN: ${{ vars.AWS_CI_ROLE_ARN }}
     steps:
-      - name: Decide whether Hub credentials are present
-        id: hub
+      # Three outcomes rather than two: ECR, Docker Hub, or skip. ECR wins when a role is configured
+      # so the migration is a repository-variable change, and clearing that variable is the rollback.
+      # Skipping when neither is configured is deliberate and predates this — a fork with no
+      # credentials should still get a green build rather than a failed push.
+      - name: Decide where images go
+        id: dest
         run: |
-          if [ -z "${DOCKERHUB_USERNAME}" ] || [ -z "${DOCKERHUB_TOKEN}" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Image push skipped: add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN in repo Settings → Secrets."
-            echo "Create private Hub repos mobistack-backend and mobistack-web first."
-          else
+          if [ -n "${AWS_CI_ROLE_ARN}" ]; then
+            echo "registry=ecr" >> "$GITHUB_OUTPUT"
             echo "configured=true" >> "$GITHUB_OUTPUT"
-            echo "ns=${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}" >> "$GITHUB_OUTPUT"
+            echo "Pushing to Amazon ECR via ${AWS_CI_ROLE_ARN}."
+          elif [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
+            echo "registry=hub" >> "$GITHUB_OUTPUT"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "prefix=${DOCKERHUB_NAMESPACE:-$DOCKERHUB_USERNAME}/" >> "$GITHUB_OUTPUT"
+            echo "Pushing to Docker Hub."
+          else
+            echo "registry=none" >> "$GITHUB_OUTPUT"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Image push skipped. Either set the AWS_CI_ROLE_ARN variable for ECR, or add"
+            echo "DOCKERHUB_USERNAME and DOCKERHUB_TOKEN in repo Settings → Secrets."
+            echo "The registry repositories mobistack-backend and mobistack-web must exist first."
           fi
 
       - uses: actions/checkout@v4
-        if: steps.hub.outputs.configured == 'true'
-
-      - name: Resolve image tags
-        if: steps.hub.outputs.configured == 'true'
-        id: tags
-        env:
-          NS: ${{ steps.hub.outputs.ns }}
-          EXTRA: ${{ github.event.inputs.tag }}
-        run: |
-          {
-            echo "backend<<EOF"
-            echo "${NS}/mobistack-backend:latest"
-            echo "${NS}/mobistack-backend:${GITHUB_SHA}"
-            if [ -n "${EXTRA}" ]; then echo "${NS}/mobistack-backend:${EXTRA}"; fi
-            echo "EOF"
-            echo "web<<EOF"
-            echo "${NS}/mobistack-web:latest"
-            echo "${NS}/mobistack-web:${GITHUB_SHA}"
-            if [ -n "${EXTRA}" ]; then echo "${NS}/mobistack-web:${EXTRA}"; fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+        if: steps.dest.outputs.configured == 'true'
 
       - uses: docker/setup-buildx-action@v3
-        if: steps.hub.outputs.configured == 'true'
+        if: steps.dest.outputs.configured == 'true'
+
+      - name: Configure AWS credentials
+        if: steps.dest.outputs.registry == 'ecr'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_CI_ROLE_ARN }}
+          # Same region as the EC2 instance that pulls these, so a deploy is not billed as
+          # inter-region transfer.
+          aws-region: ap-south-1
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        if: steps.dest.outputs.registry == 'ecr'
+        uses: aws-actions/amazon-ecr-login@v2
 
       - uses: docker/login-action@v3
-        if: steps.hub.outputs.configured == 'true'
+        if: steps.dest.outputs.registry == 'hub'
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
+      - name: Resolve image tags
+        if: steps.dest.outputs.configured == 'true'
+        id: tags
+        env:
+          # One of the two is set. The ECR host comes from the login step rather than a variable, so
+          # the account ID cannot drift from the role that was actually assumed.
+          PREFIX: ${{ steps.ecr.outputs.registry && format('{0}/', steps.ecr.outputs.registry) || steps.dest.outputs.prefix }}
+          EXTRA: ${{ github.event.inputs.tag }}
+        run: |
+          {
+            echo "backend<<EOF"
+            echo "${PREFIX}mobistack-backend:latest"
+            echo "${PREFIX}mobistack-backend:${GITHUB_SHA}"
+            if [ -n "${EXTRA}" ]; then echo "${PREFIX}mobistack-backend:${EXTRA}"; fi
+            echo "EOF"
+            echo "web<<EOF"
+            echo "${PREFIX}mobistack-web:latest"
+            echo "${PREFIX}mobistack-web:${GITHUB_SHA}"
+            if [ -n "${EXTRA}" ]; then echo "${PREFIX}mobistack-web:${EXTRA}"; fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Push backend
-        if: steps.hub.outputs.configured == 'true'
+        if: steps.dest.outputs.configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -215,7 +515,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Push web
-        if: steps.hub.outputs.configured == 'true'
+        if: steps.dest.outputs.configured == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./web
