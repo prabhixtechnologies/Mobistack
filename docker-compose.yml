@@ -14,7 +14,7 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: public.ecr.aws/docker/library/postgres:16-alpine
     container_name: mobistack-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-mobistack}
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: public.ecr.aws/docker/library/redis:7-alpine
     container_name: mobistack-redis
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -116,7 +116,7 @@ services:
 
   caddy:
     profiles: ["prod"]
-    image: caddy:2.10-alpine
+    image: public.ecr.aws/docker/library/caddy:2.10-alpine
     container_name: mobistack-caddy
     depends_on:
       backend:
