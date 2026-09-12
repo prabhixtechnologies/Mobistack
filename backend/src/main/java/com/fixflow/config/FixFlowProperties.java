@@ -61,7 +61,15 @@ public class FixFlowProperties {
         private Duration jwksCacheTtl = Duration.ofMinutes(10);
         private Duration jwksMinRefreshInterval = Duration.ofSeconds(30);
         private String internalBaseUrl = "http://identity:8081";
+        /**
+         * Shared secret presented as {@code X-Prabhix-Service-Token}. Blank means the mirror
+         * cannot be filled in on demand, and a subject with no local row is refused.
+         */
         private String serviceToken = "";
+
+        public boolean canMirror() {
+            return serviceToken != null && !serviceToken.isBlank();
+        }
 
         public boolean enabled() {
             return issuer != null && !issuer.isBlank();

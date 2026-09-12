@@ -7,7 +7,6 @@ import com.fixflow.security.Permission;
 import com.fixflow.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.Set;
@@ -27,7 +26,7 @@ class JwtServiceTest {
         properties.getSecurity().getJwt()
                 .setSecret("fixflow-test-signing-key-that-is-definitely-longer-than-sixty-four-chars");
         properties.getSecurity().getJwt().setAccessTokenTtl(Duration.ofMinutes(5));
-        IdentityKeySource identityKeys = new IdentityKeySource(properties, RestClient.builder());
+        IdentityKeySource identityKeys = new IdentityKeySource(properties);
         jwtService = new JwtService(properties, identityKeys);
         jwtService.init();
 

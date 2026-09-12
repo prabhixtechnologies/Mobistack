@@ -8,6 +8,7 @@ import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
+import com.fixflow.user.service.IdentityUserMirror;
 import com.fixflow.workspace.service.WorkspaceAccessService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -37,6 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final DeviceSessionService deviceSessionService;
     private final UserRepository userRepository;
     private final WorkspaceAccessService workspaceAccessService;
+    private final IdentityUserMirror identityUserMirror;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -80,9 +82,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Builds authority for an identity token, which carries none of its own.
      *
      * <p>Subject is preferred; email is the fallback for accounts that already existed in Identity
-     * under a different id (platform imports). Workspace and permissions come from this database.
-     * Device-session limits do not apply: Identity tokens have no device claim and a different
-     * session model.
+     * under a different id (platform imports). Absent entirely means Identity knows this person and
+     * this database has not been told yet — ordinary for anyone who signs up after the bulk import —
+     * so {@link IdentityUserMirror} fills the row once rather than treating it as a credential
+     * failure. Workspace and permissions still come from this database. Device-session limits do not
+     * apply: Identity tokens have no device claim and a different session model.
      */
     private UserPrincipal authorizeIdentityToken(UserPrincipal fromToken, HttpServletRequest request) {
         User user = userRepository.findWithRolesById(fromToken.getId())
@@ -93,8 +97,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     }
                     return userRepository.findWithRolesByEmail(email);
                 })
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED,
-                        "This account is not provisioned on MobiStack"));
+                .orElseGet(() -> {
+                    identityUserMirror.pull(fromToken.getId());
+                    return userRepository.findWithRolesById(fromToken.getId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED,
+                                    "This account is not provisioned on MobiStack"));
+                });
 
         if (!user.isActive() || user.isLocked()) {
             throw new ApiException(ErrorCode.UNAUTHENTICATED, "This account is not active");

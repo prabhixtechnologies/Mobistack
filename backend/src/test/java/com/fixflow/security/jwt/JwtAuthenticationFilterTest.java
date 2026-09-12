@@ -7,6 +7,7 @@ import com.fixflow.config.FixFlowProperties;
 import com.fixflow.security.Permission;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.user.repository.UserRepository;
+import com.fixflow.user.service.IdentityUserMirror;
 import com.fixflow.workspace.service.WorkspaceAccessService;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +17,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.Set;
@@ -37,6 +37,8 @@ class JwtAuthenticationFilterTest {
     private UserRepository userRepository;
     @Mock
     private WorkspaceAccessService workspaceAccessService;
+    @Mock
+    private IdentityUserMirror identityUserMirror;
     @Mock
     private FilterChain chain;
 
@@ -110,7 +112,8 @@ class JwtAuthenticationFilterTest {
 
     private JwtAuthenticationFilter newFilter(JwtService service) {
         return new JwtAuthenticationFilter(
-                service, deviceSessionService, userRepository, workspaceAccessService, objectMapper());
+                service, deviceSessionService, userRepository, workspaceAccessService,
+                identityUserMirror, objectMapper());
     }
 
     private static JwtService jwtService(Duration ttl) {
@@ -118,7 +121,7 @@ class JwtAuthenticationFilterTest {
         properties.getSecurity().getJwt()
                 .setSecret("fixflow-test-signing-key-that-is-definitely-longer-than-sixty-four-chars");
         properties.getSecurity().getJwt().setAccessTokenTtl(ttl);
-        IdentityKeySource identityKeys = new IdentityKeySource(properties, RestClient.builder());
+        IdentityKeySource identityKeys = new IdentityKeySource(properties);
         JwtService service = new JwtService(properties, identityKeys);
         service.init();
         return service;
