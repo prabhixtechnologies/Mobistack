@@ -39,9 +39,11 @@ public class IdentityKeySource {
     private volatile Instant fetchedAt = Instant.EPOCH;
     private volatile Instant lastAttemptAt = Instant.EPOCH;
 
-    public IdentityKeySource(FixFlowProperties properties, RestClient.Builder httpBuilder) {
+    public IdentityKeySource(FixFlowProperties properties) {
         this.config = properties.getSecurity().getIdentity();
-        this.http = httpBuilder.build();
+        // Built here rather than injected: MobiStack does not register a RestClient.Builder bean
+        // the way the platform does, and asking for one is what kept the context from starting.
+        this.http = RestClient.create();
     }
 
     /**
