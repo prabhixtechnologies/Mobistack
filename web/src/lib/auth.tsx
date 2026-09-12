@@ -45,6 +45,31 @@ function applySession(
   }
 }
 
+/**
+ * After a workspace select/create while signed in through Identity.
+ *
+ * <p>The server still returns a freshly minted HS256 pair for legacy clients. Keeping those would
+ * throw away the Identity access token and with it the shared session cookie refresh path. When
+ * there is no product refresh token, we are on that path: keep the access token we already have and
+ * only take the updated user / workspace list.
+ */
+function applyWorkspaceChange(
+  auth: AuthResponse,
+  setUser: (user: AuthenticatedUser) => void,
+  setWorkspaces: (workspaces: WorkspaceCard[]) => void,
+): void {
+  if (isOidcEnabled() && !getRefreshToken()) {
+    persistUser(auth.user);
+    setUser(auth.user);
+    if (auth.workspaces) {
+      persistWorkspaces(auth.workspaces);
+      setWorkspaces(auth.workspaces);
+    }
+    return;
+  }
+  applySession(auth, setUser, setWorkspaces);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(getStoredUser);
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>(getStoredWorkspaces);
@@ -136,7 +161,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const auth = await api<AuthResponse>(`/api/v1/workspaces/${workspaceId}/select`, {
           method: "POST",
         });
-        applySession(auth, setUser, setWorkspaces);
+        // Under Identity the access token carries who you are, not which shop. The select call
+        // updates the preferred workspace in the database; applying the response's tokens would
+        // replace the Identity JWT with a product HS256 and break shared sign-out / refresh.
+        applyWorkspaceChange(auth, setUser, setWorkspaces);
         window.location.assign(afterAuthPath(auth.user));
       },
       async createWorkspace(name, city) {
@@ -144,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           method: "POST",
           body: JSON.stringify({ name, city }),
         });
-        applySession(auth, setUser, setWorkspaces);
+        applyWorkspaceChange(auth, setUser, setWorkspaces);
         window.location.assign(afterAuthPath(auth.user));
       },
       async joinWorkspace(joinCode) {
