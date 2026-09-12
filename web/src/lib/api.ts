@@ -1,6 +1,8 @@
 import type { ApiError, AuthResponse, AuthenticatedUser, WorkspaceCard } from "./types";
 import { getDeviceId } from "./device";
 import { storeGet, storeRemove, storeSet } from "./storage";
+import { IDENTITY_ISSUER } from "./config";
+import { isOidcEnabled } from "./oidc";
 
 const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN as string | undefined) ?? "";
 
@@ -51,11 +53,21 @@ export function getStoredWorkspaces(): WorkspaceCard[] {
 
 export function persistSession(auth: AuthResponse): void {
   storeSet("access", auth.accessToken);
-  storeSet("refresh", auth.refreshToken);
+  if (auth.refreshToken) {
+    storeSet("refresh", auth.refreshToken);
+  } else {
+    storeRemove("refresh");
+  }
   storeSet("user", JSON.stringify(auth.user));
   if (auth.workspaces) {
     storeSet("workspaces", JSON.stringify(auth.workspaces));
   }
+}
+
+/** Identity path: store an access token without a MobiStack refresh token. */
+export function persistAccessToken(accessToken: string): void {
+  storeSet("access", accessToken);
+  storeRemove("refresh");
 }
 
 export function persistUser(user: AuthenticatedUser): void {
@@ -109,14 +121,38 @@ function endSession(reason: "session" | "expired"): void {
 
 /**
  * Shared refresh, so a page whose requests all expire together performs one
- * rotation instead of one per request. Refresh tokens are single-use, and
- * firing several in parallel is what used to end the session outright.
+ * rotation instead of one per request.
  */
 let refreshInFlight: Promise<boolean> | null = null;
 
 function refreshSession(): Promise<boolean> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
+      if (isOidcEnabled()) {
+        try {
+          const response = await fetch(`${IDENTITY_ISSUER}/api/v1/auth/session/token`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          });
+          if (!response.ok) {
+            return false;
+          }
+          const payload = (await response.json()) as {
+            accessToken?: string;
+            access_token?: string;
+          };
+          const access = payload.accessToken ?? payload.access_token;
+          if (!access) {
+            return false;
+          }
+          persistAccessToken(access);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
       const refreshToken = getRefreshToken();
       if (!refreshToken) {
         return false;
@@ -160,7 +196,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw Object.assign(new Error(OFFLINE_API.message), OFFLINE_API);
   }
 
-  if (response.status === 401 && !anonymous && getRefreshToken() && path !== "/api/v1/auth/refresh") {
+  const canRefresh = isOidcEnabled() || Boolean(getRefreshToken());
+  if (response.status === 401 && !anonymous && canRefresh && path !== "/api/v1/auth/refresh") {
     let sessionExpired = true;
     try {
       const payload = (await response.clone().json()) as ApiError;
@@ -179,8 +216,6 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!sessionExpired) {
       await parseError(response);
     }
-    // Another request may have refreshed while this one was in flight, in
-    // which case retrying with the current token is enough.
     const current = getAccessToken();
     const refreshed = current && current !== token ? true : await refreshSession();
     if (refreshed) {
@@ -216,9 +251,6 @@ export async function apiText(path: string, init: RequestInit = {}): Promise<str
 
 /**
  * POST whose retry the server will collapse into the original.
- *
- * The key is generated once per call site and travels as a header, so a request
- * the browser resends after a timeout adds one carton rather than two.
  */
 export async function apiOnce<T>(path: string, body: unknown, key = crypto.randomUUID()): Promise<T> {
   return api<T>(path, {

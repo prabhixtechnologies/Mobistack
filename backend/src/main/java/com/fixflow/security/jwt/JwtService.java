@@ -7,19 +7,23 @@ import com.fixflow.security.Permission;
 import com.fixflow.security.UserPrincipal;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.LocatorAdapter;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
+import java.security.Key;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -30,14 +34,13 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Issues short-lived stateless access tokens (JWT) and opaque refresh tokens.
+ * Issues short-lived HS256 access tokens and verifies both those and Identity's RS256 tokens.
  *
  * <p>Refresh tokens are deliberately <em>not</em> JWTs: they must be revocable,
  * and a random 256-bit string stored as a hash gives us that for free.
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class JwtService {
 
     private static final int MIN_SECRET_LENGTH = 64;
@@ -49,9 +52,15 @@ public class JwtService {
     private static final String CLAIM_DEVICE = "dev";
 
     private final FixFlowProperties properties;
+    private final IdentityKeySource identityKeys;
     private final SecureRandom secureRandom = new SecureRandom();
 
     private SecretKey signingKey;
+
+    public JwtService(FixFlowProperties properties, IdentityKeySource identityKeys) {
+        this.properties = properties;
+        this.identityKeys = identityKeys;
+    }
 
     @PostConstruct
     void init() {
@@ -88,16 +97,41 @@ public class JwtService {
     }
 
     public String deviceIdFrom(String token) {
-        return parseClaims(token).get(CLAIM_DEVICE, String.class);
+        return parseVerified(token).claims().get(CLAIM_DEVICE, String.class);
     }
 
     /**
-     * Rebuilds the principal straight from the token. No database round-trip on
-     * the hot path; the short access-token TTL bounds how long a revoked user
-     * stays usable.
+     * Rebuilds the principal from the token. For HS256 tokens that includes shop, roles and
+     * permissions; for Identity RS256 tokens those are left empty for the filter to resolve.
      */
     public UserPrincipal parseAccessToken(String token) {
-        Claims claims = parseClaims(token);
+        return parseDetailed(token).principal();
+    }
+
+    /**
+     * Like {@link #parseAccessToken(String)} but also reports which issuer signed the token.
+     *
+     * @throws ApiException with {@link ErrorCode#TOKEN_EXPIRED} or {@link ErrorCode#TOKEN_INVALID}
+     */
+    public ParsedToken parseDetailed(String token) {
+        Verified verified = parseVerified(token);
+        Claims claims = verified.claims();
+        boolean fromIdentity = verified.source() == TokenSource.IDENTITY;
+
+        if (fromIdentity) {
+            // An identity token states who you are and nothing about what you may do. Shop and
+            // permissions are left empty here and filled in per request by JwtAuthenticationFilter.
+            UserPrincipal principal = new UserPrincipal(
+                    uuid(claims.getSubject()),
+                    null,
+                    claims.get(CLAIM_EMAIL, String.class),
+                    claims.get(CLAIM_NAME, String.class),
+                    true,
+                    Set.of(),
+                    Set.of());
+            return new ParsedToken(principal, verified.source());
+        }
+
         Set<String> roles = new LinkedHashSet<>();
         List<?> rawRoles = claims.get(CLAIM_ROLES, List.class);
         if (rawRoles != null) {
@@ -116,7 +150,7 @@ public class JwtService {
         }
         String shopClaim = claims.get(CLAIM_SHOP, String.class);
         UUID workspaceId = (shopClaim == null || shopClaim.isBlank()) ? null : UUID.fromString(shopClaim);
-        return new UserPrincipal(
+        UserPrincipal principal = new UserPrincipal(
                 UUID.fromString(claims.getSubject()),
                 workspaceId,
                 claims.get(CLAIM_EMAIL, String.class),
@@ -124,19 +158,73 @@ public class JwtService {
                 true,
                 roles,
                 permissions);
+        return new ParsedToken(principal, TokenSource.MOBISTACK);
     }
 
-    private Claims parseClaims(String token) {
+    /**
+     * Verifies the signature and the issuer, and reports which issuer it turned out to be.
+     *
+     * <p>Two signature families are accepted, and the token is never allowed to choose between them.
+     * The key is selected by the {@code alg} in the header, and jjwt then enforces that the key
+     * matches the algorithm family — an HMAC key can only satisfy a MAC algorithm and a public key
+     * only a signature algorithm.
+     *
+     * <p>Issuer is checked after parsing rather than with {@code requireIssuer}, because there are now
+     * two acceptable issuers and a token must match the one belonging to the key that verified it.
+     */
+    private Verified parseVerified(String token) {
+        String mobistackIssuer = properties.getSecurity().getJwt().getIssuer();
+        var identity = properties.getSecurity().getIdentity();
+
         try {
-            return Jwts.parser()
-                    .verifyWith(signingKey)
-                    .requireIssuer(properties.getSecurity().getJwt().getIssuer())
+            Jws<Claims> jws = Jwts.parser()
+                    .keyLocator(new LocatorAdapter<Key>() {
+                        @Override
+                        protected Key locate(JwsHeader header) {
+                            if (Jwts.SIG.HS256.getId().equals(header.getAlgorithm())) {
+                                return signingKey;
+                            }
+                            if (Jwts.SIG.RS256.getId().equals(header.getAlgorithm())) {
+                                if (!identity.enabled()) {
+                                    throw new SignatureException(
+                                            "This deployment does not trust an identity issuer");
+                                }
+                                return identityKeys.verificationKey(header.getKeyId())
+                                        .orElseThrow(() -> new SignatureException(
+                                                "No published identity key with id "
+                                                        + header.getKeyId()));
+                            }
+                            throw new SignatureException(
+                                    "Unsupported token algorithm " + header.getAlgorithm());
+                        }
+                    })
                     .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+                    .parseSignedClaims(token);
+
+            boolean fromIdentity = Jwts.SIG.RS256.getId().equals(jws.getHeader().getAlgorithm());
+            String expectedIssuer = fromIdentity ? identity.getIssuer() : mobistackIssuer;
+            if (!expectedIssuer.equals(jws.getPayload().getIssuer())) {
+                throw new ApiException(ErrorCode.TOKEN_INVALID, "That token is not valid");
+            }
+
+            return new Verified(jws.getPayload(),
+                    fromIdentity ? TokenSource.IDENTITY : TokenSource.MOBISTACK);
         } catch (ExpiredJwtException ex) {
             throw new ApiException(ErrorCode.TOKEN_EXPIRED, "Access token has expired");
+        } catch (ApiException ex) {
+            throw ex;
         } catch (JwtException | IllegalArgumentException ex) {
+            throw new ApiException(ErrorCode.TOKEN_INVALID, "Access token is not valid");
+        }
+    }
+
+    private UUID uuid(String value) {
+        if (value == null || value.isBlank()) {
+            throw new ApiException(ErrorCode.TOKEN_INVALID, "Access token is not valid");
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
             throw new ApiException(ErrorCode.TOKEN_INVALID, "Access token is not valid");
         }
     }
@@ -163,5 +251,23 @@ public class JwtService {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 is required but unavailable", ex);
         }
+    }
+
+    private record Verified(Claims claims, TokenSource source) {
+    }
+
+    /** Which issuer signed a token, and therefore whether its claims may be trusted for authority. */
+    public enum TokenSource {
+        /** Signed HS256 by this service. Carries shop, roles and permissions. */
+        MOBISTACK,
+        /** Signed RS256 by Prabhix Identity. Carries identity only. */
+        IDENTITY
+    }
+
+    /**
+     * @param source which issuer signed it. An {@link TokenSource#IDENTITY} principal arrives with no
+     *     shop and no permissions, and the caller is responsible for resolving both.
+     */
+    public record ParsedToken(UserPrincipal principal, TokenSource source) {
     }
 }

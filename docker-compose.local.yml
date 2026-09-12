@@ -16,6 +16,9 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
       FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:-fixflow-local-development-signing-key-do-not-use-in-production-0123456789}
+      IDENTITY_ISSUER: ${IDENTITY_ISSUER:-}
+      IDENTITY_JWKS_URI: ${IDENTITY_JWKS_URI:-}
+      IDENTITY_SERVICE_TOKEN: ${IDENTITY_SERVICE_TOKEN:-}
       FIXFLOW_REQUIRE_HTTPS: "false"
       FIXFLOW_WEB_ORIGIN: http://localhost:4173
       FIXFLOW_PUBLIC_ORIGIN: http://localhost:4173

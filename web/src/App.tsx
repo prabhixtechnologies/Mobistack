@@ -9,6 +9,7 @@ import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
 import { CompatibilityPage } from "./pages/CompatibilityPage";
 import { CompatibilityCategoryPage } from "./pages/CompatibilityCategoryPage";
 import { LoginPage } from "./pages/LoginPage";
+import { OidcCallbackPage } from "./pages/OidcCallbackPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
 
 /**
@@ -124,6 +125,7 @@ export function App() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<OidcCallbackPage />} />
           {LegalRoutes()}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

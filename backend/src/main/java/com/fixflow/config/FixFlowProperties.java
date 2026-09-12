@@ -36,10 +36,44 @@ public class FixFlowProperties {
     @Setter
     public static class Security {
         private final Jwt jwt = new Jwt();
+        private final Identity identity = new Identity();
 
         /** Consecutive failed logins before the account is temporarily locked. */
         private int maxFailedLogins = 8;
         private Duration lockoutDuration = Duration.ofMinutes(15);
+    }
+
+    /**
+     * Trust for tokens issued by Prabhix Identity, verified against its published JWKS.
+     *
+     * <p>Blank {@code issuer} disables it. While disabled the backend accepts only its own HS256
+     * tokens. Both signature families are accepted at once so the cutover does not sign anyone out.
+     *
+     * <p>An identity token carries identity only — no shop and no permissions. Those are resolved
+     * per request from this database.
+     */
+    @Getter
+    @Setter
+    public static class Identity {
+        private String issuer = "";
+        /** Defaults to {@code {issuer}/.well-known/jwks.json}; set only if that is not where it is. */
+        private String jwksUri = "";
+        private Duration jwksCacheTtl = Duration.ofMinutes(10);
+        private Duration jwksMinRefreshInterval = Duration.ofSeconds(30);
+        private String internalBaseUrl = "http://identity:8081";
+        private String serviceToken = "";
+
+        public boolean enabled() {
+            return issuer != null && !issuer.isBlank();
+        }
+
+        public String effectiveJwksUri() {
+            if (jwksUri != null && !jwksUri.isBlank()) {
+                return jwksUri;
+            }
+            String base = issuer.endsWith("/") ? issuer.substring(0, issuer.length() - 1) : issuer;
+            return base + "/.well-known/jwks.json";
+        }
     }
 
     @Getter

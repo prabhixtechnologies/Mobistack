@@ -136,6 +136,13 @@ fixflow:
       issuer: mobistack
       access-token-ttl: 30m
       refresh-token-ttl: 30d
+    identity:
+      issuer: ${IDENTITY_ISSUER:}
+      jwks-uri: ${IDENTITY_JWKS_URI:}
+      jwks-cache-ttl: ${IDENTITY_JWKS_CACHE_TTL:PT10M}
+      jwks-min-refresh-interval: ${IDENTITY_JWKS_MIN_REFRESH:PT30S}
+      internal-base-url: ${IDENTITY_INTERNAL_URL:http://identity:8081}
+      service-token: ${IDENTITY_SERVICE_TOKEN:}
     max-failed-logins: 8
     lockout-duration: 15m
   cors:

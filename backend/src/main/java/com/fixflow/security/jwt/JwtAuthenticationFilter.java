@@ -6,6 +6,9 @@ import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.UserPrincipal;
+import com.fixflow.user.domain.User;
+import com.fixflow.user.repository.UserRepository;
+import com.fixflow.workspace.service.WorkspaceAccessService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,15 +24,19 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    public static final String WORKSPACE_HEADER = "X-MobiStack-Workspace";
 
     private final JwtService jwtService;
     private final DeviceSessionService deviceSessionService;
+    private final UserRepository userRepository;
+    private final WorkspaceAccessService workspaceAccessService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -45,12 +52,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = header.substring(BEARER_PREFIX.length()).trim();
         try {
-            UserPrincipal principal = jwtService.parseAccessToken(token);
-            String deviceId = jwtService.deviceIdFrom(token);
-            if (deviceId != null && !deviceSessionService.isLive(principal.getId(), deviceId)) {
-                throw new ApiException(ErrorCode.SESSION_REPLACED,
-                        "This device's session has ended. Sign in again to continue.");
-            }
+            JwtService.ParsedToken parsed = jwtService.parseDetailed(token);
+            UserPrincipal principal = parsed.source() == JwtService.TokenSource.IDENTITY
+                    ? authorizeIdentityToken(parsed.principal(), request)
+                    : authorizeMobistackToken(parsed.principal(), token);
+
             var authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -68,6 +74,56 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Builds authority for an identity token, which carries none of its own.
+     *
+     * <p>Subject is preferred; email is the fallback for accounts that already existed in Identity
+     * under a different id (platform imports). Workspace and permissions come from this database.
+     * Device-session limits do not apply: Identity tokens have no device claim and a different
+     * session model.
+     */
+    private UserPrincipal authorizeIdentityToken(UserPrincipal fromToken, HttpServletRequest request) {
+        User user = userRepository.findWithRolesById(fromToken.getId())
+                .or(() -> {
+                    String email = fromToken.getEmail();
+                    if (email == null || email.isBlank()) {
+                        return java.util.Optional.empty();
+                    }
+                    return userRepository.findWithRolesByEmail(email);
+                })
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED,
+                        "This account is not provisioned on MobiStack"));
+
+        if (!user.isActive() || user.isLocked()) {
+            throw new ApiException(ErrorCode.UNAUTHENTICATED, "This account is not active");
+        }
+
+        UUID preferred = preferredWorkspace(request, user);
+        return workspaceAccessService.principalFor(user, preferred);
+    }
+
+    private UserPrincipal authorizeMobistackToken(UserPrincipal principal, String token) {
+        String deviceId = jwtService.deviceIdFrom(token);
+        if (deviceId != null && !deviceSessionService.isLive(principal.getId(), deviceId)) {
+            throw new ApiException(ErrorCode.SESSION_REPLACED,
+                    "This device's session has ended. Sign in again to continue.");
+        }
+        return principal;
+    }
+
+    private UUID preferredWorkspace(HttpServletRequest request, User user) {
+        String header = request.getHeader(WORKSPACE_HEADER);
+        if (header != null && !header.isBlank()) {
+            try {
+                return UUID.fromString(header.trim());
+            } catch (IllegalArgumentException ex) {
+                throw new ApiException(ErrorCode.MALFORMED_REQUEST,
+                        WORKSPACE_HEADER + " is not a valid id");
+            }
+        }
+        return user.getShopId();
     }
 
     static boolean isAnonymousOk(HttpServletRequest request) {

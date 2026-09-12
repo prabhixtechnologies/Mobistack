@@ -7,6 +7,7 @@ import com.fixflow.security.Permission;
 import com.fixflow.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.Set;
@@ -26,7 +27,8 @@ class JwtServiceTest {
         properties.getSecurity().getJwt()
                 .setSecret("fixflow-test-signing-key-that-is-definitely-longer-than-sixty-four-chars");
         properties.getSecurity().getJwt().setAccessTokenTtl(Duration.ofMinutes(5));
-        jwtService = new JwtService(properties);
+        IdentityKeySource identityKeys = new IdentityKeySource(properties, RestClient.builder());
+        jwtService = new JwtService(properties, identityKeys);
         jwtService.init();
 
         principal = new UserPrincipal(UUID.randomUUID(), UUID.randomUUID(), "owner@prabhixtechnologies.com",
@@ -44,6 +46,15 @@ class JwtServiceTest {
         assertThat(parsed.getRoles()).containsExactly("OWNER");
         assertThat(parsed.has(Permission.SALES_WRITE)).isTrue();
         assertThat(parsed.has(Permission.USER_WRITE)).isFalse();
+    }
+
+    @Test
+    void parseDetailedReportsMobistackSource() {
+        String token = jwtService.createAccessToken(principal);
+        JwtService.ParsedToken parsed = jwtService.parseDetailed(token);
+
+        assertThat(parsed.source()).isEqualTo(JwtService.TokenSource.MOBISTACK);
+        assertThat(parsed.principal().getId()).isEqualTo(principal.getId());
     }
 
     @Test

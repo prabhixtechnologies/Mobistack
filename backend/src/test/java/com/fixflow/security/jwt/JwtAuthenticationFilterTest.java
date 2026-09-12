@@ -6,6 +6,8 @@ import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;
 import com.fixflow.security.Permission;
 import com.fixflow.security.UserPrincipal;
+import com.fixflow.user.repository.UserRepository;
+import com.fixflow.workspace.service.WorkspaceAccessService;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.Set;
@@ -31,6 +34,10 @@ class JwtAuthenticationFilterTest {
     @Mock
     private DeviceSessionService deviceSessionService;
     @Mock
+    private UserRepository userRepository;
+    @Mock
+    private WorkspaceAccessService workspaceAccessService;
+    @Mock
     private FilterChain chain;
 
     private JwtService jwtService;
@@ -39,20 +46,16 @@ class JwtAuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
-        FixFlowProperties properties = new FixFlowProperties();
-        properties.getSecurity().getJwt()
-                .setSecret("fixflow-test-signing-key-that-is-definitely-longer-than-sixty-four-chars");
-        properties.getSecurity().getJwt().setAccessTokenTtl(Duration.ofMinutes(5));
-        jwtService = new JwtService(properties);
-        jwtService.init();
-        filter = new JwtAuthenticationFilter(jwtService, deviceSessionService, objectMapper());
+        jwtService = jwtService(Duration.ofMinutes(5));
+        filter = newFilter(jwtService);
         principal = new UserPrincipal(UUID.randomUUID(), UUID.randomUUID(), "admin@prabhixtechnologies.com",
                 "Admin", true, Set.of("OWNER"), Set.of(Permission.SETTINGS_READ));
     }
 
     @Test
     void loginStillRunsWhenTheBrowserSendsAnExpiredAccessToken() throws Exception {
-        propertiesTtl(Duration.ofMillis(1));
+        jwtService = jwtService(Duration.ofMillis(1));
+        filter = newFilter(jwtService);
         String token = jwtService.createAccessToken(principal, "tablet-1");
         Thread.sleep(20);
 
@@ -105,17 +108,23 @@ class JwtAuthenticationFilterTest {
         assertThat(JwtAuthenticationFilter.isAnonymousOk(me)).isFalse();
     }
 
-    private static ObjectMapper objectMapper() {
-        return new ObjectMapper();
+    private JwtAuthenticationFilter newFilter(JwtService service) {
+        return new JwtAuthenticationFilter(
+                service, deviceSessionService, userRepository, workspaceAccessService, objectMapper());
     }
 
-    private void propertiesTtl(Duration ttl) {
+    private static JwtService jwtService(Duration ttl) {
         FixFlowProperties properties = new FixFlowProperties();
         properties.getSecurity().getJwt()
                 .setSecret("fixflow-test-signing-key-that-is-definitely-longer-than-sixty-four-chars");
         properties.getSecurity().getJwt().setAccessTokenTtl(ttl);
-        jwtService = new JwtService(properties);
-        jwtService.init();
-        filter = new JwtAuthenticationFilter(jwtService, deviceSessionService, objectMapper());
+        IdentityKeySource identityKeys = new IdentityKeySource(properties, RestClient.builder());
+        JwtService service = new JwtService(properties, identityKeys);
+        service.init();
+        return service;
+    }
+
+    private static ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }

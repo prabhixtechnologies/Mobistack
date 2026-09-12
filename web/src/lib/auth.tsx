@@ -1,13 +1,26 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, clearSession, getRefreshToken, getStoredUser, getStoredWorkspaces, persistSession, persistUser, persistWorkspaces } from "./api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  api,
+  clearSession,
+  getAccessToken,
+  getRefreshToken,
+  getStoredUser,
+  getStoredWorkspaces,
+  persistAccessToken,
+  persistSession,
+  persistUser,
+  persistWorkspaces,
+} from "./api";
 import { getDeviceId } from "./device";
 import { afterAuthPath } from "./plan";
+import { beginLogout, isOidcEnabled } from "./oidc";
 import type { AuthResponse, AuthenticatedUser, MyWorkspacesResponse, WorkspaceCard } from "./types";
 
 interface AuthContextValue {
   user: AuthenticatedUser | null;
   workspaces: WorkspaceCard[];
   login: (email: string, password: string) => Promise<AuthResponse>;
+  loginWithTokens: (accessToken: string) => Promise<void>;
   acceptSession: (auth: AuthResponse) => void;
   logout: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
@@ -37,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>(getStoredWorkspaces);
 
   useEffect(() => {
-    if (!user) {
+    if (!user && !getAccessToken()) {
       return;
     }
     api<AuthenticatedUser>("/api/v1/auth/me")
@@ -64,6 +77,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, [user, workspaces.length]);
 
+  const loginWithTokens = useCallback(async (accessToken: string) => {
+    persistAccessToken(accessToken);
+    const me = await api<AuthenticatedUser>("/api/v1/auth/me");
+    persistUser(me);
+    setUser(me);
+    try {
+      const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+      persistWorkspaces(mine.workspaces);
+      setWorkspaces(mine.workspaces);
+    } catch {
+      setWorkspaces([]);
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -83,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         applySession(auth, setUser, setWorkspaces);
         return auth;
       },
+      loginWithTokens,
       acceptSession(auth) {
         applySession(auth, setUser, setWorkspaces);
       },
@@ -99,6 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearSession();
           setUser(null);
           setWorkspaces([]);
+          if (isOidcEnabled()) {
+            beginLogout();
+          }
         }
       },
       async switchWorkspace(workspaceId) {
@@ -140,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       has: (permission) => Boolean(user?.permissions.includes(permission)),
     }),
-    [user, workspaces],
+    [user, workspaces, loginWithTokens],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -66,6 +66,9 @@ services:
       FIXFLOW_REDIS_ENABLED: ${FIXFLOW_REDIS_ENABLED:-true}
       FIXFLOW_CACHE_TYPE: redis
       FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:-}
+      IDENTITY_ISSUER: ${IDENTITY_ISSUER:-}
+      IDENTITY_JWKS_URI: ${IDENTITY_JWKS_URI:-http://identity:8081/.well-known/jwks.json}
+      IDENTITY_SERVICE_TOKEN: ${IDENTITY_SERVICE_TOKEN:-}
       FIXFLOW_WEB_ORIGIN: ${FIXFLOW_WEB_ORIGIN:-https://mobistack.prabhixtechnologies.com}
       FIXFLOW_PUBLIC_ORIGIN: ${FIXFLOW_PUBLIC_ORIGIN:-https://mobistack.prabhixtechnologies.com}
       FIXFLOW_API_ORIGIN: ${FIXFLOW_API_ORIGIN:-https://mobistack.prabhixtechnologies.com}
@@ -108,6 +111,7 @@ services:
       context: ./web
       args:
         VITE_RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+        VITE_IDENTITY_ISSUER: ${VITE_IDENTITY_ISSUER:-}
     container_name: mobistack-web
     depends_on:
       backend:
