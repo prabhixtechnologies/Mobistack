@@ -5,7 +5,8 @@ This is the **Android / iOS counter app** for MobiStack (Prabhix Technologies Pv
 - Package: `app.prabhix.fixflow`
 - Offline: SQLite snapshot + outbox
 - Camera: barcode scan on Sales and Inventory
-- Auth: password, magic link, email OTP, SMS/WhatsApp OTP (Twilio), Google SSO
+- Auth: Prabhix Identity (OIDC / PKCE via Custom Tab) when `EXPO_PUBLIC_IDENTITY_ISSUER` is set;
+  otherwise password / magic link / OTP for local backends without Identity
 
 ## Produce an APK (Windows)
 
@@ -72,11 +73,14 @@ npx expo run:ios --device
 
 In Xcode, open **`ios/FixFlow.xcworkspace`** (not the `.xcodeproj` after `pod install`), set your Team under **Signing & Capabilities**, pick a device, and press Run. First launch on a personal team lasts 7 days.
 
-Release builds use `https://mobistack.prabhixtechnologies.com`. Point a local phone at the API on your Windows PC (same Wi-Fi, replace the IP):
+Release builds talk to `https://mobistack.prabhixtechnologies.com` and sign in through
+`https://api.prabhixtechnologies.com` (`EXPO_PUBLIC_IDENTITY_ISSUER`). Point a local phone at the API on your Windows PC (same Wi-Fi, replace the IP):
 
 ```bash
 EXPO_PUBLIC_API_URL=http://192.168.1.20:8080 npx expo run:ios --device
 ```
+
+Omit `EXPO_PUBLIC_IDENTITY_ISSUER` for a local password form against that backend.
 
 The backend must listen on the LAN, not only localhost. A helper script on the Mac: `bash scripts/macos-ios-build.sh` or `bash scripts/macos-ios-build.sh device`.
 

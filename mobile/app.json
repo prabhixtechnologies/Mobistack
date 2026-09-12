@@ -26,7 +26,9 @@
       "infoPlist": {
         "NSCameraUsageDescription": "MobiStack scans part barcodes at the counter.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true,
           "NSExceptionDomains": {
@@ -73,7 +75,8 @@
         {
           "cameraPermission": "MobiStack scans part barcodes at the counter."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

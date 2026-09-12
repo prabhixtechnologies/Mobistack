@@ -5,7 +5,9 @@ import {
   getStoredUser,
   getStoredWorkspaces,
   onSessionEnded,
+  persistOidcTokens,
   persistSession,
+  persistUser,
   persistWorkspaces,
   selectedWorkspaceId,
   type AuthResponse,
@@ -16,6 +18,7 @@ import { setActiveScope } from "./db";
 import { getDeviceId } from "./device";
 import { drainBeforeWorkspaceChange } from "./offline";
 import { forgetPushRegistration } from "./push";
+import { beginLogin as beginOidcLogin, beginLogout, isOidcEnabled, rememberIdToken } from "./oidc";
 
 interface MyWorkspacesResponse {
   selectedWorkspaceId?: string | null;
@@ -26,7 +29,10 @@ interface AuthValue {
   user: AuthUser | null;
   workspaces: WorkspaceCard[];
   ready: boolean;
+  /** Password login — only when Identity is not configured for this build. */
   login: (email: string, password: string) => Promise<AuthUser>;
+  /** Hosted Identity login (Custom Tab / system browser). */
+  loginWithIdentity: () => Promise<AuthUser>;
   acceptSession: (auth: AuthResponse) => Promise<AuthUser>;
   logout: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
@@ -54,6 +60,29 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+/**
+ * After workspace select/create under Identity: keep the Identity access token.
+ * The API still returns an HS256 pair for legacy clients; applying it would drop the shared session.
+ */
+async function applyWorkspaceChange(
+  auth: AuthResponse,
+  setUser: (user: AuthUser) => void,
+  setWorkspaces: (workspaces: WorkspaceCard[]) => void,
+): Promise<void> {
+  if (isOidcEnabled()) {
+    await persistUser(auth.user);
+    setUser(auth.user);
+    if (auth.workspaces) {
+      await persistWorkspaces(auth.workspaces);
+      setWorkspaces(auth.workspaces);
+    }
+    return;
+  }
+  await persistSession(auth);
+  setUser(auth.user);
+  setWorkspaces(auth.workspaces ?? []);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>([]);
@@ -61,7 +90,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     Promise.all([getStoredUser(), getStoredWorkspaces()]).then(([stored, storedWorkspaces]) => {
-      // Point local reads at this person's workspace before any screen mounts.
       setActiveScope(stored?.id, selectedWorkspaceId(stored));
       setUser(stored);
       setWorkspaces(storedWorkspaces);
@@ -69,8 +97,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // The server can end a session mid-request (expired or device limit). Drop
-  // back to the sign-in screen instead of leaving the tabs on screen.
   useEffect(() => onSessionEnded(() => {
     setUser(null);
     setWorkspaces([]);
@@ -96,6 +122,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setWorkspaces(auth.workspaces ?? []);
           return auth.user;
         },
+        async loginWithIdentity() {
+          await clearSession();
+          setUser(null);
+          setWorkspaces([]);
+          const tokens = await beginOidcLogin();
+          await rememberIdToken(tokens.idToken);
+          await persistOidcTokens(tokens.accessToken, tokens.refreshToken);
+          const me = await api<AuthUser>("/api/v1/auth/me");
+          await persistUser(me);
+          setUser(me);
+          try {
+            const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+            await persistWorkspaces(mine.workspaces);
+            setWorkspaces(mine.workspaces);
+          } catch {
+            setWorkspaces([]);
+          }
+          return me;
+        },
         async acceptSession(auth) {
           await persistSession(auth);
           setUser(auth.user);
@@ -104,31 +149,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         async logout() {
           await clearSession();
-          // A push token belongs to whoever registered it, so the next person
-          // on this phone must register again rather than inherit the alerts.
           forgetPushRegistration();
           setUser(null);
           setWorkspaces([]);
+          if (isOidcEnabled()) {
+            try {
+              await beginLogout();
+            } catch {
+              /* local session is already gone */
+            }
+          }
         },
         async switchWorkspace(workspaceId) {
-          // Queued work belongs to the shop it was recorded in, so it has to
-          // reach the server before the active shop changes.
           await drainBeforeWorkspaceChange();
           const auth = await api<AuthResponse>(`/api/v1/workspaces/${workspaceId}/select`, {
             method: "POST",
           });
-          await persistSession(auth);
-          setUser(auth.user);
-          setWorkspaces(auth.workspaces ?? []);
+          await applyWorkspaceChange(auth, setUser, setWorkspaces);
         },
         async createWorkspace(name, city) {
           const auth = await api<AuthResponse>("/api/v1/workspaces", {
             method: "POST",
             body: JSON.stringify({ name, city }),
           });
-          await persistSession(auth);
-          setUser(auth.user);
-          setWorkspaces(auth.workspaces ?? []);
+          await applyWorkspaceChange(auth, setUser, setWorkspaces);
         },
         async joinWorkspace(joinCode) {
           const card = await api<WorkspaceCard>("/api/v1/workspaces/join/complete", {

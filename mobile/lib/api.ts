@@ -3,6 +3,8 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { getDeviceId } from "./device";
 import { setActiveScope } from "./db";
+import { isOidcEnabled } from "./config";
+import { refreshOidcTokens } from "./oidc";
 
 const PRODUCTION_ORIGIN = "https://mobistack.prabhixtechnologies.com";
 
@@ -65,7 +67,8 @@ export interface AuthUser {
 
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
+  /** Absent on the Identity path: the OIDC refresh token is stored separately via persistOidcTokens. */
+  refreshToken?: string;
   user: AuthUser;
   workspaces?: WorkspaceCard[];
   deviceId?: string;
@@ -119,12 +122,25 @@ export async function getStoredWorkspaces(): Promise<WorkspaceCard[]> {
 
 export async function persistSession(auth: AuthResponse): Promise<void> {
   await SecureStore.setItemAsync(ACCESS, auth.accessToken);
-  await SecureStore.setItemAsync(REFRESH, auth.refreshToken);
+  if (auth.refreshToken) {
+    await SecureStore.setItemAsync(REFRESH, auth.refreshToken);
+  }
   await SecureStore.setItemAsync(USER, JSON.stringify(auth.user));
   if (auth.workspaces) {
     await SecureStore.setItemAsync(WORKSPACES, JSON.stringify(auth.workspaces));
   }
   setActiveScope(auth.user?.id, selectedWorkspaceId(auth.user));
+}
+
+/** Identity access + refresh after OIDC; user/workspaces filled by a follow-up /me call. */
+export async function persistOidcTokens(accessToken: string, refreshToken: string): Promise<void> {
+  await SecureStore.setItemAsync(ACCESS, accessToken);
+  await SecureStore.setItemAsync(REFRESH, refreshToken);
+}
+
+export async function persistUser(user: AuthUser): Promise<void> {
+  await SecureStore.setItemAsync(USER, JSON.stringify(user));
+  setActiveScope(user.id, selectedWorkspaceId(user));
 }
 
 export async function persistWorkspaces(workspaces: WorkspaceCard[]): Promise<void> {
@@ -179,6 +195,11 @@ function refreshSession(): Promise<boolean> {
         return false;
       }
       try {
+        if (isOidcEnabled()) {
+          const tokens = await refreshOidcTokens(refreshToken);
+          await persistOidcTokens(tokens.accessToken, tokens.refreshToken);
+          return true;
+        }
         const deviceId = await getDeviceId();
         const refreshed = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
           method: "POST",
