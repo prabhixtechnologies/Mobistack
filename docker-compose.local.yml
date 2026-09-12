@@ -1,30 +1,34 @@
 # Laptop overlay. Do not use this file on EC2.
+# Alongside the Infra stack (ports 8080/5432 already taken):
 #   docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml up --build -d
+#
+# Host ports: web :5176, API :8082, postgres :5433, redis :6380
 
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   redis:
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
   backend:
     ports:
-      - "8080:8080"
+      - "8082:8080"
     environment:
       SPRING_PROFILES_ACTIVE: dev
       FIXFLOW_SECURITY_JWT_SECRET: ${FIXFLOW_SECURITY_JWT_SECRET:-fixflow-local-development-signing-key-do-not-use-in-production-0123456789}
-      IDENTITY_ISSUER: ${IDENTITY_ISSUER:-}
-      IDENTITY_JWKS_URI: ${IDENTITY_JWKS_URI:-}
-      IDENTITY_SERVICE_TOKEN: ${IDENTITY_SERVICE_TOKEN:-}
+      IDENTITY_ISSUER: ${IDENTITY_ISSUER:-http://localhost:8081}
+      IDENTITY_SERVICE_TOKEN: ${IDENTITY_SERVICE_TOKEN:-local-dev-identity-service-token}
+      IDENTITY_JWKS_URI: ${IDENTITY_JWKS_URI:-http://host.docker.internal:8081/.well-known/jwks.json}
       FIXFLOW_REQUIRE_HTTPS: "false"
-      FIXFLOW_WEB_ORIGIN: http://localhost:4173
-      FIXFLOW_PUBLIC_ORIGIN: http://localhost:4173
-      FIXFLOW_API_ORIGIN: http://localhost:8080
+      FIXFLOW_WEB_ORIGIN: http://localhost:5176
+      FIXFLOW_PUBLIC_ORIGIN: http://localhost:5176
+      FIXFLOW_API_ORIGIN: http://localhost:8082
       FIXFLOW_REDIS_ENABLED: "true"
       FIXFLOW_CACHE_TYPE: redis
+      FIXFLOW_ANDROID_DOWNLOAD_URL: ${FIXFLOW_ANDROID_DOWNLOAD_URL:-http://store.prabhixtechnologies.com:8090/mobistack/android.apk}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -34,7 +38,15 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_AUTH: ${SMTP_AUTH:-true}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   web:
     ports:
-      - "4173:80"
+      - "5176:80"
+    build:
+      args:
+        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-http://localhost:8082}
+        VITE_IDENTITY_ISSUER: ${VITE_IDENTITY_ISSUER:-http://localhost:8081}
+        VITE_STORE_URL: ${VITE_STORE_URL:-http://store.prabhixtechnologies.com:8090}
+        VITE_RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}

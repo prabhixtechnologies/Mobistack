@@ -60,7 +60,7 @@ export async function captureCheckoutOrder(
       method: testMode
         ? { card: true, netbanking: true, wallet: true, upi: false, emi: false, paylater: false }
         : undefined,
-      theme: { color: "#6d28d9" },
+      theme: { color: "#0e7490" },
       handler: (response) => {
         void api("/api/v1/billing/verify", {
           method: "POST",
@@ -138,7 +138,7 @@ export async function collectJoinPayment(
       method: testMode
         ? { card: true, netbanking: true, wallet: true, upi: false, emi: false, paylater: false }
         : undefined,
-      theme: { color: "#6d28d9" },
+      theme: { color: "#0e7490" },
       handler: (response) => {
         settled = true;
         resolve({

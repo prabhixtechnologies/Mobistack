@@ -1,60 +1,105 @@
-import { useEffect } from "react";
-import { beginLogin, isOidcEnabled } from "../lib/oidc";
+import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
+import { beginLogin, beginSignup, isOidcEnabled } from "../lib/oidc";
 import { LogoMark } from "../ui/LogoMark";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { BRAND, copyrightLine } from "../lib/brand";
 
 /**
- * Signing in is a redirect when Identity is configured.
+ * Product gateway only — credentials are never collected here.
  *
- * <p>The password / OTP / Google forms that used to live here are gone on the OIDC path: credentials
- * belong on the hosted page. When {@code VITE_IDENTITY_ISSUER} is blank (local/dev without Identity),
- * {@link MissingIssuer} explains what is missing rather than silently offering a second login path.
+ * <p>Every Prabhix product uses the same Identity hosted login (OIDC). This page starts that
+ * flow; the white panel is the interaction surface, not a second password form.
  */
 export function LoginPage() {
-  useEffect(() => {
-    if (!isOidcEnabled()) return;
-    void beginLogin(window.location.pathname === "/login" ? "/" : undefined);
-  }, []);
-
   if (!isOidcEnabled()) return <MissingIssuer />;
 
   return (
-    <div className="login-page">
-      <header className="login-page__top">
-        <LogoMark />
+    <AuthGate>
+      <div className="auth-brand">
+        <span className="auth-brand__mark">
+          <LogoMark size={36} />
+        </span>
+        <span className="auth-brand__name">{BRAND.product}</span>
+      </div>
+      <div className="auth-intro">
+        <h1 className="auth-heading">Welcome</h1>
+        <p className="auth-brand__welcome">
+          One Prabhix account. Sign in or create one — then pick a shop workspace.
+        </p>
+      </div>
+      <div className="auth-actions" style={{ gridTemplateColumns: "1fr" }}>
+        <button
+          type="button"
+          className="auth-submit"
+          onClick={() => void beginLogin(window.location.pathname === "/login" ? "/" : undefined)}
+        >
+          Sign in
+        </button>
+        <button
+          type="button"
+          className="auth-submit auth-submit--secondary"
+          onClick={() => void beginSignup("/")}
+        >
+          Create an account
+        </button>
+      </div>
+      <p className="auth-legal">{copyrightLine()}</p>
+    </AuthGate>
+  );
+}
+
+export function MissingIssuer() {
+  return (
+    <AuthGate>
+      <div className="auth-brand">
+        <span className="auth-brand__mark">
+          <LogoMark size={36} />
+        </span>
+        <span className="auth-brand__name">{BRAND.product}</span>
+      </div>
+      <div className="auth-intro">
+        <h1 className="auth-heading">Sign-in is not configured</h1>
+        <p className="auth-brand__welcome">
+          Set <code>VITE_IDENTITY_ISSUER</code> to the Identity URL and rebuild this app.
+        </p>
+      </div>
+      <p className="auth-legal">{copyrightLine()}</p>
+    </AuthGate>
+  );
+}
+
+/** Shared OIDC gateway chrome — panel + showcase. Used by login and callback. */
+export function AuthGate({ children }: { children: ReactNode }) {
+  return (
+    <div className="auth-screen">
+      <div className="auth-screen__glow" aria-hidden />
+      <header className="auth-top">
         <ThemeToggle icon />
       </header>
-      <main className="login-page__body">
-        <p className="muted">Taking you to sign in…</p>
-      </main>
-      <footer className="login-page__footer">
-        <p className="muted">{copyrightLine()}</p>
-      </footer>
+      <div className="auth-layout">
+        <section className="auth-panel">{children}</section>
+        <aside className="auth-showcase" aria-hidden>
+          <p className="auth-kicker">Prabhix Identity</p>
+          <div className="auth-showcase__brand">
+            <LogoMark size={48} />
+            <h2>{BRAND.product}</h2>
+          </div>
+          <p className="muted" style={{ color: "rgba(232,238,244,0.78)", marginTop: 12, lineHeight: 1.5 }}>
+            {BRAND.tagline} Sign in once with your Prabhix account — the same one used by OneOps and
+            Mailroom.
+          </p>
+        </aside>
+      </div>
     </div>
   );
 }
 
-/**
- * For a build with no {@code VITE_IDENTITY_ISSUER}, which has no way to sign anybody in via OIDC.
- */
-export function MissingIssuer() {
+/** Kept for callback errors that need a link home without nesting AuthGate twice. */
+export function AuthGateLink({ to, children }: { to: string; children: ReactNode }) {
   return (
-    <div className="login-page">
-      <header className="login-page__top">
-        <LogoMark />
-        <ThemeToggle icon />
-      </header>
-      <main className="login-page__body">
-        <h1>{BRAND.product}</h1>
-        <p>Sign-in is not configured for this build.</p>
-        <p className="muted">
-          Set <code>VITE_IDENTITY_ISSUER</code> to the identity service URL and rebuild.
-        </p>
-      </main>
-      <footer className="login-page__footer">
-        <p className="muted">{copyrightLine()}</p>
-      </footer>
-    </div>
+    <Link className="auth-submit" to={to} style={{ textAlign: "center", textDecoration: "none" }}>
+      {children}
+    </Link>
   );
 }

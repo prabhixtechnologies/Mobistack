@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { completeLogin, rememberIdToken } from "../lib/oidc";
 import { useAuth } from "../lib/auth";
+import { AuthGate, AuthGateLink } from "./LoginPage";
+import { BRAND, copyrightLine } from "../lib/brand";
 import { LogoMark } from "../ui/LogoMark";
-import { ThemeToggle } from "../ui/ThemeToggle";
-import { copyrightLine } from "../lib/brand";
 
 /**
  * Where Prabhix Identity sends the browser back after a successful sign-in.
@@ -36,26 +36,29 @@ export function OidcCallbackPage() {
   }, [searchParams, loginWithTokens, navigate]);
 
   return (
-    <div className="login-page">
-      <header className="login-page__top">
-        <LogoMark />
-        <ThemeToggle icon />
-      </header>
-      <main className="login-page__body">
+    <AuthGate>
+      <div className="auth-brand">
+        <span className="auth-brand__mark">
+          <LogoMark size={36} />
+        </span>
+        <span className="auth-brand__name">{BRAND.product}</span>
+      </div>
+      <div className="auth-intro">
+        <h1 className="auth-heading">{message ? "Sign-in did not finish" : "Signing you in"}</h1>
         {message ? (
-          <>
-            <p className="error">{message}</p>
-            <Link className="btn" to="/login">
-              Back to sign in
-            </Link>
-          </>
+          <p className="auth-error" role="alert">
+            {message}
+          </p>
         ) : (
-          <p className="muted">Signing you in…</p>
+          <p className="auth-brand__welcome">Finishing your Prabhix Identity session…</p>
         )}
-      </main>
-      <footer className="login-page__footer">
-        <p className="muted">{copyrightLine()}</p>
-      </footer>
-    </div>
+      </div>
+      {message ? (
+        <div className="auth-actions" style={{ gridTemplateColumns: "1fr" }}>
+          <AuthGateLink to="/login">Back to sign in</AuthGateLink>
+        </div>
+      ) : null}
+      <p className="auth-legal">{copyrightLine()}</p>
+    </AuthGate>
   );
 }

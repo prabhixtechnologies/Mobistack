@@ -34,6 +34,18 @@ export function redirectUri(): string {
  *     provider.
  */
 export async function beginLogin(returnTo?: string): Promise<void> {
+  await authorize(returnTo);
+}
+
+/**
+ * Hosted Identity signup via OIDC {@code prompt=create}, so the authorization request is saved and
+ * the browser returns to this product after the account exists.
+ */
+export async function beginSignup(returnTo?: string): Promise<void> {
+  await authorize(returnTo, "create");
+}
+
+async function authorize(returnTo?: string, prompt?: string): Promise<void> {
   const verifier = randomUrlSafe(64);
   const state = randomUrlSafe(32);
 
@@ -50,6 +62,7 @@ export async function beginLogin(returnTo?: string): Promise<void> {
     code_challenge: await sha256Base64Url(verifier),
     code_challenge_method: "S256",
   });
+  if (prompt) params.set("prompt", prompt);
 
   window.location.assign(`${IDENTITY_ISSUER}/oauth2/authorize?${params.toString()}`);
 }

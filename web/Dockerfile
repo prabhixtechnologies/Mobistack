@@ -9,8 +9,13 @@ RUN npm ci
 COPY . .
 ARG VITE_RAZORPAY_KEY_ID
 ENV VITE_RAZORPAY_KEY_ID=$VITE_RAZORPAY_KEY_ID
-ARG VITE_IDENTITY_ISSUER=
+# Blank API origin → same-origin /api via nginx (docker). Set for Vite-dev against a remote API.
+ARG VITE_API_ORIGIN=
+ENV VITE_API_ORIGIN=$VITE_API_ORIGIN
+ARG VITE_IDENTITY_ISSUER=http://localhost:8081
 ENV VITE_IDENTITY_ISSUER=$VITE_IDENTITY_ISSUER
+ARG VITE_STORE_URL=
+ENV VITE_STORE_URL=$VITE_STORE_URL
 RUN npm run build
 
 FROM public.ecr.aws/docker/library/nginx:1.27-alpine

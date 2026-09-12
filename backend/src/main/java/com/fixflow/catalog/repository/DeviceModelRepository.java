@@ -32,13 +32,14 @@ public interface DeviceModelRepository extends JpaRepository<DeviceModel, UUID> 
             select d from DeviceModel d
             where d.shopId = :shopId and lower(d.name) = lower(:name) and d.brand.id = :brandId
               and (
-                    (:variant is null and (d.variant is null or d.variant = ''))
-                    or lower(d.variant) = lower(:variant)
+                    (:hasVariant = false and (d.variant is null or d.variant = ''))
+                    or (:hasVariant = true and lower(d.variant) = lower(:variant))
                   )
             """)
     Optional<DeviceModel> findByShopIdBrandNameAndVariant(@Param("shopId") UUID shopId,
                                                           @Param("brandId") UUID brandId,
                                                           @Param("name") String name,
+                                                          @Param("hasVariant") boolean hasVariant,
                                                           @Param("variant") String variant);
 
     @Query("""

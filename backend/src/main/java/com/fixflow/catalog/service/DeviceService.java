@@ -75,7 +75,9 @@ public class DeviceService {
                 .orElseThrow(() -> ApiException.notFound("Brand", request.brandId()));
 
         String variant = blankToNull(request.variant());
-        deviceModelRepository.findByShopIdBrandNameAndVariant(shopId, brand.getId(), request.name().trim(), variant)
+        boolean hasVariant = variant != null;
+        deviceModelRepository.findByShopIdBrandNameAndVariant(
+                        shopId, brand.getId(), request.name().trim(), hasVariant, hasVariant ? variant : "")
                 .ifPresent(existing -> {
                     throw ApiException.alreadyExists(
                             "%s already exists.".formatted(com.fixflow.catalog.DeviceLabels.display(
@@ -178,8 +180,13 @@ public class DeviceService {
     public DeviceModel findOrCreate(UUID shopId, Brand brand, String name, String variant) {
         String trimmedName = name.trim();
         String normalizedVariant = blankToNull(variant);
+        boolean hasVariant = normalizedVariant != null;
+        // Pass a non-null placeholder when absent: PostgreSQL binds a typed-null String as bytea,
+        // and lower(:variant) then fails with "function lower(bytea) does not exist".
         return deviceModelRepository
-                .findByShopIdBrandNameAndVariant(shopId, brand.getId(), trimmedName, normalizedVariant)
+                .findByShopIdBrandNameAndVariant(
+                        shopId, brand.getId(), trimmedName, hasVariant,
+                        hasVariant ? normalizedVariant : "")
                 .orElseGet(() -> {
                     DeviceModel device = new DeviceModel();
                     device.setShopId(shopId);

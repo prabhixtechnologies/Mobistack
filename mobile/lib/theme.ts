@@ -23,36 +23,37 @@ export interface Palette {
 const KEY = "mobistack.theme";
 const LEGACY_KEY = "fixflow.theme";
 
+/** Aligned with Infra/design/prabhix-tokens.css (teal/cyan). */
 export const light: Palette = {
-  bg: "#F4F1EA",
-  card: "#FFFDF8",
-  ink: "#14130F",
-  soft: "#5C574C",
-  faint: "#8A8476",
-  line: "#E6E1D6",
-  accent: "#C9841D",
-  good: "#2F7D4A",
-  goodSoft: "#D8F0E0",
-  warn: "#B86B12",
-  warnSoft: "#F8E4C4",
-  bad: "#B42318",
-  badSoft: "#F8D5D2",
+  bg: "#f3f6fb",
+  card: "#ffffff",
+  ink: "#0c1524",
+  soft: "#5b6b7c",
+  faint: "#8fa3b5",
+  line: "#d5dee8",
+  accent: "#0e7490",
+  good: "#067647",
+  goodSoft: "#d1fadf",
+  warn: "#b45309",
+  warnSoft: "#fef0c7",
+  bad: "#b42318",
+  badSoft: "#fee4e2",
 };
 
 export const dark: Palette = {
-  bg: "#10110F",
-  card: "#181916",
-  ink: "#F4F1EA",
-  soft: "#B7B2A4",
-  faint: "#7D786C",
-  line: "#2C2D28",
-  accent: "#E2A43A",
-  good: "#6FCD8D",
-  goodSoft: "#1D3A27",
-  warn: "#E3B05A",
-  warnSoft: "#3A2C14",
-  bad: "#F0A39C",
-  badSoft: "#3D1C19",
+  bg: "#071018",
+  card: "#0d1a24",
+  ink: "#e8eef4",
+  soft: "#8fa3b5",
+  faint: "#5b6b7c",
+  line: "#1c3342",
+  accent: "#22d3ee",
+  good: "#32d583",
+  goodSoft: "#054f31",
+  warn: "#fdb022",
+  warnSoft: "#3b2507",
+  bad: "#f97066",
+  badSoft: "#55160c",
 };
 
 /** Default palette for modules that cannot hook into the provider yet. */

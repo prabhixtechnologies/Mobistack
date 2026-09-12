@@ -18,8 +18,16 @@ interface Catalog {
   ios: PackageInfo;
 }
 
+const STORE_ORIGIN =
+  (import.meta.env.VITE_STORE_URL as string | undefined)?.replace(/\/$/, "") ||
+  "http://store.prabhixtechnologies.com:8090";
+
 function fileHref(kind: "android" | "ios"): string {
-  return kind === "ios" ? "/download/ios" : "/download/android";
+  if (kind === "ios") {
+    return "/download/ios";
+  }
+  // Company store is the canonical APK surface locally and in production config.
+  return `${STORE_ORIGIN}/mobistack/android.apk`;
 }
 
 function formatSize(bytes: number): string {

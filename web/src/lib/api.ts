@@ -82,9 +82,11 @@ export function clearSession(): void {
   storeRemove("access", "refresh", "user", "workspaces");
 }
 
+const API_HINT = API_ORIGIN || "http://localhost:8082";
+
 const OFFLINE_API: ApiError = {
   code: "UNAVAILABLE",
-  message: "The API is not running. Start the backend on http://localhost:8080, then try again.",
+  message: `The API is not running. Start the backend on ${API_HINT}, then try again.`,
 };
 
 async function parseError(response: Response): Promise<never> {

@@ -27,9 +27,9 @@ export function LogoMark({
     >
       <defs>
         <linearGradient id={bg} x1="6" y1="0" x2="58" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#C4B5FD" />
-          <stop offset="0.38" stopColor="#8B5CF6" />
-          <stop offset="1" stopColor="#3B0764" />
+          <stop stopColor="#67E8F9" />
+          <stop offset="0.38" stopColor="#0E7490" />
+          <stop offset="1" stopColor="#042F2E" />
         </linearGradient>
         <radialGradient id={glow} cx="28%" cy="22%" r="62%">
           <stop stopColor="#fff" stopOpacity="0.28" />
@@ -46,7 +46,7 @@ export function LogoMark({
         transform="translate(-1.1 -1.2)"
       >
         <path d={LOGO_M_PATH} stroke="#F5C542" transform="translate(2.6 2.85)" />
-        <path d={LOGO_M_PATH} stroke="#E9D5FF" transform="translate(1.3 1.4)" />
+        <path d={LOGO_M_PATH} stroke="#A5F3FC" transform="translate(1.3 1.4)" />
         <path d={LOGO_M_PATH} stroke="#FFFFFF" />
       </g>
     </svg>

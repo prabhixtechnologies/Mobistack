@@ -1,24 +1,41 @@
 :root {
   color-scheme: light;
-  --bg: #eef0f6;
-  --bg-elevated: #ffffff;
-  --bg-muted: #f3f5fa;
-  --ink: #151826;
-  --ink-soft: #5b6178;
-  --ink-faint: #8b91a7;
-  --line: rgba(21, 24, 38, 0.08);
-  --line-strong: rgba(21, 24, 38, 0.14);
-  --accent: #6d28d9;
-  --accent-ink: #ffffff;
-  --accent-soft: #ede9fe;
-  --header: #0f1220;
-  --good: #15803d;
+  /* Prabhix shared tokens (Infra/design/prabhix-tokens.css) */
+  --px-bg: #f3f6fb;
+  --px-bg-accent: #dce9f7;
+  --px-surface: #ffffff;
+  --px-ink: #0c1524;
+  --px-muted: #5b6b7c;
+  --px-border: #d5dee8;
+  --px-accent: #0e7490;
+  --px-accent-ink: #f0fdfa;
+  --px-danger: #b42318;
+  --px-success: #067647;
+  --px-focus: #0891b2;
+  --px-shadow: 0 18px 50px rgba(12, 21, 36, 0.08);
+  --px-font-display: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
+  --px-font-body: "Source Sans 3", "Source Sans Pro", "Segoe UI", sans-serif;
+  --px-radius: 0.9rem;
+
+  --bg: var(--px-bg);
+  --bg-elevated: var(--px-surface);
+  --bg-muted: var(--px-bg-accent);
+  --ink: var(--px-ink);
+  --ink-soft: var(--px-muted);
+  --ink-faint: color-mix(in srgb, var(--px-muted) 72%, var(--px-bg));
+  --line: color-mix(in srgb, var(--px-ink) 8%, transparent);
+  --line-strong: color-mix(in srgb, var(--px-ink) 14%, transparent);
+  --accent: var(--px-accent);
+  --accent-ink: var(--px-accent-ink);
+  --accent-soft: #cffafe;
+  --header: #071018;
+  --good: var(--px-success);
   --good-soft: #dcfce7;
   --warn: #b45309;
   --warn-soft: #ffedd5;
-  --bad: #b91c1c;
+  --bad: var(--px-danger);
   --bad-soft: #fee2e2;
-  --shadow: 0 1px 2px rgba(21, 24, 38, 0.04), 0 14px 40px rgba(21, 24, 38, 0.08);
+  --shadow: var(--px-shadow);
   --radius: 18px;
   --radius-sm: 12px;
   --sidebar: 268px;
@@ -27,31 +44,44 @@
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
-  --font: "Plus Jakarta Sans", "Instrument Sans", "Segoe UI", sans-serif;
-  --serif: "Plus Jakarta Sans", "Instrument Sans", sans-serif;
+  --font: var(--px-font-body);
+  --serif: var(--px-font-display);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0d1018;
-  --bg-elevated: #161b27;
-  --bg-muted: #1d2332;
-  --ink: #f3f5fb;
-  --ink-soft: #b4bbd0;
-  --ink-faint: #7d859c;
-  --line: rgba(243, 245, 251, 0.08);
-  --line-strong: rgba(243, 245, 251, 0.16);
-  --accent: #8b5cf6;
-  --accent-ink: #ffffff;
-  --accent-soft: #2e1b57;
-  --header: #080a12;
-  --good: #4ade80;
+  --px-bg: #071018;
+  --px-bg-accent: #0f2a36;
+  --px-surface: #0d1a24;
+  --px-ink: #e8eef4;
+  --px-muted: #8fa3b5;
+  --px-border: #1c3342;
+  --px-accent: #22d3ee;
+  --px-accent-ink: #042f2e;
+  --px-danger: #f97066;
+  --px-success: #32d583;
+  --px-focus: #67e8f9;
+  --px-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+
+  --bg: var(--px-bg);
+  --bg-elevated: var(--px-surface);
+  --bg-muted: var(--px-bg-accent);
+  --ink: var(--px-ink);
+  --ink-soft: var(--px-muted);
+  --ink-faint: color-mix(in srgb, var(--px-muted) 78%, var(--px-bg));
+  --line: color-mix(in srgb, var(--px-ink) 8%, transparent);
+  --line-strong: color-mix(in srgb, var(--px-ink) 16%, transparent);
+  --accent: var(--px-accent);
+  --accent-ink: var(--px-accent-ink);
+  --accent-soft: #164e63;
+  --header: #040a10;
+  --good: var(--px-success);
   --good-soft: #163422;
   --warn: #fbbf24;
   --warn-soft: #3a2c14;
-  --bad: #fca5a5;
+  --bad: var(--px-danger);
   --bad-soft: #3d1c19;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 44px rgba(0, 0, 0, 0.32);
+  --shadow: var(--px-shadow);
 }
 
 * {
@@ -114,7 +144,7 @@ button {
   gap: 14px;
   padding: var(--safe-top) max(16px, var(--safe-right)) 0 max(16px, var(--safe-left));
   background: var(--header);
-  color: #f7f5ff;
+  color: #e8eef4;
   z-index: 50;
 }
 
@@ -180,7 +210,7 @@ button {
   flex: 0 0 auto;
   display: block;
   line-height: 0;
-  box-shadow: 0 8px 18px rgba(91, 33, 182, 0.35);
+  box-shadow: 0 8px 18px rgba(14, 116, 144, 0.35);
 }
 
 .brand-mark svg {
@@ -196,7 +226,7 @@ button {
 }
 
 .brand--inverse .brand-name {
-  color: #f7f5ff;
+  color: #e8eef4;
 }
 
 .brand--inverse .faint {
@@ -280,7 +310,7 @@ button {
 .tint-green .nav-ico { background: #dcfce7; color: #15803d; }
 .tint-amber .nav-ico { background: #ffedd5; color: #c2410c; }
 .tint-blue .nav-ico { background: #dbeafe; color: #1d4ed8; }
-.tint-violet .nav-ico { background: #ede9fe; color: #6d28d9; }
+.tint-violet .nav-ico { background: #cffafe; color: #0e7490; }
 .tint-cyan .nav-ico { background: #cffafe; color: #0e7490; }
 .tint-slate .nav-ico { background: #e2e8f0; color: #334155; }
 .tint-orange .nav-ico { background: #ffedd5; color: #ea580c; }
@@ -289,7 +319,7 @@ button {
 :root[data-theme="dark"] .tint-green .nav-ico { background: #163422; color: #4ade80; }
 :root[data-theme="dark"] .tint-amber .nav-ico { background: #3a2c14; color: #fbbf24; }
 :root[data-theme="dark"] .tint-blue .nav-ico { background: #172554; color: #60a5fa; }
-:root[data-theme="dark"] .tint-violet .nav-ico { background: #2e1b57; color: #c4b5fd; }
+:root[data-theme="dark"] .tint-violet .nav-ico { background: #164e63; color: #67e8f9; }
 :root[data-theme="dark"] .tint-cyan .nav-ico { background: #164e63; color: #67e8f9; }
 :root[data-theme="dark"] .tint-slate .nav-ico { background: #1e293b; color: #cbd5e1; }
 :root[data-theme="dark"] .tint-orange .nav-ico { background: #3b1d0c; color: #fb923c; }
@@ -319,7 +349,7 @@ button {
   padding: 16px 28px;
   border-bottom: 1px solid var(--line);
   background: var(--header);
-  color: #f7f5ff;
+  color: #e8eef4;
 }
 
 .page {
@@ -407,7 +437,7 @@ button {
 .metric-card.tint-cyan::before { background: #0891b2; }
 .metric-card.tint-orange::before { background: #ea580c; }
 .metric-card.tint-slate::before { background: #64748b; }
-.metric-card.tint-violet::before { background: #6d28d9; }
+.metric-card.tint-violet::before { background: #0e7490; }
 
 .card.tight { padding: 0; overflow: auto; }
 
@@ -440,7 +470,7 @@ button {
 .app-header .search {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
-  color: #f7f5ff;
+  color: #e8eef4;
   min-width: 0;
   flex: 1 1 140px;
 }
@@ -471,7 +501,7 @@ button {
 }
 
 .app-header .search input {
-  color: #f7f5ff;
+  color: #e8eef4;
 }
 
 .app-header .search input::placeholder {
@@ -772,10 +802,10 @@ body:has(.auth-screen),
 }
 
 .auth-screen {
-  --auth-canvas: #12081f;
-  --auth-canvas-2: #2a1148;
-  --auth-brand: #6d28d9;
-  --auth-brand-deep: #5b21b6;
+  --auth-canvas: #071018;
+  --auth-canvas-2: #0f2a36;
+  --auth-brand: #0e7490;
+  --auth-brand-deep: #0f766e;
   height: 100%;
   height: 100dvh;
   max-height: 100dvh;
@@ -787,10 +817,10 @@ body:has(.auth-screen),
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(900px 520px at 88% 8%, rgba(167, 139, 250, 0.28), transparent 58%),
-    radial-gradient(720px 480px at 8% 88%, rgba(201, 132, 29, 0.16), transparent 52%),
-    linear-gradient(160deg, var(--auth-canvas), var(--auth-canvas-2) 62%, #1a0b2e);
-  color: #f8f5ff;
+    radial-gradient(900px 520px at 88% 8%, rgba(34, 211, 238, 0.22), transparent 58%),
+    radial-gradient(720px 480px at 8% 88%, rgba(8, 145, 178, 0.14), transparent 52%),
+    linear-gradient(160deg, var(--auth-canvas), var(--auth-canvas-2) 62%, #0a1c26);
+  color: #e8eef4;
 }
 
 .auth-screen__glow {
@@ -800,7 +830,7 @@ body:has(.auth-screen),
   bottom: 0;
   width: min(520px, 100%);
   height: min(520px, 70%);
-  background: radial-gradient(circle, rgba(109, 40, 217, 0.35), transparent 68%);
+  background: radial-gradient(circle, rgba(14, 116, 144, 0.35), transparent 68%);
 }
 
 .auth-top {
@@ -817,7 +847,7 @@ body:has(.auth-screen),
 
 .auth-screen .auth-top .btn.ghost,
 .auth-screen .auth-top .icon-btn {
-  color: #f8f5ff;
+  color: #e8eef4;
   border-color: rgba(248, 245, 255, 0.18);
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(8px);
@@ -872,24 +902,24 @@ body:has(.auth-screen),
   min-width: 0;
   min-height: 0;
   background: #fff;
-  color: #16131c;
+  color: #0c1524;
   border-radius: 24px;
   padding: 26px 26px 18px;
   border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.55) inset,
-    0 18px 50px rgba(8, 4, 18, 0.38),
-    0 2px 8px rgba(8, 4, 18, 0.18);
+    0 18px 50px rgba(7, 16, 24, 0.38),
+    0 2px 8px rgba(7, 16, 24, 0.18);
   max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(91, 33, 182, 0.28) transparent;
+  scrollbar-color: rgba(14, 116, 144, 0.28) transparent;
 }
 
 :root[data-theme="dark"] .auth-panel {
-  background: #1a1622;
-  color: #f4f1ea;
+  background: #0d1a24;
+  color: #e8eef4;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.06) inset,
@@ -910,7 +940,7 @@ body:has(.auth-screen),
   overflow: hidden;
   line-height: 0;
   flex: 0 0 auto;
-  box-shadow: 0 8px 16px rgba(91, 33, 182, 0.28);
+  box-shadow: 0 8px 16px rgba(14, 116, 144, 0.28);
 }
 
 .auth-brand__mark svg {
@@ -923,11 +953,11 @@ body:has(.auth-screen),
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.045em;
-  color: #4c1d95;
+  color: #155e75;
 }
 
 :root[data-theme="dark"] .auth-brand__name {
-  color: #ddd6fe;
+  color: #a5f3fc;
 }
 
 .auth-intro {
@@ -939,13 +969,13 @@ body:has(.auth-screen),
 
 .auth-brand__welcome {
   margin: 0;
-  color: #7a7384;
+  color: #5b6b7c;
   font-size: 13px;
   line-height: 1.4;
 }
 
 :root[data-theme="dark"] .auth-brand__welcome {
-  color: #b7b2a4;
+  color: #8fa3b5;
 }
 
 .auth-heading {
@@ -958,7 +988,7 @@ body:has(.auth-screen),
 }
 
 :root[data-theme="dark"] .auth-heading {
-  color: #f8f5ff;
+  color: #e8eef4;
 }
 
 .auth-label {
@@ -977,7 +1007,7 @@ body:has(.auth-screen),
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #e6e0ee;
+  border: 1px solid #d5dee8;
   background: #f7f5fa;
   border-radius: 12px;
   padding: 0 12px;
@@ -986,30 +1016,30 @@ body:has(.auth-screen),
 }
 
 .auth-field:hover {
-  border-color: #d5cce3;
-  background: #faf9fc;
+  border-color: #c5d4e0;
+  background: #f3f6fb;
 }
 
 :root[data-theme="dark"] .auth-field {
-  border-color: rgba(244, 241, 234, 0.12);
-  background: #141218;
+  border-color: rgba(232, 238, 244, 0.12);
+  background: #071018;
 }
 
 .auth-field:focus-within {
-  border-color: #7c3aed;
+  border-color: #0e7490;
   background: #fff;
-  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.14);
+  box-shadow: 0 0 0 4px rgba(14, 116, 144, 0.14);
 }
 
 :root[data-theme="dark"] .auth-field:focus-within {
-  background: #1c1824;
+  background: #0f2a36;
 }
 
 .auth-field svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
-  color: #9a93a3;
+  color: #8fa3b5;
 }
 
 .auth-input {
@@ -1024,13 +1054,13 @@ body:has(.auth-screen),
 }
 
 .auth-input::placeholder {
-  color: #a8a1b3;
+  color: #8fa3b5;
 }
 
 .auth-eye {
   border: 0;
   background: transparent;
-  color: #9a93a3;
+  color: #8fa3b5;
   padding: 6px;
   display: grid;
   place-items: center;
@@ -1038,8 +1068,8 @@ body:has(.auth-screen),
 }
 
 .auth-eye:hover {
-  color: #4c1d95;
-  background: rgba(124, 58, 237, 0.08);
+  color: #155e75;
+  background: rgba(14, 116, 144, 0.08);
 }
 
 .auth-eye svg {
@@ -1062,7 +1092,7 @@ body:has(.auth-screen),
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
-  color: #5b5562;
+  color: #5b6b7c;
 }
 
 .auth-remember input[type="checkbox"] {
@@ -1071,7 +1101,7 @@ body:has(.auth-screen),
   height: 16px;
   margin: 1px 0 0;
   flex: 0 0 auto;
-  border: 1.5px solid #c9c0d6;
+  border: 1.5px solid #b8c7d4;
   border-radius: 5px;
   background: #fff;
   display: grid;
@@ -1080,8 +1110,8 @@ body:has(.auth-screen),
 }
 
 .auth-remember input[type="checkbox"]:checked {
-  background: #6d28d9;
-  border-color: #6d28d9;
+  background: #0e7490;
+  border-color: #0e7490;
 }
 
 .auth-remember input[type="checkbox"]:checked::after {
@@ -1095,31 +1125,31 @@ body:has(.auth-screen),
 }
 
 :root[data-theme="dark"] .auth-remember {
-  color: #c8c2b6;
+  color: #8fa3b5;
 }
 
 :root[data-theme="dark"] .auth-remember input[type="checkbox"] {
-  background: #141218;
-  border-color: rgba(244, 241, 234, 0.24);
+  background: #071018;
+  border-color: rgba(232, 238, 244, 0.24);
 }
 
 .auth-link {
   border: 0;
   background: transparent;
-  color: #6d28d9;
+  color: #0e7490;
   font-weight: 650;
   font-size: 13px;
   padding: 0;
 }
 
 .auth-link:hover {
-  color: #4c1d95;
+  color: #155e75;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
 :root[data-theme="dark"] .auth-link {
-  color: #c4b5fd;
+  color: #67e8f9;
 }
 
 .auth-link--center {
@@ -1158,12 +1188,12 @@ body:has(.auth-screen),
   border: 0;
   border-radius: 12px;
   min-height: 44px;
-  background: linear-gradient(180deg, #7c3aed, #5b21b6);
+  background: linear-gradient(180deg, #0e7490, #0f766e);
   color: #fff;
   font-weight: 700;
   font-size: 14px;
   letter-spacing: -0.01em;
-  box-shadow: 0 10px 20px rgba(91, 33, 182, 0.28);
+  box-shadow: 0 10px 20px rgba(14, 116, 144, 0.28);
   transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
 }
 
@@ -1180,7 +1210,7 @@ body:has(.auth-screen),
 .auth-submit:focus-visible,
 .auth-alt:focus-visible,
 .auth-submit--secondary:focus-visible {
-  outline: 2px solid #7c3aed;
+  outline: 2px solid #0e7490;
   outline-offset: 2px;
 }
 
@@ -1201,21 +1231,21 @@ body:has(.auth-screen),
 }
 
 .auth-submit--secondary {
-  background: #f4f0fb;
-  color: #5b21b6;
+  background: #ecfeff;
+  color: #0f766e;
   box-shadow: none;
   border: 1px solid transparent;
 }
 
 .auth-submit--secondary:hover:not(:disabled) {
-  background: #ebe4f8;
+  background: #cffafe;
   filter: none;
 }
 
 :root[data-theme="dark"] .auth-submit--secondary {
-  background: rgba(196, 181, 253, 0.08);
-  color: #ddd6fe;
-  border-color: rgba(196, 181, 253, 0.22);
+  background: rgba(103, 232, 249, 0.08);
+  color: #a5f3fc;
+  border-color: rgba(103, 232, 249, 0.22);
 }
 
 .auth-rule {
@@ -1223,7 +1253,7 @@ body:has(.auth-screen),
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  color: #9a93a3;
+  color: #8fa3b5;
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.06em;
@@ -1235,12 +1265,12 @@ body:has(.auth-screen),
 .auth-rule::after {
   content: "";
   height: 1px;
-  background: #eeeaf4;
+  background: #d5dee8;
 }
 
 :root[data-theme="dark"] .auth-rule::before,
 :root[data-theme="dark"] .auth-rule::after {
-  background: rgba(244, 241, 234, 0.1);
+  background: rgba(232, 238, 244, 0.1);
 }
 
 .auth-alts {
@@ -1256,27 +1286,27 @@ body:has(.auth-screen),
   gap: 7px;
   min-height: 40px;
   border-radius: 12px;
-  border: 1px solid #ece7f3;
+  border: 1px solid #d5dee8;
   background: #fff;
-  color: #2d2836;
+  color: #0c1524;
   font-weight: 650;
   font-size: 13px;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .auth-alt:hover {
-  background: #f7f4fb;
-  border-color: #ddd4ec;
+  background: #f0f9ff;
+  border-color: #c5d4e0;
 }
 
 :root[data-theme="dark"] .auth-alt {
-  background: #241f2c;
-  border-color: rgba(244, 241, 234, 0.1);
-  color: #f4f1ea;
+  background: #0f2a36;
+  border-color: rgba(232, 238, 244, 0.1);
+  color: #e8eef4;
 }
 
 :root[data-theme="dark"] .auth-alt:hover {
-  background: #2c2634;
+  background: #164e63;
 }
 
 .auth-alt svg {
@@ -1285,9 +1315,9 @@ body:has(.auth-screen),
 }
 
 .auth-alt.on {
-  border-color: #7c3aed;
-  background: #f5f0ff;
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+  border-color: #0e7490;
+  background: #ecfeff;
+  box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.12);
 }
 
 .auth-channel {
@@ -1297,7 +1327,7 @@ body:has(.auth-screen),
 }
 
 .auth-channel button {
-  border: 1px solid #ece7f3;
+  border: 1px solid #d5dee8;
   background: #f7f5fa;
   border-radius: 999px;
   padding: 8px 10px;
@@ -1307,13 +1337,13 @@ body:has(.auth-screen),
 }
 
 .auth-channel button:hover {
-  background: #efeaf8;
+  background: #e0f2fe;
 }
 
 .auth-channel button.on {
-  background: #5b21b6;
+  background: #0f766e;
   color: #fff;
-  border-color: #5b21b6;
+  border-color: #0f766e;
 }
 
 .auth-footer-links {
@@ -1321,7 +1351,7 @@ body:has(.auth-screen),
   justify-content: center;
   align-items: center;
   gap: 8px;
-  color: #8b8494;
+  color: #8fa3b5;
 }
 
 .auth-legal-block {
@@ -1334,7 +1364,7 @@ body:has(.auth-screen),
 .auth-legal {
   margin: 0;
   text-align: center;
-  color: #9a93a3;
+  color: #8fa3b5;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -1345,7 +1375,7 @@ body:has(.auth-screen),
   justify-content: center;
   gap: 4px 12px;
   font-size: 12px;
-  color: #8b8494;
+  color: #8fa3b5;
 }
 
 .auth-legal-links a {
@@ -1353,11 +1383,11 @@ body:has(.auth-screen),
 }
 
 .auth-legal-links a:hover {
-  color: #6d28d9;
+  color: #0e7490;
 }
 
 :root[data-theme="dark"] .auth-legal-links a {
-  color: #b7b2a4;
+  color: #8fa3b5;
 }
 
 .auth-showcase {
@@ -1371,7 +1401,7 @@ body:has(.auth-screen),
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #c4b5fd;
+  color: #67e8f9;
 }
 
 .auth-showcase h2 {
@@ -1428,8 +1458,8 @@ body:has(.auth-screen),
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: rgba(124, 58, 237, 0.28);
-  color: #ddd6fe;
+  background: rgba(14, 116, 144, 0.28);
+  color: #a5f3fc;
   flex: 0 0 auto;
 }
 
@@ -1476,7 +1506,7 @@ body:has(.auth-screen),
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  box-shadow: 0 4px 10px rgba(91, 33, 182, 0.28);
+  box-shadow: 0 4px 10px rgba(14, 116, 144, 0.28);
 }
 
 .nav-badge {
@@ -1561,7 +1591,7 @@ iframe.razorpay-checkout-frame,
 
 .legal-brand svg {
   border-radius: 8px;
-  box-shadow: 0 6px 14px rgba(91, 33, 182, 0.28);
+  box-shadow: 0 6px 14px rgba(14, 116, 144, 0.28);
 }
 
 .legal-doc {
@@ -1667,17 +1697,17 @@ iframe.razorpay-checkout-frame,
 .header-icon {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.1);
-  color: #f7f5ff;
+  color: #e8eef4;
 }
 
 .header-ghost {
-  color: #f7f5ff;
+  color: #e8eef4;
   border-color: rgba(255, 255, 255, 0.18);
 }
 
 .header-select {
   background: rgba(255, 255, 255, 0.08);
-  color: #f7f5ff;
+  color: #e8eef4;
   border-color: rgba(255, 255, 255, 0.12);
   min-width: 150px;
 }
@@ -1689,8 +1719,8 @@ iframe.razorpay-checkout-frame,
 .role-chip {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(124, 58, 237, 0.28);
-  color: #ddd6fe;
+  background: rgba(14, 116, 144, 0.28);
+  color: #a5f3fc;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -1734,9 +1764,9 @@ iframe.razorpay-checkout-frame,
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #7c3aed, #5b21b6);
+  background: linear-gradient(180deg, #0e7490, #0f766e);
   color: #fff;
-  box-shadow: 0 12px 28px rgba(91, 33, 182, 0.38);
+  box-shadow: 0 12px 28px rgba(14, 116, 144, 0.38);
   z-index: 30;
   transition: transform 0.2s ease;
 }
@@ -1777,7 +1807,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ---------------------------------------------------------------------------
-   Collapsed sidebar — driven by the header toggle (Ctrl+B) and by narrow
+   Collapsed sidebar Ã¢â‚¬â€ driven by the header toggle (Ctrl+B) and by narrow
    viewports. Only the text label collapses; the tinted icon is what makes the
    rail usable, so it deliberately stays visible.
    --------------------------------------------------------------------------- */
@@ -1836,7 +1866,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Buttons — size and intent variants layered onto the existing .btn
+   Buttons Ã¢â‚¬â€ size and intent variants layered onto the existing .btn
    =========================================================================== */
 
 .btn {
@@ -1875,7 +1905,7 @@ iframe.razorpay-checkout-frame,
 .row--end { justify-content: flex-end; }
 
 /* ===========================================================================
-   Header additions — environment badge, sidebar toggle, account chip
+   Header additions Ã¢â‚¬â€ environment badge, sidebar toggle, account chip
    =========================================================================== */
 
 .sidebar-toggle {
@@ -1902,7 +1932,7 @@ iframe.razorpay-checkout-frame,
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
-  color: #f7f5ff;
+  color: #e8eef4;
   transition: background 0.18s ease;
 }
 
@@ -1938,7 +1968,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Menu — popover used by the account chip and row actions
+   Menu Ã¢â‚¬â€ popover used by the account chip and row actions
    =========================================================================== */
 
 .menu { position: relative; }
@@ -2518,7 +2548,7 @@ iframe.razorpay-checkout-frame,
 .tab-panel { display: grid; gap: 22px; }
 
 /* ===========================================================================
-   Tables — states layered onto the existing .table
+   Tables Ã¢â‚¬â€ states layered onto the existing .table
    =========================================================================== */
 
 .table--refreshing { opacity: 0.72; transition: opacity 0.2s ease; }
@@ -2556,14 +2586,14 @@ iframe.razorpay-checkout-frame,
 .cell-identity .faint { font-size: 12px; }
 
 /* ===========================================================================
-   Badge tints — badges use the same palette as the nav icons
+   Badge tints Ã¢â‚¬â€ badges use the same palette as the nav icons
    =========================================================================== */
 
 .badge.tint-rose { background: #ffe4e6; color: #be123c; }
 .badge.tint-green { background: #dcfce7; color: #15803d; }
 .badge.tint-amber { background: #ffedd5; color: #b45309; }
 .badge.tint-blue { background: #dbeafe; color: #1d4ed8; }
-.badge.tint-violet { background: #ede9fe; color: #6d28d9; }
+.badge.tint-violet { background: #cffafe; color: #0e7490; }
 .badge.tint-cyan { background: #cffafe; color: #0e7490; }
 .badge.tint-slate { background: #e2e8f0; color: #334155; }
 .badge.tint-orange { background: #ffedd5; color: #c2410c; }
@@ -2572,7 +2602,7 @@ iframe.razorpay-checkout-frame,
 :root[data-theme="dark"] .badge.tint-green { background: #163422; color: #4ade80; }
 :root[data-theme="dark"] .badge.tint-amber { background: #3a2c14; color: #fbbf24; }
 :root[data-theme="dark"] .badge.tint-blue { background: #172554; color: #60a5fa; }
-:root[data-theme="dark"] .badge.tint-violet { background: #2e1b57; color: #c4b5fd; }
+:root[data-theme="dark"] .badge.tint-violet { background: #164e63; color: #67e8f9; }
 :root[data-theme="dark"] .badge.tint-cyan { background: #164e63; color: #67e8f9; }
 :root[data-theme="dark"] .badge.tint-slate { background: #1e293b; color: #cbd5e1; }
 :root[data-theme="dark"] .badge.tint-orange { background: #3b1d0c; color: #fb923c; }
@@ -2585,7 +2615,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Access control — role cards and the permission matrix
+   Access control Ã¢â‚¬â€ role cards and the permission matrix
    =========================================================================== */
 
 .role-grid {
@@ -2932,7 +2962,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   My workspaces — one board: shops + join/create/invite
+   My workspaces Ã¢â‚¬â€ one board: shops + join/create/invite
    =========================================================================== */
 
 .workspaces-shell {
@@ -3266,7 +3296,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Notifications — inbox + channel matrix
+   Notifications Ã¢â‚¬â€ inbox + channel matrix
    =========================================================================== */
 
 .notify-page {
@@ -3581,7 +3611,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Responsive shell — tablet, phablet, phone, and rotated (landscape)
+   Responsive shell Ã¢â‚¬â€ tablet, phablet, phone, and rotated (landscape)
    =========================================================================== */
 
 .sidebar-scrim {
@@ -3892,7 +3922,7 @@ iframe.razorpay-checkout-frame,
   }
 }
 
-/* Rotated phone / short landscape — keep chrome thin so the page is usable */
+/* Rotated phone / short landscape Ã¢â‚¬â€ keep chrome thin so the page is usable */
 @media (max-height: 540px) and (orientation: landscape) {
   :root {
     --header-h: 48px;
