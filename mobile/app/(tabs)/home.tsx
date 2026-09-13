@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -16,7 +16,8 @@ import {
 import { CompatibilityHub } from "../../components/CompatibilityHub";
 import { useDebounced } from "../../lib/useDebounced";
 import { useScreenData } from "../../lib/useScreenData";
-import { Loading, OfflineNotice } from "../../components/ListState";
+import { Empty, Failed, Loading, OfflineNotice } from "../../components/ListState";
+import { Screen } from "../../components/Screen";
 import { money, useTheme } from "../../lib/theme";
 
 interface SearchHit {
@@ -106,20 +107,14 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView
-        contentContainerStyle={styles.page}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl
-            refreshing={dashboard.refreshing}
-            onRefresh={dashboard.refresh}
-            tintColor={colors.accent}
-          />
-        }
+      <Screen
+        title={greeting}
+        copy="Live sales, stock and jobs for this counter."
+        onRefresh={dashboard.refresh}
+        refreshing={dashboard.refreshing}
       >
-        <Text style={styles.hello}>{greeting}</Text>
         {locked ? (
-          <Pressable onPress={() => router.push("/billing")}>
+          <Pressable hitSlop={12} style={{ minHeight: 44, justifyContent: "center" }} onPress={() => router.push("/billing")}>
             <Text style={styles.banner}>
               Payment is pending. Tap here to activate this shop — sales, repairs, and stock stay locked until then.
             </Text>
@@ -127,7 +122,7 @@ export default function HomeScreen() {
         ) : null}
         {dashboard.offline ? <OfflineNotice what="figures" /> : null}
 
-        <Pressable style={styles.hit} onPress={() => router.push("/compatibility")}>
+        <Pressable style={styles.hit} hitSlop={12} onPress={() => router.push("/compatibility")}>
           <Text style={styles.hitTitle}>Universal lists</Text>
           <Text style={styles.hitSub}>Tempered glass, OCA, displays, and the rest</Text>
         </Pressable>
@@ -141,10 +136,10 @@ export default function HomeScreen() {
           autoCorrect={false}
         />
         {searching && hits.length === 0 && parts.length === 0 ? (
-          <Text style={styles.hitSub}>Nothing matches “{settled.trim()}”.</Text>
+          <Empty title="Nothing matches that" hint="Try a shorter model name, like 9A or Realme 6." />
         ) : null}
         {hits.map((device) => (
-          <Pressable key={device.id} style={styles.hit} onPress={() => router.push(`/device/${device.id}`)}>
+          <Pressable key={device.id} style={styles.hit} hitSlop={12} onPress={() => router.push(`/device/${device.id}`)}>
             <Text style={styles.hitTitle}>
               {device.brandName} {device.name}
             </Text>
@@ -185,12 +180,13 @@ export default function HomeScreen() {
               </View>
             ))}
             {dash && dash.alerts.length === 0 ? (
-              <Text style={styles.hitSub}>No stock emergencies right now.</Text>
+              <Empty title="No stock emergencies" hint="Nothing needs attention on the shelf right now." />
             ) : null}
-            {!dash && dashboard.error ? <Text style={styles.hitSub}>{dashboard.error}</Text> : null}
+            {!dash && dashboard.error ? <Failed message={dashboard.error} onRetry={dashboard.refresh} /> : null}
           </>
         )}
-      </ScrollView>
+        <View style={{ height: 72 }} />
+      </Screen>
 
       <Pressable style={styles.fab} onPress={() => setFabOpen(!fabOpen)}>
         <Text style={styles.fabPlus}>{fabOpen ? "×" : "+"}</Text>
@@ -226,7 +222,17 @@ function Tile({ label, value, colors }: { label: string; value: string; colors: 
 
 function FabAction({ label, onPress, colors }: { label: string; onPress: () => void; colors: ReturnType<typeof useTheme>["colors"] }) {
   return (
-    <Pressable style={{ backgroundColor: colors.card, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14 }} onPress={onPress}>
+    <Pressable
+      hitSlop={12}
+      style={{
+        backgroundColor: colors.card,
+        paddingHorizontal: 16,
+        minHeight: 44,
+        justifyContent: "center",
+        borderRadius: 14,
+      }}
+      onPress={onPress}
+    >
       <Text style={{ fontWeight: "600", color: colors.ink }}>{label}</Text>
     </Pressable>
   );
@@ -234,8 +240,6 @@ function FabAction({ label, onPress, colors }: { label: string; onPress: () => v
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { padding: 22, paddingTop: 62, paddingBottom: 120 },
-    hello: { fontSize: 32, fontWeight: "600", letterSpacing: -0.8, marginBottom: 16, color: colors.ink },
     banner: { color: colors.warn, marginBottom: 12, fontWeight: "600" },
     search: {
       backgroundColor: colors.card,
@@ -246,7 +250,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 12,
       color: colors.ink,
     },
-    hit: { backgroundColor: colors.card, borderRadius: 14, padding: 14, marginBottom: 8 },
+    hit: { backgroundColor: colors.card, borderRadius: 14, padding: 14, marginBottom: 8, minHeight: 44 },
     hitTitle: { fontWeight: "700", color: colors.ink },
     hitSub: { color: colors.soft, marginTop: 4 },
     grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 18 },

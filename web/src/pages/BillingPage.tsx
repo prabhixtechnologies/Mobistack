@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, money } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { captureCheckoutOrder, type CheckoutOrder } from "../lib/payOrder";
+import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 
 interface PlanCard {
@@ -242,10 +243,10 @@ export function BillingPage() {
             <div className="spread" style={{ padding: "16px 18px" }}>
               <strong>Your last 3 payments</strong>
             </div>
-            {data.recentPayments.length === 0 && (
-              <div className="muted" style={{ padding: "0 18px 16px" }}>No payments recorded yet.</div>
-            )}
-            {data.recentPayments.map((payment) => (
+            {data.recentPayments.length === 0 ? (
+              <EmptyState compact icon="card" title="No payments yet" hint="Pay a plan above and the last three show here." />
+            ) : (
+              data.recentPayments.map((payment) => (
               <div className="category-row" key={payment.id}>
                 <div>
                   <div style={{ fontWeight: 650 }}>{payment.planName}</div>
@@ -254,7 +255,8 @@ export function BillingPage() {
                 <span>{money.format(payment.amount)}</span>
                 <span className="badge GREEN">{payment.status}</span>
               </div>
-            ))}
+            ))
+            )}
           </section>
         </>
       )}

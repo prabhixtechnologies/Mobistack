@@ -5,6 +5,7 @@ import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
+import { SelectField, TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
 
 interface Customer {
@@ -84,13 +85,13 @@ export function CustomersPage() {
 
       {canWrite && (
         <form className="card row" onSubmit={submit}>
-          <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" aria-label="Customer name" required />
-          <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" aria-label="Customer phone" />
-          <select className="select" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160, maxWidth: "100%" }} aria-label="Customer type">
+          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
+          <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+          <SelectField label="Type" value={type} onChange={(e) => setType(e.target.value)}>
             <option value="RETAIL">Retail</option>
             <option value="WHOLESALE">Wholesale</option>
             <option value="VIP">VIP</option>
-          </select>
+          </SelectField>
           <button className="btn" disabled={create.busy}>
             {create.busy ? "Saving…" : "Add"}
           </button>
@@ -98,12 +99,12 @@ export function CustomersPage() {
       )}
 
       <div className="card row">
-        <input
-          className="field"
+        <TextField
+          label="Search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or phone…"
-          aria-label="Search customers"
+          placeholder="Name or phone…"
+          autoComplete="off"
         />
       </div>
 

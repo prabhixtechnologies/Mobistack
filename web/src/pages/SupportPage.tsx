@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { BRAND } from "../lib/brand";
+import { EmptyState } from "../ui/EmptyState";
+import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
 
 interface Message {
@@ -90,21 +92,29 @@ export function SupportPage() {
       />
       {error && <div className="error">{error}</div>}
       <div className="card chat-log">
-        {(conversation?.messages ?? []).map((row) => (
-          <div key={row.id} className={`chat-bubble ${row.authorType.toLowerCase()}`}>
-            <div className="faint">{row.authorType}</div>
-            <div>{row.body}</div>
-          </div>
-        ))}
-        {!conversation && <div className="muted">Ask how to sell a part, find stock, or talk to a person.</div>}
+        {(conversation?.messages ?? []).length === 0 ? (
+          <EmptyState
+            compact
+            icon="chat"
+            title="No messages yet"
+            hint="Ask how to sell a part, find stock, or talk to a person."
+          />
+        ) : (
+          (conversation?.messages ?? []).map((row) => (
+            <div key={row.id} className={`chat-bubble ${row.authorType.toLowerCase()}`}>
+              <div className="faint">{row.authorType}</div>
+              <div>{row.body}</div>
+            </div>
+          ))
+        )}
       </div>
       <form className="row" onSubmit={(event) => void send(event)}>
-        <input
-          className="field"
-          style={{ flex: 1 }}
+        <TextField
+          label="Message"
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder="How do I search for a Realme 6 display?"
+          autoComplete="off"
         />
         <button className="btn" type="submit" disabled={busy}>
           Send

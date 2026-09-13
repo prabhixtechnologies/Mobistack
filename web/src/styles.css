@@ -22,7 +22,7 @@
   --bg-muted: var(--px-bg-accent);
   --ink: var(--px-ink);
   --ink-soft: var(--px-muted);
-  --ink-faint: color-mix(in srgb, var(--px-muted) 92%, var(--px-bg));
+  --ink-faint: color-mix(in srgb, var(--px-muted) 72%, var(--px-ink));
   --line: color-mix(in srgb, var(--px-ink) 8%, transparent);
   --line-strong: color-mix(in srgb, var(--px-ink) 14%, transparent);
   --accent: var(--px-accent);
@@ -68,7 +68,7 @@
   --bg-muted: var(--px-bg-accent);
   --ink: var(--px-ink);
   --ink-soft: var(--px-muted);
-  --ink-faint: color-mix(in srgb, var(--px-muted) 90%, var(--px-bg));
+  --ink-faint: color-mix(in srgb, var(--px-muted) 55%, var(--px-ink));
   --line: color-mix(in srgb, var(--px-ink) 8%, transparent);
   --line-strong: color-mix(in srgb, var(--px-ink) 16%, transparent);
   --accent: var(--px-accent);
@@ -358,6 +358,7 @@ button {
   gap: 22px;
   width: 100%;
   max-width: 1440px;
+  min-width: 0;
   margin-inline: auto;
 }
 
@@ -974,7 +975,7 @@ body:has(.auth-screen),
 
 .auth-brand__welcome {
   margin: 0;
-  color: #5b6b7c;
+  color: #3d5163;
   font-size: 13px;
   line-height: 1.4;
 }
@@ -1370,7 +1371,7 @@ a.auth-submit {
   justify-content: center;
   align-items: center;
   gap: 8px;
-  color: #8fa3b5;
+  color: #3d5163;
 }
 
 .auth-legal-block {
@@ -1383,7 +1384,7 @@ a.auth-submit {
 .auth-legal {
   margin: 0;
   text-align: center;
-  color: #8fa3b5;
+  color: #3d5163;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -1394,11 +1395,11 @@ a.auth-submit {
   justify-content: center;
   gap: 4px 12px;
   font-size: 12px;
-  color: #8fa3b5;
+  color: #3d5163;
 }
 
 .auth-legal-links a {
-  color: #6b6574;
+  color: #0e4a5c;
 }
 
 .auth-legal-links a:hover {
@@ -1654,6 +1655,8 @@ iframe.razorpay-checkout-frame,
 
 .stack { display: grid; gap: 12px; }
 .row { display: flex; gap: 10px; align-items: center; }
+.row:has(.form-field) { align-items: flex-end; }
+.row .form-field { flex: 1 1 160px; min-width: 0; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 
 .skeleton {
@@ -3807,6 +3810,7 @@ iframe.razorpay-checkout-frame,
 
   .row .field,
   .row .select,
+  .row .form-field,
   .row .btn {
     flex: 1 1 140px;
   }
@@ -3903,10 +3907,32 @@ iframe.razorpay-checkout-frame,
   }
 }
 
+@media (max-width: 720px) {
+  .category-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .category-row > .row,
+  .category-row > button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
 @media (max-width: 480px) {
   :root {
     --header-h: 52px;
     --radius: 14px;
+  }
+
+  .category-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .category-row > .row,
+  .category-row > button {
+    grid-column: 1 / -1;
+    width: 100%;
   }
 
   .auth-secure {

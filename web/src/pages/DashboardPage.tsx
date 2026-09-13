@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api, money, qty } from "../lib/api";
-import { ErrorState } from "../ui/EmptyState";
+import { EmptyState, ErrorState } from "../ui/EmptyState";
+import { PageHeader } from "../ui/PageHeader";
 import type { DashboardResponse } from "../lib/types";
 
 function greeting(): string {
@@ -72,18 +73,16 @@ export function DashboardPage() {
 
   return (
     <div className="page">
-      <div className="page-title">
-        <div>
-          <p className="page-kicker">{user?.workspaceName ?? user?.shopName}</p>
-          <h1>
-            {greeting()}, {firstName}.
-          </h1>
-          <p>Live sales, stock and jobs for this counter — not placeholders.</p>
-        </div>
-        <Link className="btn" to="/compatibility">
-          Search a phone
-        </Link>
-      </div>
+      <PageHeader
+        kicker={user?.workspaceName ?? user?.shopName}
+        title={`${greeting()}, ${firstName}.`}
+        subtitle="Live sales, stock and jobs for this counter — not placeholders."
+        actions={
+          <Link className="btn" to="/compatibility">
+            Search a phone
+          </Link>
+        }
+      />
 
       <div className="grid-4">
         <Metric label="Today’s sales" value={money.format(data.sales.todaySales)} tint="violet" to="/sales" />
@@ -110,7 +109,7 @@ export function DashboardPage() {
           <span className="faint">{inv.openAlertCount} open alerts</span>
         </div>
         {data.alerts.length === 0 ? (
-          <div className="empty">Nothing needs attention. That is a good morning.</div>
+          <EmptyState compact icon="check" title="Nothing needs attention" hint="That is a good morning." />
         ) : (
           data.alerts.map((alert) => (
             <Link

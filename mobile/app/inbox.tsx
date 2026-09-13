@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { api } from "../lib/api";
 import { cachedInbox, saveInbox } from "../lib/offline";
 import { clearBadge, listenForPush } from "../lib/push";
 import { safeAppPath } from "../lib/safePath";
 import { useTheme } from "../lib/theme";
+import { Empty, Failed, Loading, OfflineNotice } from "../components/ListState";
 
 interface Item {
   id: string;
@@ -30,19 +31,22 @@ export default function InboxScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       const fresh = await api<Inbox>("/api/v1/inbox");
       setInbox(fresh);
       setOffline(false);
+      setError(null);
       await saveInbox(fresh);
       if (fresh.unread === 0) {
         await clearBadge();
       }
-    } catch {
+    } catch (cause) {
       setInbox(await cachedInbox<Inbox>(EMPTY));
       setOffline(true);
+      setError(cause instanceof Error ? cause.message : "Could not load inbox.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -96,31 +100,46 @@ export default function InboxScreen() {
   }
 
   return (
-    <View style={styles.page}>
-      <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }}>
-        <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
-      </Pressable>
-      <Text style={styles.title}>Inbox</Text>
-      <Text style={styles.sub}>
-        {offline ? `Showing saved copy · ${inbox.unread} unread` : `${inbox.unread} unread`}
-      </Text>
-      <Pressable
-        style={[styles.ghost, (busy || inbox.unread === 0) && styles.ghostOff]}
-        disabled={busy || inbox.unread === 0}
-        onPress={() => void markAllRead()}
-      >
-        <Text style={styles.ghostText}>{busy ? "Marking…" : "Mark all read"}</Text>
-      </Pressable>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={styles.head}>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ marginBottom: 8, minHeight: 44, justifyContent: "center" }}
+          hitSlop={12}
+        >
+          <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
+        </Pressable>
+        <Text style={styles.title}>Inbox</Text>
+        <Text style={styles.copy}>
+          {offline
+            ? `Showing the copy saved on this phone. ${inbox.unread} unread.`
+            : inbox.unread === 0
+              ? "You are caught up. Shop notices land here."
+              : `${inbox.unread} unread ${inbox.unread === 1 ? "notice" : "notices"} waiting.`}
+        </Text>
+        {offline ? <OfflineNotice what="inbox" /> : null}
+        <Pressable
+          style={[styles.ghost, (busy || inbox.unread === 0) && styles.ghostOff]}
+          disabled={busy || inbox.unread === 0}
+          hitSlop={12}
+          onPress={() => void markAllRead()}
+        >
+          <Text style={styles.ghostText}>{busy ? "Marking…" : "Mark all read"}</Text>
+        </Pressable>
+      </View>
       {loading ? (
-        <ActivityIndicator color={colors.ink} style={{ marginTop: 24 }} />
+        <Loading label="Loading inbox…" />
+      ) : error && inbox.items.length === 0 && !offline ? (
+        <Failed message={error} onRetry={() => void load()} />
       ) : (
         <FlatList
           data={inbox.items}
           keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              tintColor={colors.soft}
+              tintColor={colors.accent}
               onRefresh={() => {
                 setRefreshing(true);
                 void load();
@@ -128,14 +147,21 @@ export default function InboxScreen() {
             />
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>
-              {offline
-                ? "No saved notifications on this phone yet."
-                : "Nothing yet. Alerts about stock, repairs and payments arrive here."}
-            </Text>
+            <Empty
+              title={offline ? "Nothing saved on this phone" : "Nothing in the inbox yet"}
+              hint={
+                offline
+                  ? "Connect once so join approvals, billing, and shop alerts can be read offline."
+                  : "Alerts about stock, repairs and payments arrive here."
+              }
+            />
           }
           renderItem={({ item }) => (
-            <Pressable style={[styles.card, !item.readAt && styles.cardUnread]} onPress={() => void open(item)}>
+            <Pressable
+              style={[styles.card, !item.readAt && styles.cardUnread, { minHeight: 44 }]}
+              hitSlop={12}
+              onPress={() => void open(item)}
+            >
               <View style={styles.cardHead}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
                 {item.readAt ? null : <View style={styles.dot} />}
@@ -151,18 +177,34 @@ export default function InboxScreen() {
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { flex: 1, backgroundColor: colors.bg, padding: 22, paddingTop: 72 },
-    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
-    sub: { color: colors.soft, marginBottom: 12 },
-    ghost: { borderColor: colors.line, borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 12 },
+    head: { paddingHorizontal: 22, paddingTop: 62 },
+    title: { fontSize: 32, fontWeight: "600", letterSpacing: -0.6, color: colors.ink, marginBottom: 8 },
+    copy: { color: colors.soft, marginBottom: 16, lineHeight: 22 },
+    list: { paddingHorizontal: 22, paddingBottom: 48 },
+    ghost: {
+      borderColor: colors.line,
+      borderWidth: 1,
+      borderRadius: 14,
+      padding: 12,
+      alignItems: "center",
+      marginBottom: 12,
+      minHeight: 44,
+      justifyContent: "center",
+    },
     ghostOff: { opacity: 0.45 },
     ghostText: { fontWeight: "700", color: colors.ink },
-    card: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 8, borderColor: colors.line, borderWidth: 1 },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 14,
+      marginBottom: 8,
+      borderColor: colors.line,
+      borderWidth: 1,
+    },
     cardUnread: { borderColor: colors.ink },
     cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
     cardTitle: { fontWeight: "700", color: colors.ink, flexShrink: 1 },
     cardBody: { color: colors.soft, marginTop: 4 },
     dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.accent },
-    empty: { color: colors.soft, marginTop: 20, lineHeight: 20 },
   });
 }

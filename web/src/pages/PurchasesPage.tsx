@@ -4,6 +4,7 @@ import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
+import { SelectField, TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
@@ -112,30 +113,30 @@ export function PurchasesPage() {
             </p>
           ) : (
             <>
-              <select className="select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+              <SelectField label="Supplier" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name}
                   </option>
                 ))}
-              </select>
-              <select className="select" value={variantId} onChange={(e) => setVariantId(e.target.value)}>
+              </SelectField>
+              <SelectField label="Part" value={variantId} onChange={(e) => setVariantId(e.target.value)}>
                 {variants.map((variant) => (
                   <option key={variant.id} value={variant.id}>
                     {variant.productName} · {variant.variantName}
                   </option>
                 ))}
-              </select>
+              </SelectField>
               <div className="grid-2">
-                <input
-                  className="field"
+                <TextField
+                  label="Quantity"
                   type="number"
                   min={1}
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
                 />
-                <input
-                  className="field"
+                <TextField
+                  label="Unit cost"
                   type="number"
                   min={0}
                   value={unitCost}

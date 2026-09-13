@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { highlightText, groupLine, phoneLabel } from "../lib/compatibility";
 import { useAccess } from "../lib/access";
+import { EmptyState } from "../ui/EmptyState";
+import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
 import type {
   CompatibilityGroup,
@@ -119,12 +121,13 @@ export function CompatibilityPage() {
         }
       />
       {error && <div className="error">{error}</div>}
-      <input
-        className="field"
+      <TextField
+        label="Search phones and lists"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search 9A, Realme 6, iPhone 11…"
         autoFocus
+        autoComplete="off"
       />
       {matchLabel && <p className="compat-match">{searching ? "Searching…" : matchLabel}</p>}
 
@@ -164,9 +167,12 @@ export function CompatibilityPage() {
               </Link>
             ))}
             {hits.length === 0 && groups.length === 0 && (
-              <div className="empty">
-                {searching ? "Searching…" : "No matching group or phone in this shop yet."}
-              </div>
+              <EmptyState
+                compact
+                icon="search"
+                title={searching ? "Searching…" : "No matching group or phone"}
+                hint="Try a shorter model name, like 9A or Realme 6."
+              />
             )}
           </section>
         </>
@@ -187,7 +193,12 @@ export function CompatibilityPage() {
             </Link>
           ))}
           {categories.length === 0 && !error && (
-            <div className="empty card">Loading the part lists…</div>
+            <EmptyState
+              compact
+              icon="box"
+              title={overview ? "No part lists yet" : "Loading the part lists…"}
+              hint={overview ? "Import a pasted list to fill this shop's catalogue." : undefined}
+            />
           )}
         </section>
       )}

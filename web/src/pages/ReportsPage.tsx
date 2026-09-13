@@ -3,6 +3,7 @@ import { api, getAccessToken, money, qty } from "../lib/api";
 import { getDeviceId } from "../lib/device";
 import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
+import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 
 interface ReportBundle {
@@ -133,7 +134,7 @@ export function ReportsPage() {
               <strong>Dead stock</strong>
             </div>
             {data.deadStock.length === 0 ? (
-              <div className="empty">Nothing is sitting idle.</div>
+              <EmptyState compact icon="box" title="Nothing is sitting idle" hint="Dead stock appears here when inventory has not moved." />
             ) : (
               data.deadStock.map((row) => (
                 <div className="category-row" key={row.variantId}>

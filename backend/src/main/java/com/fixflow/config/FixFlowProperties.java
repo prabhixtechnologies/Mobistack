@@ -107,6 +107,7 @@ public class FixFlowProperties {
                 "https://mobistack.prabhixtechnologies.com",
                 "https://www.mobistack.prabhixtechnologies.com",
                 "http://localhost:5173",
+                "http://localhost:5176",
                 "http://localhost:4173",
                 "http://localhost:8081",
                 "http://localhost:19006"

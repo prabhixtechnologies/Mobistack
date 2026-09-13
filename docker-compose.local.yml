@@ -46,7 +46,9 @@ services:
       - "5176:80"
     build:
       args:
-        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-http://localhost:8082}
+        # Blank → browser calls same-origin /api (nginx → mobistack-backend). Setting
+        # http://localhost:8082 here is blocked by CSP connect-src and shows "API is not running".
+        VITE_API_ORIGIN: ${VITE_API_ORIGIN:-}
         VITE_IDENTITY_ISSUER: ${VITE_IDENTITY_ISSUER:-http://localhost:8081}
         VITE_STORE_URL: ${VITE_STORE_URL:-http://store.prabhixtechnologies.com:8090}
         VITE_RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}

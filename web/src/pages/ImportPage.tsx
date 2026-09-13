@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useAction } from "../lib/useAction";
+import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import type { CompatibilityOverview, PageResponse } from "../lib/types";
 
@@ -105,8 +106,10 @@ export function ImportPage() {
         </button>
       </form>
       <div className="card tight">
-        {jobs.length === 0 && <div className="faint" style={{ padding: 12 }}>No imports yet.</div>}
-        {jobs.map((job) => (
+        {jobs.length === 0 ? (
+          <EmptyState compact icon="upload" title="No imports yet" hint="Paste a list above and the jobs will show here." />
+        ) : (
+          jobs.map((job) => (
           <div className="category-row" key={job.id}>
             <div>
               <div style={{ fontWeight: 650 }}>{job.kind}</div>
@@ -116,7 +119,8 @@ export function ImportPage() {
               </div>
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { Icon, type NavIconName } from "../ui/navIcons";
+import { PageHeader } from "../ui/PageHeader";
 
 interface Pref {
   eventType: string;
@@ -180,25 +181,25 @@ export function NotificationsPage() {
 
   return (
     <div className="page notify-page">
-      <header className="notify-hero">
-        <div>
-          <p className="page-kicker">Support</p>
-          <h1>Inbox</h1>
-          <p>
-            {inbox.unread === 0
-              ? "You are caught up. Shop notices land here; sign-in codes stay private."
-              : `${inbox.unread} unread ${inbox.unread === 1 ? "notice" : "notices"} waiting.`}
-          </p>
-        </div>
-        <div className="notify-hero__meta">
-          <span className={`notify-count ${inbox.unread ? "notify-count--hot" : ""}`}>
-            {inbox.unread} unread
-          </span>
-          <button className="btn ghost" type="button" disabled={inbox.unread === 0} onClick={() => void markAll()}>
-            Mark all read
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        kicker="Support"
+        title="Inbox"
+        subtitle={
+          inbox.unread === 0
+            ? "You are caught up. Shop notices land here; sign-in codes stay private."
+            : `${inbox.unread} unread ${inbox.unread === 1 ? "notice" : "notices"} waiting.`
+        }
+        actions={
+          <div className="notify-hero__meta">
+            <span className={`notify-count ${inbox.unread ? "notify-count--hot" : ""}`}>
+              {inbox.unread} unread
+            </span>
+            <button className="btn ghost" type="button" disabled={inbox.unread === 0} onClick={() => void markAll()}>
+              Mark all read
+            </button>
+          </div>
+        }
+      />
 
       {error && <div className="error">{error}</div>}
       {notice && <div className="banner">{notice}</div>}

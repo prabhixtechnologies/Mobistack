@@ -5,6 +5,7 @@ import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
+import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
 
 interface Supplier {
@@ -77,15 +78,8 @@ export function SuppliersPage() {
 
       {canWrite && (
         <form className="card row" onSubmit={submit}>
-          <input
-            className="field"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Supplier"
-            aria-label="Supplier name"
-            required
-          />
-          <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" aria-label="Supplier phone" />
+          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="organization" />
+          <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
           <button className="btn" disabled={create.busy}>
             {create.busy ? "Saving…" : "Add"}
           </button>
@@ -93,12 +87,12 @@ export function SuppliersPage() {
       )}
 
       <div className="card row">
-        <input
-          className="field"
+        <TextField
+          label="Search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or phone…"
-          aria-label="Search suppliers"
+          placeholder="Name or phone…"
+          autoComplete="off"
         />
       </div>
 

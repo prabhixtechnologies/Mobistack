@@ -63,6 +63,7 @@ export default function InventoryScreen() {
         ListHeaderComponent={
           <>
             <Text style={styles.title}>Inventory</Text>
+            <Text style={styles.copy}>Stock is the ledger. The number on the row is a cache of every movement.</Text>
             {parts.offline ? <OfflineNotice what="catalogue" /> : null}
             {receive.error ? <Problem message={receive.error} /> : null}
             <BarcodeScanButton onScan={setQuery} />
@@ -108,7 +109,11 @@ export default function InventoryScreen() {
                 <View style={[styles.badge, { backgroundColor: tone.bg }]}>
                   <Text style={{ color: tone.fg, fontWeight: "700" }}>{item.availableQty}</Text>
                 </View>
-                <Pressable onPress={() => setReceiveFor(item)} hitSlop={8}>
+                <Pressable
+                  onPress={() => setReceiveFor(item)}
+                  hitSlop={12}
+                  style={{ minHeight: 44, justifyContent: "center", minWidth: 44, alignItems: "flex-end" }}
+                >
                   <Text style={{ fontWeight: "700", color: colors.ink }}>Add</Text>
                 </Pressable>
               </View>
@@ -131,11 +136,17 @@ export default function InventoryScreen() {
           <Pressable
             style={[styles.btn, receive.busy && { opacity: 0.5 }]}
             disabled={receive.busy || !(Number(qty) > 0)}
+            hitSlop={12}
             onPress={() => void receive.run(receiveFor, Number(qty))}
           >
             <Text style={styles.btnText}>{receive.busy ? "Saving…" : "Receive"}</Text>
           </Pressable>
-          <Pressable onPress={() => setReceiveFor(null)} disabled={receive.busy}>
+          <Pressable
+            onPress={() => setReceiveFor(null)}
+            disabled={receive.busy}
+            hitSlop={12}
+            style={{ minHeight: 44, justifyContent: "center" }}
+          >
             <Text style={{ textAlign: "center", marginTop: 12, color: colors.soft }}>Cancel</Text>
           </Pressable>
         </View>
@@ -147,7 +158,8 @@ export default function InventoryScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "600", marginBottom: 14, color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", letterSpacing: -0.6, color: colors.ink, marginBottom: 8 },
+    copy: { color: colors.soft, marginBottom: 16, lineHeight: 22 },
     search: {
       backgroundColor: colors.card,
       borderColor: colors.line,
@@ -179,7 +191,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
     },
-    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", minHeight: 44, justifyContent: "center" },
     btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

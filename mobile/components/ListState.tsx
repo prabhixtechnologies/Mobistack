@@ -39,7 +39,7 @@ export function Failed({ message, onRetry }: { message: string; onRetry?: () => 
       <Text style={{ color: colors.bad, fontWeight: "700", textAlign: "center" }}>That didn't load</Text>
       <Text style={{ color: colors.soft, marginTop: 8, textAlign: "center", lineHeight: 20 }}>{message}</Text>
       {onRetry ? (
-        <Pressable onPress={onRetry} style={[styles.retry, { borderColor: colors.line }]}>
+        <Pressable onPress={onRetry} hitSlop={12} style={[styles.retry, { borderColor: colors.line }]}>
           <Text style={{ color: colors.ink, fontWeight: "700" }}>Try again</Text>
         </Pressable>
       ) : null}
@@ -72,5 +72,13 @@ export function Problem({ message }: { message: string }) {
 const styles = StyleSheet.create({
   centre: { paddingVertical: 48, paddingHorizontal: 24, alignItems: "center" },
   strip: { borderRadius: 12, padding: 12, marginBottom: 12 },
-  retry: { marginTop: 16, borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 18 },
+  retry: {
+    marginTop: 16,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    minHeight: 44,
+    justifyContent: "center",
+  },
 });

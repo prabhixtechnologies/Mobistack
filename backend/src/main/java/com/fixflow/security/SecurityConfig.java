@@ -129,7 +129,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(properties.getCors().getAllowedOrigins());
+        // WEB_ORIGIN / PUBLIC_ORIGIN are the live SPA hosts (local compose uses :5176). Keep them
+        // in sync with CORS so browser POSTs that send Origin are not rejected as "Invalid CORS
+        // request" while GETs (no Origin, or cached preflight) still look healthy.
+        java.util.LinkedHashSet<String> origins = new java.util.LinkedHashSet<>(
+                properties.getCors().getAllowedOrigins());
+        addOrigin(origins, properties.getAuth().getWebOrigin());
+        addOrigin(origins, properties.getPlatform().getPublicOrigin());
+        configuration.setAllowedOrigins(List.copyOf(origins));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // Named rather than "*": credentials are allowed on this origin, so the
         // browser should not be able to attach arbitrary headers to those calls.
@@ -153,6 +160,12 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private static void addOrigin(java.util.Set<String> origins, String origin) {
+        if (origin != null && !origin.isBlank()) {
+            origins.add(origin.trim());
+        }
     }
 
     private AuthenticationEntryPoint authenticationEntryPoint() {

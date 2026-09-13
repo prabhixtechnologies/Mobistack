@@ -33,7 +33,11 @@ export function Screen({
       }
     >
       {back ? (
-        <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }} hitSlop={8}>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ marginBottom: 8, minHeight: 44, justifyContent: "center" }}
+          hitSlop={12}
+        >
           <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
         </Pressable>
       ) : null}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, money, qty } from "../lib/api";
 import { phoneLabel } from "../lib/compatibility";
-import { ErrorState } from "../ui/EmptyState";
+import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import type { DeviceCompatibilityView, PricingFlag } from "../lib/types";
 
@@ -153,7 +153,12 @@ export function DevicePage() {
           );
         })}
         {view.categories.length === 0 && (
-          <div className="empty">No parts are linked to this phone yet. Add a compatibility group on the product.</div>
+          <EmptyState
+            compact
+            icon="box"
+            title="No parts linked yet"
+            hint="Add a compatibility group on the product so this phone shows stock and price."
+          />
         )}
       </section>
     </div>

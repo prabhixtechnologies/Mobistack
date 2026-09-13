@@ -20,6 +20,7 @@ import {
   type CompatibilityOverview,
 } from "../../lib/compatibility";
 import { hasPermission } from "../../lib/plan";
+import { Empty } from "../../components/ListState";
 import { useTheme } from "../../lib/theme";
 
 export default function CompatibilityCategoryScreen() {
@@ -137,7 +138,11 @@ export default function CompatibilityCategoryScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={styles.page}>
-        <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }}>
+        <Pressable
+          onPress={() => router.back()}
+          style={{ marginBottom: 8, minHeight: 44, justifyContent: "center" }}
+          hitSlop={12}
+        >
           <Text style={{ color: colors.soft, fontWeight: "700" }}>All lists</Text>
         </Pressable>
         <Text style={styles.title}>{category?.name ?? "List"}</Text>
@@ -172,13 +177,17 @@ export default function CompatibilityCategoryScreen() {
                 </Text>
                 {canWrite ? (
                   <View style={styles.actions}>
-                    <Pressable onPress={() => setEditor({ group, name: group.name, line })}>
+                    <Pressable
+                      hitSlop={12}
+                      style={styles.action}
+                      onPress={() => setEditor({ group, name: group.name, line })}
+                    >
                       <Text style={styles.link}>Edit</Text>
                     </Pressable>
-                    <Pressable onPress={() => copyGroup(group)}>
+                    <Pressable hitSlop={12} style={styles.action} onPress={() => copyGroup(group)}>
                       <Text style={styles.link}>Copy</Text>
                     </Pressable>
-                    <Pressable onPress={() => removeGroup(group)}>
+                    <Pressable hitSlop={12} style={styles.action} onPress={() => removeGroup(group)}>
                       <Text style={[styles.link, { color: colors.bad }]}>Delete</Text>
                     </Pressable>
                   </View>
@@ -187,7 +196,12 @@ export default function CompatibilityCategoryScreen() {
             </View>
           );
         })}
-        {groups.length === 0 ? <Text style={styles.meta}>No groups in this list yet.</Text> : null}
+        {groups.length === 0 ? (
+          <Empty
+            title="No groups in this list yet"
+            hint={canWrite ? "Add a line, or import a pasted list." : "Ask someone with catalogue access to add a group."}
+          />
+        ) : null}
       </ScrollView>
 
       <Modal visible={editor != null} animationType="slide" transparent>
@@ -286,7 +300,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     },
     n: { fontWeight: "800", color: colors.accent, width: 22 },
     meta: { color: colors.soft, marginTop: 4, fontWeight: "600" },
-    actions: { flexDirection: "row", gap: 16, marginTop: 10 },
+    actions: { flexDirection: "row", gap: 8, marginTop: 10 },
+    action: { minHeight: 44, justifyContent: "center", paddingHorizontal: 4 },
     link: { fontWeight: "700", color: colors.accent },
     sheetScrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
     sheet: { padding: 20, borderTopLeftRadius: 24, borderTopRightRadius: 24 },

@@ -103,28 +103,35 @@ export function clearSession(): void {
   storeRemove("access", "refresh", "user", "workspaces");
 }
 
-const API_HINT = API_ORIGIN || "http://localhost:8082";
-
 const OFFLINE_API: ApiError = {
   code: "UNAVAILABLE",
-  message: `The API is not running. Start the backend on ${API_HINT}, then try again.`,
+  message: API_ORIGIN
+    ? `The API is not running. Start the backend on ${API_ORIGIN}, then try again.`
+    : "The API is not reachable. Check that mobistack-backend is healthy, then try again.",
 };
 
 async function parseError(response: Response): Promise<never> {
-  let payload: ApiError = { code: "HTTP_" + response.status, message: response.statusText };
+  const fallback = response.statusText?.trim() || `Request failed (${response.status})`;
+  let payload: ApiError = { code: "HTTP_" + response.status, message: fallback };
+  const raw = await response.text();
   try {
-    payload = (await response.json()) as ApiError;
+    if (raw.trim()) {
+      payload = JSON.parse(raw) as ApiError;
+    }
   } catch {
-    if (
-      response.status === 500 ||
-      response.status === 502 ||
-      response.status === 503 ||
-      response.status === 504
-    ) {
+    if (raw.trim()) {
+      // Spring CORS and a few other filters return plain text, not ApiError JSON.
+      payload = { code: "HTTP_" + response.status, message: raw.trim() };
+    } else if (response.status === 502 || response.status === 503 || response.status === 504) {
       payload = OFFLINE_API;
     }
   }
-  if (!payload.message || payload.message === "Internal Server Error") {
+  if (!payload.message) {
+    payload = {
+      ...payload,
+      message: response.status >= 500 ? OFFLINE_API.message : fallback,
+    };
+  } else if (payload.message === "Internal Server Error" && response.status >= 500) {
     payload = OFFLINE_API;
   }
   throw Object.assign(new Error(payload.message), payload);

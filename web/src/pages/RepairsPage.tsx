@@ -5,6 +5,8 @@ import { useAction } from "../lib/useAction";
 import { usePagedList } from "../lib/usePagedList";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { LoadMore } from "../ui/DataTable";
+import { SelectField, TextField } from "../ui/Field";
+import { Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
@@ -252,38 +254,43 @@ export function RepairsPage() {
         </>
       )}
 
-      {partFor && (
-        <div
-          className="login-wrap"
-          style={{ position: "fixed", inset: 0, background: "rgba(20,19,15,0.35)", zIndex: 20 }}
-        >
-          <form className="login-card stack" onSubmit={submitPart}>
-            <div className="spread">
-              <h1 style={{ fontSize: 28, margin: 0 }}>Add part</h1>
-              <button className="btn ghost" type="button" onClick={() => setPartFor(null)}>
-                Close
+      <Modal
+        open={partFor !== null}
+        title="Add part"
+        description={partFor ? `Fit stock to ${partFor.jobNumber}` : undefined}
+        onClose={() => {
+          if (!addPart.busy) {
+            setPartFor(null);
+          }
+        }}
+        footer={
+          <>
+            <button className="btn ghost" type="button" onClick={() => setPartFor(null)} disabled={addPart.busy}>
+              Cancel
+            </button>
+            {variants.length > 0 && (
+              <button className="btn" type="submit" form="add-part-form" disabled={addPart.busy}>
+                {addPart.busy ? "Fitting…" : "Use from stock"}
               </button>
-            </div>
-            {variants.length === 0 ? (
-              <p className="muted">No stock is available to fit. Receive parts first.</p>
-            ) : (
-              <>
-                <select className="select" name="variantId" required>
-                  {variants.map((variant) => (
-                    <option key={variant.id} value={variant.id}>
-                      {variant.productName} · {variant.variantName} ({variant.availableQty})
-                    </option>
-                  ))}
-                </select>
-                <input className="field" name="quantity" type="number" min={1} defaultValue={1} />
-                <button className="btn" disabled={addPart.busy}>
-                  {addPart.busy ? "Fitting…" : "Use from stock"}
-                </button>
-              </>
             )}
+          </>
+        }
+      >
+        {variants.length === 0 ? (
+          <p className="muted">No stock is available to fit. Receive parts first.</p>
+        ) : (
+          <form id="add-part-form" className="stack" onSubmit={submitPart}>
+            <SelectField label="Part" name="variantId" required>
+              {variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variant.productName} · {variant.variantName} ({variant.availableQty})
+                </option>
+              ))}
+            </SelectField>
+            <TextField label="Quantity" name="quantity" type="number" min={1} defaultValue={1} />
           </form>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

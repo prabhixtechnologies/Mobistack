@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, money } from "../lib/api";
+import { EmptyState } from "../ui/EmptyState";
+import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
 
 interface Workspace {
@@ -173,7 +175,10 @@ export function AdminPage() {
       {tab === "shops" && (
         <>
           <div className="card tight">
-            {workspaces.map((workspace) => (
+            {workspaces.length === 0 ? (
+              <EmptyState compact icon="store" title="No shops yet" hint="Workspaces appear here once they are created." />
+            ) : (
+              workspaces.map((workspace) => (
               <div className="category-row" key={workspace.id}>
                 <div>
                   <div style={{ fontWeight: 650 }}>{workspace.name}</div>
@@ -205,10 +210,14 @@ export function AdminPage() {
                   {workspace.active ? "Suspend" : "Activate"}
                 </button>
               </div>
-            ))}
+              ))
+            )}
           </div>
           <div className="card tight">
-            {flags.map((flag) => (
+            {flags.length === 0 ? (
+              <EmptyState compact icon="grid" title="No feature flags" hint="Flags will show here when the platform defines them." />
+            ) : (
+              flags.map((flag) => (
               <div className="category-row" key={flag.code}>
                 <div style={{ fontWeight: 650 }}>{flag.code}</div>
                 <span>{flag.enabled ? "On" : "Off"}</span>
@@ -216,7 +225,8 @@ export function AdminPage() {
                   Toggle
                 </button>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </>
       )}
@@ -309,7 +319,10 @@ export function AdminPage() {
             </div>
           </form>
           <div className="card tight">
-            {plans.filter((plan) => plan.features.length > 0).map((plan) => (
+            {plans.filter((plan) => plan.features.length > 0).length === 0 ? (
+              <EmptyState compact icon="card" title="No plans yet" hint="Create a plan above to sell it to shops." />
+            ) : (
+              plans.filter((plan) => plan.features.length > 0).map((plan) => (
               <div className="category-row" key={plan.id}>
                 <div>
                   <div style={{ fontWeight: 650 }}>{plan.name} · {money.format(plan.amount)}</div>
@@ -335,15 +348,18 @@ export function AdminPage() {
                   Edit
                 </button>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
 
       {tab === "payments" && (
         <div className="card tight">
-          {payments.length === 0 && <div className="muted">No payments across the platform yet.</div>}
-          {payments.map((payment) => (
+          {payments.length === 0 ? (
+            <EmptyState compact icon="card" title="No payments yet" hint="Captured shop payments across the platform land here." />
+          ) : (
+            payments.map((payment) => (
             <div className="category-row" key={payment.id}>
               <div>
                 <div style={{ fontWeight: 650 }}>{payment.shopName}</div>
@@ -354,13 +370,17 @@ export function AdminPage() {
               <span>{money.format(payment.amount)}</span>
               <span className={`badge ${payment.status === "CAPTURED" ? "GREEN" : "ORANGE"}`}>{payment.status}</span>
             </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {tab === "live" && (
         <div className="card tight">
-          {live.map((row) => (
+          {live.length === 0 ? (
+            <EmptyState compact icon="pulse" title="Nobody is live" hint="Signed-in devices will show here as they check in." />
+          ) : (
+            live.map((row) => (
             <div className="category-row" key={`${row.userId}-${row.deviceId}`}>
               <div>
                 <div style={{ fontWeight: 650 }}>{row.fullName}</div>
@@ -381,14 +401,17 @@ export function AdminPage() {
                 Kick device
               </button>
             </div>
-          ))}
-          {live.length === 0 && <div className="muted">Nobody is live right now.</div>}
+            ))
+          )}
         </div>
       )}
 
       {tab === "support" && (
         <div className="stack">
-          {tickets.map((ticket) => (
+          {tickets.length === 0 ? (
+            <EmptyState compact icon="chat" title="No tickets" hint="Shopkeepers' support conversations appear here." />
+          ) : (
+            tickets.map((ticket) => (
             <div className="card" key={ticket.id}>
               <div className="spread">
                 <div>
@@ -410,7 +433,13 @@ export function AdminPage() {
                 ))}
               </div>
               <div className="row">
-                <input className="field" style={{ flex: 1 }} value={reply} onChange={(event) => setReply(event.target.value)} placeholder="Reply as Prabhix" />
+                <TextField
+                  label="Reply"
+                  value={reply}
+                  onChange={(event) => setReply(event.target.value)}
+                  placeholder="Reply as Prabhix"
+                  autoComplete="off"
+                />
                 <button
                   className="btn"
                   type="button"
@@ -428,13 +457,17 @@ export function AdminPage() {
                 </button>
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
       )}
 
       {tab === "releases" && (
         <div className="card tight">
-          {releases.map((release, index) => (
+          {releases.length === 0 ? (
+            <EmptyState compact icon="upload" title="No release gates" hint="Native min-build settings appear here per platform." />
+          ) : (
+            releases.map((release, index) => (
             <div className="category-row" key={release.platform}>
               <div style={{ minWidth: 90, fontWeight: 650 }}>{release.platform}</div>
               <label className="stack">
@@ -475,7 +508,8 @@ export function AdminPage() {
                 Save
               </button>
             </div>
-          ))}
+            ))
+          )}
         </div>
       )}
     </div>

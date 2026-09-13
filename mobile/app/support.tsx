@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { router } from "expo-router";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../lib/api";
 import { cachedSupport, saveSupport } from "../lib/offline";
 import { useTheme } from "../lib/theme";
 import { BRAND } from "../lib/brand";
+import { Empty, Problem } from "../components/ListState";
+import { PrimaryButton, Screen } from "../components/Screen";
 
 interface Message {
   id: string;
@@ -64,42 +65,61 @@ export default function SupportScreen() {
     }
   }
 
+  const messages = conversation?.messages ?? [];
+
   return (
-    <View style={styles.page}>
-      <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }}>
-        <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
-      </Pressable>
-      <Text style={styles.title}>Support</Text>
-      <Text style={styles.sub}>{BRAND.organization} · {BRAND.publicOrigin ?? "mobistack.prabhixtechnologies.com"}</Text>
-      <ScrollView style={styles.log}>
-        {(conversation?.messages ?? []).map((row) => (
+    <Screen
+      title="Support"
+      copy={`${BRAND.organization} · ${BRAND.publicOrigin ?? "mobistack.prabhixtechnologies.com"}`}
+      back
+    >
+      {messages.length === 0 ? (
+        <Empty
+          title="No messages yet"
+          hint="Ask about stock, sales, or talk to a person."
+        />
+      ) : (
+        messages.map((row) => (
           <View key={row.id} style={styles.bubble}>
             <Text style={styles.meta}>{row.authorType}</Text>
             <Text style={styles.body}>{row.body}</Text>
           </View>
-        ))}
-      </ScrollView>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TextInput style={styles.input} value={message} onChangeText={setMessage} placeholder="Ask about stock, sales, or talk to a person" placeholderTextColor={colors.faint} accessibilityLabel="Support message" />
-      <Pressable style={styles.btn} onPress={() => void send()}>
-        <Text style={styles.btnText}>Send</Text>
-      </Pressable>
-    </View>
+        ))
+      )}
+      {error ? <Problem message={error} /> : null}
+      <TextInput
+        style={styles.input}
+        value={message}
+        onChangeText={setMessage}
+        placeholder="Ask about stock, sales, or talk to a person"
+        placeholderTextColor={colors.faint}
+        accessibilityLabel="Support message"
+      />
+      <PrimaryButton label="Send" onPress={() => void send()} />
+    </Screen>
   );
 }
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { flex: 1, backgroundColor: colors.bg, padding: 22, paddingTop: 72 },
-    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
-    sub: { color: colors.soft, marginTop: 6, marginBottom: 16 },
-    log: { flex: 1 },
-    bubble: { backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 8, borderColor: colors.line, borderWidth: 1 },
+    bubble: {
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 8,
+      borderColor: colors.line,
+      borderWidth: 1,
+    },
     meta: { color: colors.faint, fontSize: 12, marginBottom: 4 },
     body: { color: colors.ink },
-    error: { color: "#b42318", marginBottom: 8 },
-    input: { borderColor: colors.line, borderWidth: 1, borderRadius: 12, padding: 12, color: colors.ink, marginBottom: 10 },
-    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center" },
-    btnText: { color: colors.accentInk, fontWeight: "700" },
+    input: {
+      borderColor: colors.line,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 12,
+      color: colors.ink,
+      marginBottom: 10,
+      minHeight: 44,
+    },
   });
 }

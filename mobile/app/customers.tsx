@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { router } from "expo-router";
+import { StyleSheet, Text, TextInput } from "react-native";
 import { api } from "../lib/api";
 import { cachedCustomers, type CachedCustomer } from "../lib/offline";
 import { enqueue } from "../lib/outbox";
@@ -8,6 +7,7 @@ import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { useScreenData } from "../lib/useScreenData";
 import { Empty, Failed, Loading, OfflineNotice, Problem } from "../components/ListState";
+import { Card, PrimaryButton, Screen } from "../components/Screen";
 import { money, useTheme } from "../lib/theme";
 
 export default function CustomersScreen() {
@@ -63,18 +63,13 @@ export default function CustomersScreen() {
   const rows = useMemo(() => [...queued, ...(customers.data ?? [])], [queued, customers.data]);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={styles.page}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <RefreshControl refreshing={customers.refreshing} onRefresh={customers.refresh} tintColor={colors.accent} />
-      }
+    <Screen
+      title="Customers"
+      copy="Walk-ins stay unnamed. Regulars keep a phone and a balance."
+      back
+      onRefresh={customers.refresh}
+      refreshing={customers.refreshing}
     >
-      <Pressable onPress={() => router.back()} style={{ marginBottom: 8 }} hitSlop={8}>
-        <Text style={{ color: colors.soft, fontWeight: "700" }}>Back</Text>
-      </Pressable>
-      <Text style={styles.title}>Customers</Text>
       {customers.offline ? <OfflineNotice what="customer list" /> : null}
       {add.error ? <Problem message={add.error} /> : null}
 
@@ -95,13 +90,11 @@ export default function CustomersScreen() {
         value={phone}
         onChangeText={setPhone}
       />
-      <Pressable
-        style={[styles.btn, (add.busy || !name.trim()) && { opacity: 0.5 }]}
+      <PrimaryButton
+        label={add.busy ? "Saving…" : "Add"}
         disabled={add.busy || !name.trim()}
         onPress={() => void add.run()}
-      >
-        <Text style={styles.btnText}>{add.busy ? "Saving…" : "Add"}</Text>
-      </Pressable>
+      />
 
       <TextInput
         style={styles.search}
@@ -128,22 +121,20 @@ export default function CustomersScreen() {
         />
       ) : (
         rows.map((row) => (
-          <View key={row.id} style={styles.card}>
+          <Card key={row.id}>
             <Text style={styles.name}>{row.name}</Text>
             <Text style={styles.sub}>
               {row.phone || "No phone"} · {money(row.outstandingAmount)}
             </Text>
-          </View>
+          </Card>
         ))
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "600", marginBottom: 14, color: colors.ink },
     search: {
       backgroundColor: colors.card,
       borderColor: colors.line,
@@ -153,10 +144,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 10,
       color: colors.ink,
     },
-    card: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 10 },
     name: { fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 4 },
-    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginBottom: 16 },
-    btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

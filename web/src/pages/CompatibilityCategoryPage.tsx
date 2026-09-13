@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { groupLine, highlightText, splitEqualsLine } from "../lib/compatibility";
 import { useAccess } from "../lib/access";
+import { EmptyState } from "../ui/EmptyState";
+import { TextField } from "../ui/Field";
 import { ConfirmDialog, Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
 import type { CategoryOverview, CompatibilityGroup, CompatibilityOverview, PageResponse } from "../lib/types";
@@ -172,11 +174,12 @@ export function CompatibilityCategoryPage() {
         }
       />
       {error && <div className="error">{error}</div>}
-      <input
-        className="field"
+      <TextField
+        label="Find a model"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Find a model in this list…"
+        autoComplete="off"
       />
       <section className="card tight">
         {visible.map((group, index) => {
@@ -217,13 +220,22 @@ export function CompatibilityCategoryPage() {
           );
         })}
         {visible.length === 0 && (
-          <div className="empty">
-            {query.trim().length >= 2
-              ? "No group in this list matches that search."
-              : canWrite
-                ? "No groups yet. Add the first line, or import a pasted list."
-                : "No groups in this list yet."}
-          </div>
+          <EmptyState
+            compact
+            icon="search"
+            title={
+              query.trim().length >= 2
+                ? "No group matches that search"
+                : "No groups in this list yet"
+            }
+            hint={
+              query.trim().length >= 2
+                ? "Try a shorter model name."
+                : canWrite
+                  ? "Add the first line, or import a pasted list."
+                  : "Ask someone with catalogue access to add a group."
+            }
+          />
         )}
       </section>
 

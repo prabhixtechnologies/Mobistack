@@ -226,7 +226,12 @@ function LegacyLogin() {
 
           <View style={styles.tabs}>
             {(["password", "magic", "email", "register"] as Method[]).map((m) => (
-              <Pressable key={m} onPress={() => choose(m)} style={[styles.tab, method === m && styles.tabOn]}>
+              <Pressable
+                key={m}
+                hitSlop={12}
+                onPress={() => choose(m)}
+                style={[styles.tab, method === m && styles.tabOn]}
+              >
                 <Text style={[styles.tabLabel, method === m && styles.tabLabelOn]}>{m}</Text>
               </Pressable>
             ))}
@@ -297,8 +302,10 @@ function makeStyles(colors: Palette) {
     identityBody: { flex: 1, padding: 24, justifyContent: "center" },
     tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
     tab: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingHorizontal: 14,
+      minHeight: 44,
+      justifyContent: "center",
+      alignItems: "center",
       borderRadius: 999,
       backgroundColor: colors.card,
       borderWidth: 1,

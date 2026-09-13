@@ -1,9 +1,11 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { api } from "../../lib/api";
 import { cachedDeviceView, saveDeviceView } from "../../lib/offline";
 import { money, stockColor, useTheme } from "../../lib/theme";
+import { Empty, Loading, OfflineNotice } from "../../components/ListState";
+import { Screen } from "../../components/Screen";
 
 interface ViewModel {
   device: { name: string; brandName: string; aliases: string[] };
@@ -64,69 +66,86 @@ export default function DeviceScreen() {
 
   if (!view) {
     return (
-      <View style={[styles.page, { backgroundColor: colors.bg, flex: 1 }]}>
-        <Text style={styles.sub}>
-          {offline
+      <Screen
+        title="Device"
+        copy={
+          offline
             ? "This device has not been opened on this phone yet. Connect once to keep its parts list offline."
-            : "Looking up parts…"}
-        </Text>
-      </View>
+            : "Looking up parts…"
+        }
+        back
+      >
+        {offline ? (
+          <Empty
+            title="Not on this phone yet"
+            hint="Connect once to keep this phone's parts list offline."
+          />
+        ) : (
+          <Loading label="Looking up parts…" />
+        )}
+      </Screen>
     );
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={styles.page}>
-      <Text style={styles.title}>
-        {view.device.brandName} {view.device.name}
-      </Text>
-      {offline ? <Text style={styles.sub}>Showing the last copy stored on this phone.</Text> : null}
-      <Text style={styles.sub}>{view.totalPartsAvailable} parts on the shelf</Text>
+    <Screen
+      title={`${view.device.brandName} ${view.device.name}`}
+      copy={`${view.totalPartsAvailable} parts on the shelf`}
+      back
+    >
+      {offline ? <OfflineNotice what="parts list" /> : null}
       <Text style={styles.section}>Compatible models</Text>
       <Text style={styles.body}>
         {[`${view.device.brandName} ${view.device.name}`, ...view.compatibleModels.map((m) => `${m.brandName} ${m.name}`)].join("  =  ")}
       </Text>
       {view.device.aliases.length > 0 && <Text style={styles.sub}>Also {view.device.aliases.join(", ")}</Text>}
 
-      {view.categories.map((category) => {
-        const tone = stockColor(category.stockStatus, colors);
-        return (
-          <View key={category.categoryId} style={styles.card}>
-            <Pressable onPress={() => setOpen(open === category.categoryId ? null : category.categoryId)}>
-              <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{category.categoryName}</Text>
-                  <Text style={styles.sub}>
-                    {category.totalAvailable} in stock
-                    {category.minPrice != null ? ` · ${money(category.minPrice)}` : ""}
-                    {category.maxPrice != null && category.maxPrice !== category.minPrice ? `–${money(category.maxPrice)}` : ""}
-                  </Text>
+      {view.categories.length === 0 ? (
+        <Empty title="No parts linked yet" hint="Add a compatibility group on the product so this phone shows stock." />
+      ) : (
+        view.categories.map((category) => {
+          const tone = stockColor(category.stockStatus, colors);
+          return (
+            <View key={category.categoryId} style={styles.card}>
+              <Pressable
+                hitSlop={12}
+                style={{ minHeight: 44, justifyContent: "center" }}
+                onPress={() => setOpen(open === category.categoryId ? null : category.categoryId)}
+              >
+                <View style={styles.row}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{category.categoryName}</Text>
+                    <Text style={styles.sub}>
+                      {category.totalAvailable} in stock
+                      {category.minPrice != null ? ` · ${money(category.minPrice)}` : ""}
+                      {category.maxPrice != null && category.maxPrice !== category.minPrice ? `–${money(category.maxPrice)}` : ""}
+                    </Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: tone.bg }]}>
+                    <Text style={{ color: tone.fg, fontWeight: "700" }}>{category.stockStatus}</Text>
+                  </View>
                 </View>
-                <View style={[styles.badge, { backgroundColor: tone.bg }]}>
-                  <Text style={{ color: tone.fg, fontWeight: "700" }}>{category.stockStatus}</Text>
-                </View>
-              </View>
-            </Pressable>
-            {open === category.categoryId &&
-              category.options.map((option) => (
-                <View key={option.variantId} style={styles.option}>
-                  <Text style={styles.name}>{option.variantName}</Text>
-                  <Text style={styles.sub}>
-                    {option.availableQty} avail · {money(option.price)}
-                  </Text>
-                </View>
-              ))}
-          </View>
-        );
-      })}
-    </ScrollView>
+              </Pressable>
+              {open === category.categoryId &&
+                category.options.map((option) => (
+                  <View key={option.variantId} style={styles.option}>
+                    <Text style={styles.name}>{option.variantName}</Text>
+                    <Text style={styles.sub}>
+                      {option.availableQty} avail · {money(option.price)}
+                    </Text>
+                  </View>
+                ))}
+            </View>
+          );
+        })
+      )}
+    </Screen>
   );
 }
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "600", letterSpacing: -0.7, color: colors.ink },
-    section: { marginTop: 22, fontWeight: "700", marginBottom: 8, color: colors.ink },
+    section: { marginTop: 8, fontWeight: "700", marginBottom: 8, color: colors.ink },
     body: { fontSize: 16, lineHeight: 24, color: colors.ink },
     sub: { color: colors.soft, marginTop: 6 },
     card: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginTop: 12 },

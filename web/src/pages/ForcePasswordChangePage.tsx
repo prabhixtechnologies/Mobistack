@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth";
 import { BRAND } from "../lib/brand";
 import { TextField } from "../ui/Field";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { SkipLink } from "../ui/SkipLink";
 import { Icon } from "../ui/navIcons";
 
 /**
@@ -53,7 +54,8 @@ export function ForcePasswordChangePage() {
 
   return (
     <div className="login-wrap">
-      <div className="login-card stack">
+      <SkipLink href="#main-content" label="Skip to password form" />
+      <div className="login-card stack" id="main-content" tabIndex={-1}>
         <div className="auth-top">
           <ThemeToggle compact />
         </div>

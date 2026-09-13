@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useAccess } from "../lib/access";
 import { api } from "../lib/api";
+import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import { ConfirmDialog } from "../ui/Modal";
 import { selectedWorkspaceId } from "../lib/types";
@@ -149,7 +150,15 @@ export function MembersPage() {
       )}
 
       <div className="card tight">
-        {orderedMembers.map((member) => (
+        {orderedMembers.length === 0 ? (
+          <EmptyState
+            compact
+            icon="people"
+            title="No people yet"
+            hint="Invite someone above, or wait for a paid join request to appear."
+          />
+        ) : (
+          orderedMembers.map((member) => (
           <div className="category-row" key={member.membershipId}>
             <div>
               <div style={{ fontWeight: 650 }}>{member.fullName}</div>
@@ -183,7 +192,8 @@ export function MembersPage() {
               )}
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       <ConfirmDialog

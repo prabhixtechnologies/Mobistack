@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../../lib/api";
 import {
   cachedSales,
@@ -15,6 +15,7 @@ import { useDebounced } from "../../lib/useDebounced";
 import { useScreenData } from "../../lib/useScreenData";
 import { BarcodeScanButton } from "../../components/BarcodeScan";
 import { Empty, Failed, Loading, OfflineNotice, Problem } from "../../components/ListState";
+import { Screen } from "../../components/Screen";
 import { money, useTheme } from "../../lib/theme";
 
 interface Line {
@@ -116,18 +117,12 @@ export default function SalesScreen() {
   const history = [...queued, ...(sales.data ?? [])];
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={styles.page}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <RefreshControl refreshing={sales.refreshing} onRefresh={sales.refresh} tintColor={colors.accent} />
-      }
+    <Screen
+      title="Sales"
+      copy="Type a SKU or barcode. Complete writes the ledger; offline sales wait on this phone until the radio returns."
+      onRefresh={sales.refresh}
+      refreshing={sales.refreshing}
     >
-      <Text style={styles.title}>Sales</Text>
-      <Text style={styles.copy}>
-        Type a SKU or barcode. Complete writes the ledger; offline sales wait on this phone until the radio returns.
-      </Text>
       {sales.offline ? <OfflineNotice what="recent sales" /> : null}
       {checkout.error ? <Problem message={checkout.error} /> : null}
 
@@ -142,12 +137,13 @@ export default function SalesScreen() {
         autoCorrect={false}
       />
       {query.trim().length >= 2 && hits.length === 0 ? (
-        <Text style={styles.sub}>No part matches that. Try a shorter search or scan the box.</Text>
+        <Empty title="No part matches that" hint="Try a shorter search or scan the box." />
       ) : null}
       {hits.map((hit) => (
         <Pressable
           key={hit.id}
           style={styles.card}
+          hitSlop={12}
           onPress={() => {
             setLines((current) => {
               const existing = current.find((line) => line.variantId === hit.id);
@@ -178,9 +174,10 @@ export default function SalesScreen() {
           <Text style={styles.sub}>
             {line.quantity} × {money(line.unitPrice)}
           </Text>
-          <View style={{ flexDirection: "row", gap: 20, marginTop: 8 }}>
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
             <Pressable
-              hitSlop={10}
+              hitSlop={12}
+              style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
               onPress={() =>
                 setLines((current) =>
                   current.map((row) =>
@@ -192,7 +189,8 @@ export default function SalesScreen() {
               <Text style={{ fontWeight: "700", color: colors.ink, fontSize: 18 }}>−</Text>
             </Pressable>
             <Pressable
-              hitSlop={10}
+              hitSlop={12}
+              style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
               onPress={() =>
                 setLines((current) =>
                   current.map((row) =>
@@ -204,7 +202,8 @@ export default function SalesScreen() {
               <Text style={{ fontWeight: "700", color: colors.ink, fontSize: 18 }}>+</Text>
             </Pressable>
             <Pressable
-              hitSlop={10}
+              hitSlop={12}
+              style={{ minHeight: 44, justifyContent: "center" }}
               onPress={() => setLines((current) => current.filter((row) => row.variantId !== line.variantId))}
             >
               <Text style={{ fontWeight: "700", color: colors.bad }}>Remove</Text>
@@ -217,14 +216,16 @@ export default function SalesScreen() {
         {(["CASH", "UPI", "CARD"] as const).map((item) => (
           <Pressable
             key={item}
+            hitSlop={12}
             onPress={() => setMethod(item)}
             style={{
               borderWidth: 1,
               borderColor: method === item ? colors.accent : colors.line,
               backgroundColor: method === item ? colors.accent : colors.card,
               borderRadius: 999,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
+              paddingHorizontal: 14,
+              minHeight: 44,
+              justifyContent: "center",
             }}
           >
             <Text style={{ color: method === item ? colors.accentInk : colors.ink, fontWeight: "700" }}>{item}</Text>
@@ -259,15 +260,12 @@ export default function SalesScreen() {
           </View>
         ))
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
-    copy: { color: colors.soft, marginTop: 8, marginBottom: 16, lineHeight: 22 },
     section: { color: colors.faint, fontWeight: "700", marginTop: 20, marginBottom: 8 },
     search: {
       backgroundColor: colors.card,
@@ -281,7 +279,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     card: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 10 },
     name: { fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 4 },
-    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginVertical: 8 },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginVertical: 8, minHeight: 44, justifyContent: "center" },
     btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

@@ -152,12 +152,17 @@ export function beginLogout(): void {
   const idToken = sessionStorage.getItem(ID_TOKEN_KEY);
   sessionStorage.removeItem(ID_TOKEN_KEY);
 
-  const params = new URLSearchParams({ client_id: CLIENT_ID });
   if (idToken) {
-    params.set("id_token_hint", idToken);
-    params.set("post_logout_redirect_uri", `${window.location.origin}/`);
+    const params = new URLSearchParams({
+      client_id: CLIENT_ID,
+      id_token_hint: idToken,
+      post_logout_redirect_uri: `${window.location.origin}/`,
+    });
+    window.location.assign(`${IDENTITY_ISSUER}/connect/logout?${params.toString()}`);
+    return;
   }
-  window.location.assign(`${IDENTITY_ISSUER}/connect/logout?${params.toString()}`);
+
+  window.location.assign(`${IDENTITY_ISSUER}/logout`);
 }
 
 function describeOauthError(code: string): string {

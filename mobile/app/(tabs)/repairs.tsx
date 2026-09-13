@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../../lib/api";
 import { cachedRepairs, type CachedRepair } from "../../lib/offline";
 import { enqueue } from "../../lib/outbox";
 import { useAction } from "../../lib/useAction";
 import { useScreenData } from "../../lib/useScreenData";
 import { Empty, Failed, Loading, OfflineNotice, Problem } from "../../components/ListState";
+import { Screen } from "../../components/Screen";
 import { money, useTheme } from "../../lib/theme";
 
 interface Job extends CachedRepair {
@@ -133,16 +134,12 @@ export default function RepairsScreen() {
   const rows = [...queued, ...(jobs.data ?? [])];
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={styles.page}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={
-        <RefreshControl refreshing={jobs.refreshing} onRefresh={jobs.refresh} tintColor={colors.accent} />
-      }
+    <Screen
+      title="Repairs"
+      copy="Open a job, add parts from stock, collect cash or UPI, then mark it delivered."
+      onRefresh={jobs.refresh}
+      refreshing={jobs.refreshing}
     >
-      <Text style={styles.title}>Repairs</Text>
-      <Text style={styles.copy}>Open a job, add parts from stock, collect cash or UPI, then mark it delivered.</Text>
       {jobs.offline ? <OfflineNotice what="jobs" /> : null}
       {problems.map((message) => (
         <Problem message={message} key={message} />
@@ -212,21 +209,35 @@ export default function RepairsScreen() {
               ) : null}
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16, marginTop: 10 }}>
                 {job.status !== "DELIVERED" && synced ? (
-                  <Pressable hitSlop={8} disabled={advance.busy} onPress={() => void advance.run(job)}>
+                  <Pressable
+                    hitSlop={12}
+                    style={{ minHeight: 44, justifyContent: "center" }}
+                    disabled={advance.busy}
+                    onPress={() => void advance.run(job)}
+                  >
                     <Text style={[styles.link, advance.busy && { opacity: 0.5 }]}>
                       {advance.busy ? "Moving…" : `Move to ${(NEXT[job.status] ?? "DELIVERED").replace("_", " ")}`}
                     </Text>
                   </Pressable>
                 ) : null}
                 {job.outstanding > 0 && synced ? (
-                  <Pressable hitSlop={8} disabled={collect.busy} onPress={() => void collect.run(job)}>
+                  <Pressable
+                    hitSlop={12}
+                    style={{ minHeight: 44, justifyContent: "center" }}
+                    disabled={collect.busy}
+                    onPress={() => void collect.run(job)}
+                  >
                     <Text style={[styles.link, collect.busy && { opacity: 0.5 }]}>
                       {collect.busy ? "Taking…" : `Collect ${money(job.outstanding)}`}
                     </Text>
                   </Pressable>
                 ) : null}
                 {synced ? (
-                  <Pressable hitSlop={8} onPress={() => setPartJob(partJob === job.id ? null : job.id)}>
+                  <Pressable
+                    hitSlop={12}
+                    style={{ minHeight: 44, justifyContent: "center" }}
+                    onPress={() => setPartJob(partJob === job.id ? null : job.id)}
+                  >
                     <Text style={styles.link}>Add part</Text>
                   </Pressable>
                 ) : null}
@@ -252,15 +263,12 @@ export default function RepairsScreen() {
           );
         })
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
-    copy: { color: colors.soft, marginTop: 8, marginBottom: 16, lineHeight: 22 },
     search: {
       backgroundColor: colors.card,
       borderColor: colors.line,
@@ -274,7 +282,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     name: { fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 4 },
     link: { fontWeight: "700", color: colors.ink },
-    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginBottom: 16 },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginBottom: 16, minHeight: 44, justifyContent: "center" },
     btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

@@ -136,6 +136,7 @@ export default function PurchasesScreen() {
               {suppliers.map((supplier) => (
                 <Pressable
                   key={supplier.id}
+                  hitSlop={12}
                   onPress={() => setSupplierId(supplier.id)}
                   style={{
                     borderWidth: 1,
@@ -143,7 +144,8 @@ export default function PurchasesScreen() {
                     backgroundColor: supplier.id === chosen ? colors.accent : colors.card,
                     borderRadius: 999,
                     paddingHorizontal: 12,
-                    paddingVertical: 6,
+                    minHeight: 44,
+                    justifyContent: "center",
                   }}
                 >
                   <Text style={{ color: supplier.id === chosen ? colors.accentInk : colors.ink, fontWeight: "700" }}>
@@ -188,9 +190,10 @@ export default function PurchasesScreen() {
           {lines.map((line) => (
             <Card key={line.variantId}>
               <Text style={{ fontWeight: "700", color: colors.ink }}>{line.name}</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 16, marginTop: 8 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
                 <Pressable
-                  hitSlop={10}
+                  hitSlop={12}
+                  style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
                   onPress={() =>
                     setLines((current) =>
                       current.map((row) =>
@@ -203,7 +206,8 @@ export default function PurchasesScreen() {
                 </Pressable>
                 <Text style={{ color: colors.ink }}>{line.quantity}</Text>
                 <Pressable
-                  hitSlop={10}
+                  hitSlop={12}
+                  style={{ minHeight: 44, minWidth: 44, justifyContent: "center", alignItems: "center" }}
                   onPress={() =>
                     setLines((current) =>
                       current.map((row) =>
@@ -215,7 +219,8 @@ export default function PurchasesScreen() {
                   <Text style={{ fontWeight: "700", color: colors.ink, fontSize: 18 }}>+</Text>
                 </Pressable>
                 <Pressable
-                  hitSlop={10}
+                  hitSlop={12}
+                  style={{ minHeight: 44, justifyContent: "center" }}
                   onPress={() => setLines((current) => current.filter((row) => row.variantId !== line.variantId))}
                 >
                   <Text style={{ color: colors.bad, fontWeight: "700" }}>Remove</Text>

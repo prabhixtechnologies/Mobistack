@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import Constants from "expo-constants";
 import * as Application from "expo-application";
 import { router } from "expo-router";
@@ -11,6 +11,7 @@ import { discard, pendingCount, type FailedOp } from "../../lib/outbox";
 import { hasFeature, hasPermission } from "../../lib/plan";
 import { registerForPush } from "../../lib/push";
 import { useTheme } from "../../lib/theme";
+import { Screen } from "../../components/Screen";
 
 export default function MoreScreen() {
   const { user, workspaces, logout, switchWorkspace } = useAuth();
@@ -34,20 +35,16 @@ export default function MoreScreen() {
 
   function row(label: string, onPress: () => void) {
     return (
-      <Pressable style={styles.ghost} onPress={onPress}>
+      <Pressable style={styles.ghost} hitSlop={12} onPress={onPress}>
         <Text style={styles.ghostText}>{label}</Text>
       </Pressable>
     );
   }
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={{ paddingBottom: 48 }}>
+    <Screen title="More" copy={`${user?.workspaceName ?? user?.shopName} · ${user?.roles[0]}`}>
       <Image source={require("../../assets/logo.png")} style={styles.logo} />
-      <Text style={styles.title}>More</Text>
       <Text style={styles.name}>{user?.fullName}</Text>
-      <Text style={styles.sub}>
-        {user?.workspaceName ?? user?.shopName} · {user?.roles[0]}
-      </Text>
       <Text style={styles.legal}>{BRAND.tagline}</Text>
       <Text style={styles.legal}>{copyrightLine()}</Text>
       <Text style={styles.legal}>MobiStack {version}</Text>
@@ -60,6 +57,7 @@ export default function MoreScreen() {
           {active.map((workspace) => (
             <Pressable
               key={workspace.id}
+              hitSlop={12}
               style={[styles.chip, workspace.id === current && styles.chipOn]}
               onPress={() => {
                 if (workspace.id !== current) {
@@ -171,6 +169,7 @@ export default function MoreScreen() {
       {pulled ? <Text style={styles.legal}>Last snapshot {pulled}</Text> : null}
       <Pressable
         style={styles.btn}
+        hitSlop={12}
         onPress={async () => {
           await logout();
           router.replace("/login");
@@ -178,15 +177,13 @@ export default function MoreScreen() {
       >
         <Text style={styles.btnText}>Sign out</Text>
       </Pressable>
-    </ScrollView>
+    </Screen>
   );
 }
 
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
-    page: { flex: 1, backgroundColor: colors.bg, padding: 22, paddingTop: 72 },
     logo: { width: 40, height: 40, borderRadius: 12, marginBottom: 14 },
-    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
     name: { marginTop: 18, fontSize: 20, fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 6, marginBottom: 12 },
     legal: { color: colors.faint, fontSize: 12, marginBottom: 4 },
@@ -199,6 +196,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       padding: 12,
       marginBottom: 8,
       backgroundColor: colors.card,
+      minHeight: 44,
+      justifyContent: "center",
     },
     chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
     chipText: { fontWeight: "600", color: colors.ink },
@@ -210,9 +209,11 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       padding: 14,
       alignItems: "center",
       marginBottom: 10,
+      minHeight: 44,
+      justifyContent: "center",
     },
     ghostText: { fontWeight: "700", color: colors.ink },
-    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginTop: 8 },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginTop: 8, minHeight: 44, justifyContent: "center" },
     btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

@@ -6,6 +6,8 @@ import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
+import { TextField } from "../ui/Field";
+import { Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
 import type { ProductVariant } from "../lib/types";
 
@@ -93,11 +95,12 @@ export function InventoryPage() {
       />
 
       <div className="row">
-        <input
-          className="field"
+        <TextField
+          label="Search"
           value={query}
-          placeholder="Search part, SKU, barcode"
+          placeholder="Part, SKU, barcode"
           onChange={(e) => setQuery(e.target.value)}
+          autoComplete="off"
         />
         <button className={lowOnly ? "btn soft" : "btn ghost"} type="button" onClick={() => setLowOnly(!lowOnly)}>
           Low stock
@@ -166,46 +169,44 @@ function ReceiveSheet({
   }
 
   return (
-    <div className="login-wrap" style={{ position: "fixed", inset: 0, background: "rgba(20,19,15,0.35)", zIndex: 20 }}>
-      <form className="login-card stack" onSubmit={submit}>
-        <div className="spread">
-          <h1 style={{ fontSize: 28, margin: 0 }}>Add stock</h1>
-          <button className="btn ghost" type="button" onClick={onClose}>
-            Close
+    <Modal
+      open
+      title="Add stock"
+      description={`${variant.productName} · ${variant.variantName}`}
+      onClose={() => {
+        if (!receive.busy) {
+          onClose();
+        }
+      }}
+      footer={
+        <>
+          <button className="btn ghost" type="button" onClick={onClose} disabled={receive.busy}>
+            Cancel
           </button>
-        </div>
-        <p className="muted">
-          {variant.productName} · {variant.variantName}
-        </p>
-        <label className="stack">
-          <span className="faint">Quantity</span>
-          <input
-            className="field"
-            type="number"
-            min={1}
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-          />
-        </label>
-        <label className="stack">
-          <span className="faint">Unit cost</span>
-          <input
-            className="field"
-            type="number"
-            min={0}
-            value={unitCost}
-            onChange={(e) => setUnitCost(Number(e.target.value))}
-          />
-        </label>
-        <label className="stack">
-          <span className="faint">Reason</span>
-          <input className="field" value={reason} onChange={(e) => setReason(e.target.value)} />
-        </label>
+          <button className="btn" type="submit" form="receive-stock-form" disabled={receive.busy}>
+            {receive.busy ? "Saving…" : "Receive"}
+          </button>
+        </>
+      }
+    >
+      <form id="receive-stock-form" className="stack" onSubmit={submit}>
+        <TextField
+          label="Quantity"
+          type="number"
+          min={1}
+          value={quantity}
+          onChange={(e) => setQuantity(Number(e.target.value))}
+        />
+        <TextField
+          label="Unit cost"
+          type="number"
+          min={0}
+          value={unitCost}
+          onChange={(e) => setUnitCost(Number(e.target.value))}
+        />
+        <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} />
         {receive.error && <div className="error">{receive.error}</div>}
-        <button className="btn" disabled={receive.busy}>
-          {receive.busy ? "Saving…" : "Receive"}
-        </button>
       </form>
-    </div>
+    </Modal>
   );
 }
