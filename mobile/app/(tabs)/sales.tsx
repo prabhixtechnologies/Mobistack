@@ -136,6 +136,7 @@ export default function SalesScreen() {
         style={styles.search}
         placeholder="Part, SKU, barcode"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Find a part to sell"
         value={query}
         onChangeText={setQuery}
         autoCorrect={false}

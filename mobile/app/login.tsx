@@ -239,6 +239,7 @@ function LegacyLogin() {
               keyboardType="email-address"
               placeholder="Email"
               placeholderTextColor={styles.placeholder.color}
+              accessibilityLabel="Email"
               value={email}
               onChangeText={setEmail}
             />
@@ -249,22 +250,23 @@ function LegacyLogin() {
               secureTextEntry={!passwordVisible}
               placeholder="Password"
               placeholderTextColor={styles.placeholder.color}
+              accessibilityLabel="Password"
               value={password}
               onChangeText={setPassword}
             />
           )}
           {method === "register" && (
             <>
-              <TextInput style={styles.input} placeholder="Shop name" placeholderTextColor={styles.placeholder.color} value={shopName} onChangeText={setShopName} />
-              <TextInput style={styles.input} placeholder="Your name" placeholderTextColor={styles.placeholder.color} value={fullName} onChangeText={setFullName} />
-              <TextInput style={styles.input} placeholder="Phone (optional)" placeholderTextColor={styles.placeholder.color} value={phone} onChangeText={setPhone} />
+              <TextInput style={styles.input} placeholder="Shop name" placeholderTextColor={styles.placeholder.color} accessibilityLabel="Shop name" value={shopName} onChangeText={setShopName} />
+              <TextInput style={styles.input} placeholder="Your name" placeholderTextColor={styles.placeholder.color} accessibilityLabel="Your name" value={fullName} onChangeText={setFullName} />
+              <TextInput style={styles.input} placeholder="Phone (optional)" placeholderTextColor={styles.placeholder.color} accessibilityLabel="Phone" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
               <Pressable onPress={() => setAcceptedTerms((v) => !v)}>
                 <Text style={styles.link}>{acceptedTerms ? "✓" : "○"} Accept terms</Text>
               </Pressable>
             </>
           )}
           {(method === "email" || method === "phone" || method === "whatsapp") && (
-            <TextInput style={styles.input} placeholder="Code" placeholderTextColor={styles.placeholder.color} value={code} onChangeText={setCode} />
+            <TextInput style={styles.input} placeholder="Code" placeholderTextColor={styles.placeholder.color} accessibilityLabel="One-time code" keyboardType="number-pad" value={code} onChangeText={setCode} />
           )}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}

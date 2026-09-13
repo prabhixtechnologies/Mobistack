@@ -18,16 +18,17 @@ interface Catalog {
   ios: PackageInfo;
 }
 
-const STORE_ORIGIN =
-  (import.meta.env.VITE_STORE_URL as string | undefined)?.replace(/\/$/, "") ||
-  "http://store.prabhixtechnologies.com:8090";
-
 function fileHref(kind: "android" | "ios"): string {
   if (kind === "ios") {
     return "/download/ios";
   }
-  // Company store is the canonical APK surface locally and in production config.
-  return `${STORE_ORIGIN}/mobistack/android.apk`;
+  const store = (import.meta.env.VITE_STORE_URL as string | undefined)?.replace(/\/$/, "");
+  // Same-origin HTTPS (or a configured HTTPS store) only. The old default was an http://
+  // store host, which mixed-content-blocked the APK from a TLS console.
+  if (store && /^https:\/\//i.test(store)) {
+    return `${store}/mobistack/android.apk`;
+  }
+  return "/download/android";
 }
 
 function formatSize(bytes: number): string {

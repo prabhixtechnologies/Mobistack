@@ -54,7 +54,7 @@ export function OidcCallbackPage() {
         )}
       </div>
       {message ? (
-        <div className="auth-actions" style={{ gridTemplateColumns: "1fr" }}>
+        <div className="auth-actions auth-actions--stack">
           <AuthGateLink to="/login">Back to sign in</AuthGateLink>
         </div>
       ) : null}

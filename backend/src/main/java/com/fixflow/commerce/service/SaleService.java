@@ -295,10 +295,12 @@ public class SaleService {
                 <p>Warranty as discussed at the counter.</p>
                 <p style="margin-top:32px;color:#888;font-size:12px">%s · %s<br/>%s<br/>© %s %s</p>
                 </body></html>
-                """.formatted(sale.getInvoiceNumber(), escape(shop.getName()),
+                """.formatted(escape(sale.getInvoiceNumber()), escape(shop.getName()),
                 escape(nullToEmpty(shop.getAddressLine1())), escape(nullToEmpty(shop.getCity())),
-                escape(nullToEmpty(shop.getPhone())), sale.getInvoiceNumber(), sale.getStatus(),
-                sale.getOccurredAt(), rows, sale.getSubtotal(), sale.getTax(), sale.getDiscount(),
+                escape(nullToEmpty(shop.getPhone())), escape(sale.getInvoiceNumber()),
+                escape(String.valueOf(sale.getStatus())),
+                escape(String.valueOf(sale.getOccurredAt())), rows, sale.getSubtotal(), sale.getTax(),
+                sale.getDiscount(),
                 sale.getTotal(), sale.getPaid(), sale.getOutstanding(), escape(customerName),
                 escape(properties.getBrand().getProduct()), escape(properties.getBrand().getTagline()),
                 escape(properties.getPlatform().getPublicOrigin()),
@@ -387,6 +389,7 @@ public class SaleService {
         if (value == null) {
             return "";
         }
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
     }
 }

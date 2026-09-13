@@ -163,7 +163,7 @@ export function RepairsPage() {
       )}
 
       <div className="card row">
-        <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 220 }}>
+        <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 220, maxWidth: "100%" }} aria-label="Job status">
           <option value="">All jobs</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
@@ -219,7 +219,7 @@ export function RepairsPage() {
                     value={job.status}
                     disabled={changeStatus.busy}
                     onChange={(e) => void changeStatus.run(job, e.target.value)}
-                    style={{ width: 200 }}
+                    style={{ width: 200, maxWidth: "100%" }}
                   >
                     {STATUSES.map((status) => (
                       <option key={status} value={status}>

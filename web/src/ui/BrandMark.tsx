@@ -42,7 +42,7 @@ export function BrandFooter() {
       <div className="brand-footer__end">
         <nav className="brand-footer__links" aria-label="Legal and support">
           <Link to="/app">Get the app</Link>
-          <a href="http://store.prabhixtechnologies.com:8090/mobistack/">Android</a>
+          <a href="/app/android">Android</a>
           <a href="/download/ios">iOS</a>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>

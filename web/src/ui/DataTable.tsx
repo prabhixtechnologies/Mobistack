@@ -111,7 +111,19 @@ export function DataTable<T>({
               <tr
                 key={rowKey(row)}
                 className={onRowClick ? "table__row--clickable" : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                role={onRowClick ? "button" : undefined}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onRowClick(row);
+                        }
+                      }
+                    : undefined
+                }
               >
                 {visible.map((column) => (
                   <td key={column.key} style={{ textAlign: column.align }}>

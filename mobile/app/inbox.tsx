@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { api } from "../lib/api";
 import { cachedInbox, saveInbox } from "../lib/offline";
 import { clearBadge, listenForPush } from "../lib/push";
+import { safeAppPath } from "../lib/safePath";
 import { useTheme } from "../lib/theme";
 
 interface Item {
@@ -50,9 +51,18 @@ export default function InboxScreen() {
 
   useEffect(() => {
     void load();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void load();
+      }
+    });
     // A push that arrives while this screen is open should show up in the list
     // rather than waiting for the shopkeeper to pull down.
-    return listenForPush({ onReceived: () => void load() });
+    const stopPush = listenForPush({ onReceived: () => void load() });
+    return () => {
+      sub.remove();
+      stopPush();
+    };
   }, [load]);
 
   async function markAllRead() {
@@ -78,7 +88,10 @@ export default function InboxScreen() {
       }
     }
     if (item.link) {
-      router.push(item.link as never);
+      const path = safeAppPath(item.link, "");
+      if (path) {
+        router.push(path as never);
+      }
     }
   }
 

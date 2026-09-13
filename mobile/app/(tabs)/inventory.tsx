@@ -70,6 +70,7 @@ export default function InventoryScreen() {
               style={styles.search}
               placeholder="Part, SKU, barcode"
               placeholderTextColor={colors.faint}
+              accessibilityLabel="Search inventory"
               value={query}
               onChangeText={setQuery}
               autoCorrect={false}
@@ -125,6 +126,7 @@ export default function InventoryScreen() {
             value={qty}
             onChangeText={setQty}
             placeholderTextColor={colors.faint}
+            accessibilityLabel="Quantity"
           />
           <Pressable
             style={[styles.btn, receive.busy && { opacity: 0.5 }]}

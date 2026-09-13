@@ -51,8 +51,8 @@ export function Card({ children }: { children: ReactNode }) {
       style={{
         backgroundColor: colors.card,
         borderRadius: 16,
-        padding: 14,
-        marginBottom: 10,
+        padding: 16,
+        marginBottom: 12,
       }}
     >
       {children}
@@ -75,15 +75,15 @@ export function PrimaryButton({
       onPress={onPress}
       disabled={disabled}
       style={{
-        backgroundColor: colors.ink,
+        backgroundColor: colors.accent,
         borderRadius: 14,
-        padding: 14,
+        padding: 16,
         alignItems: "center",
         marginBottom: 12,
         opacity: disabled ? 0.5 : 1,
       }}
     >
-      <Text style={{ color: colors.bg, fontWeight: "700" }}>{label}</Text>
+      <Text style={{ color: colors.accentInk, fontWeight: "700" }}>{label}</Text>
     </Pressable>
   );
 }
@@ -91,7 +91,7 @@ export function PrimaryButton({
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 48 },
-    title: { fontSize: 32, fontWeight: "500", color: colors.ink, marginBottom: 8 },
+    title: { fontSize: 32, fontWeight: "600", letterSpacing: -0.6, color: colors.ink, marginBottom: 8 },
     copy: { color: colors.soft, marginBottom: 16, lineHeight: 22 },
   });
 }

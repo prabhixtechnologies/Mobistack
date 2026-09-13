@@ -149,6 +149,7 @@ export default function CompatibilityCategoryScreen() {
           style={styles.search}
           placeholder="Find a model…"
           placeholderTextColor={colors.faint}
+          accessibilityLabel="Find a model"
           value={query}
           onChangeText={setQuery}
         />
@@ -199,6 +200,7 @@ export default function CompatibilityCategoryScreen() {
               style={styles.search}
               placeholder="Name (optional)"
               placeholderTextColor={colors.faint}
+              accessibilityLabel="List name"
               value={editor?.name ?? ""}
               onChangeText={(name) => editor && setEditor({ ...editor, name })}
             />
@@ -206,6 +208,7 @@ export default function CompatibilityCategoryScreen() {
               style={[styles.search, { minHeight: 120, textAlignVertical: "top" }]}
               placeholder="Samsung A32 4G = Samsung M32 4G"
               placeholderTextColor={colors.faint}
+              accessibilityLabel="Compatibility lines"
               multiline
               value={editor?.line ?? ""}
               onChangeText={(line) => editor && setEditor({ ...editor, line })}

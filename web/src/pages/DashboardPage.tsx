@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { api, money, qty } from "../lib/api";
+import { ErrorState } from "../ui/EmptyState";
 import type { DashboardResponse } from "../lib/types";
 
 function greeting(): string {
@@ -23,17 +24,31 @@ export function DashboardPage() {
   }
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
+    let live = true;
+    setError(null);
     api<DashboardResponse>("/api/v1/dashboard")
-      .then(setData)
-      .catch((err: Error) => setError(err.message));
-  }, []);
+      .then((payload) => {
+        if (live) {
+          setData(payload);
+        }
+      })
+      .catch((err: Error) => {
+        if (live) {
+          setError(err.message);
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, [nonce]);
 
   if (error) {
     return (
       <div className="page">
-        <div className="error">{error}</div>
+        <ErrorState message={error} onRetry={() => setNonce((value) => value + 1)} />
       </div>
     );
   }
@@ -45,6 +60,7 @@ export function DashboardPage() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div className="card" key={i}>
               <div className="skeleton" />
+              <div className="skeleton skeleton--value" />
             </div>
           ))}
         </div>
@@ -64,20 +80,28 @@ export function DashboardPage() {
           </h1>
           <p>Live sales, stock and jobs for this counter — not placeholders.</p>
         </div>
+        <Link className="btn" to="/compatibility">
+          Search a phone
+        </Link>
       </div>
 
       <div className="grid-4">
-        <Metric label="Today’s sales" value={money.format(data.sales.todaySales)} tint="violet" />
-        <Metric label="Today’s profit" value={money.format(data.sales.todayProfit)} tint="green" />
-        <Metric label="Transactions" value={qty.format(data.sales.todayTransactions)} tint="blue" />
-        <Metric label="Pending repairs" value={qty.format(data.repairs.pending)} tint="amber" />
+        <Metric label="Today’s sales" value={money.format(data.sales.todaySales)} tint="violet" to="/sales" />
+        <Metric label="Today’s profit" value={money.format(data.sales.todayProfit)} tint="green" to="/reports" />
+        <Metric label="Transactions" value={qty.format(data.sales.todayTransactions)} tint="blue" to="/sales" />
+        <Metric label="Pending repairs" value={qty.format(data.repairs.pending)} tint="amber" to="/repairs" />
       </div>
 
       <div className="grid-4">
-        <Metric label="Products" value={qty.format(inv.totalProducts)} tint="cyan" />
-        <Metric label="Stock units" value={qty.format(inv.stockUnits)} tint="slate" />
-        <Metric label="Stock value" value={money.format(inv.stockValueAtCost)} tint="orange" />
-        <Metric label="Low / out" value={`${inv.lowStockCount} / ${inv.outOfStockCount}`} tint="rose" />
+        <Metric label="Products" value={qty.format(inv.totalProducts)} tint="cyan" to="/inventory" />
+        <Metric label="Stock units" value={qty.format(inv.stockUnits)} tint="slate" to="/inventory" />
+        <Metric label="Stock value" value={money.format(inv.stockValueAtCost)} tint="orange" to="/inventory" />
+        <Metric
+          label="Low / out"
+          value={`${inv.lowStockCount} / ${inv.outOfStockCount}`}
+          tint="rose"
+          to="/inventory"
+        />
       </div>
 
       <section className="card tight lift">
@@ -89,14 +113,18 @@ export function DashboardPage() {
           <div className="empty">Nothing needs attention. That is a good morning.</div>
         ) : (
           data.alerts.map((alert) => (
-            <div className="category-row" key={alert.id}>
+            <Link
+              className="category-row"
+              key={alert.id}
+              to={`/inventory?q=${encodeURIComponent(alert.productName ?? alert.variantName ?? "")}`}
+            >
               <div>
                 <div style={{ fontWeight: 600 }}>{alert.productName}</div>
                 <div className="faint">{alert.message}</div>
               </div>
               <span className={`badge ${alert.severity}`}>{alert.severity}</span>
               <span className="faint">{alert.alertType.replaceAll("_", " ")}</span>
-            </div>
+            </Link>
           ))
         )}
       </section>
@@ -104,11 +132,21 @@ export function DashboardPage() {
   );
 }
 
-function Metric({ label, value, tint }: { label: string; value: string; tint: string }) {
+function Metric({
+  label,
+  value,
+  tint,
+  to,
+}: {
+  label: string;
+  value: string;
+  tint: string;
+  to: string;
+}) {
   return (
-    <div className={`card metric-card lift tint-${tint}`}>
+    <Link className={`card metric-card lift tint-${tint}`} to={to}>
       <div className="metric-label">{label}</div>
       <div className="metric-value">{value}</div>
-    </div>
+    </Link>
   );
 }

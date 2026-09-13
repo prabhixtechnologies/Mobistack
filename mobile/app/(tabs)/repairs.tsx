@@ -152,6 +152,7 @@ export default function RepairsScreen() {
         style={styles.search}
         placeholder="What is wrong with the phone?"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Problem description"
         value={problem}
         onChangeText={setProblem}
       />
@@ -159,6 +160,7 @@ export default function RepairsScreen() {
         style={styles.search}
         placeholder="Customer name (optional)"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Customer name"
         value={customer}
         onChangeText={setCustomer}
       />
@@ -166,6 +168,7 @@ export default function RepairsScreen() {
         style={styles.search}
         placeholder="IMEI (optional)"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="IMEI"
         value={imei}
         onChangeText={setImei}
       />
@@ -174,6 +177,7 @@ export default function RepairsScreen() {
         placeholder="Labor"
         placeholderTextColor={colors.faint}
         keyboardType="numeric"
+        accessibilityLabel="Labor charge"
         value={labor}
         onChangeText={setLabor}
       />
@@ -232,6 +236,7 @@ export default function RepairsScreen() {
                   style={[styles.search, { marginTop: 10, marginBottom: 0 }]}
                   placeholder="SKU, then enter"
                   placeholderTextColor={colors.faint}
+                  accessibilityLabel="Part SKU"
                   value={partQuery}
                   onChangeText={setPartQuery}
                   editable={!fitPart.busy}

@@ -8,6 +8,9 @@ export function usePresence(enabled: boolean): void {
       return;
     }
     const beat = () => {
+      if (document.hidden) {
+        return;
+      }
       void api("/api/v1/presence/heartbeat", {
         method: "POST",
         body: JSON.stringify({ deviceId: getDeviceId(), platform: "WEB", appVersion: "1.0.0" }),
@@ -17,8 +20,15 @@ export function usePresence(enabled: boolean): void {
     };
     beat();
     const timer = window.setInterval(beat, 30000);
+    const onVis = () => {
+      if (!document.hidden) {
+        beat();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVis);
       void api("/api/v1/presence/leave", {
         method: "POST",
         body: JSON.stringify({ deviceId: getDeviceId(), platform: "WEB" }),

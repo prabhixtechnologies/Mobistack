@@ -135,6 +135,7 @@ export default function HomeScreen() {
           style={styles.search}
           placeholder="Search Realme 6…"
           placeholderTextColor={colors.faint}
+          accessibilityLabel="Search devices"
           value={query}
           onChangeText={setQuery}
           autoCorrect={false}
@@ -216,7 +217,7 @@ export default function HomeScreen() {
 
 function Tile({ label, value, colors }: { label: string; value: string; colors: ReturnType<typeof useTheme>["colors"] }) {
   return (
-    <View style={{ width: "48%", backgroundColor: colors.card, borderRadius: 16, padding: 14 }}>
+      <View style={{ width: "48%", backgroundColor: colors.card, borderRadius: 16, padding: 16 }}>
       <Text style={{ color: colors.faint, fontSize: 12, fontWeight: "600" }}>{label}</Text>
       <Text style={{ fontSize: 22, fontWeight: "700", marginTop: 8, letterSpacing: -0.6, color: colors.ink }}>{value}</Text>
     </View>
@@ -234,7 +235,7 @@ function FabAction({ label, onPress, colors }: { label: string; onPress: () => v
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 120 },
-    hello: { fontSize: 32, fontWeight: "500", letterSpacing: -0.8, marginBottom: 16, color: colors.ink },
+    hello: { fontSize: 32, fontWeight: "600", letterSpacing: -0.8, marginBottom: 16, color: colors.ink },
     banner: { color: colors.warn, marginBottom: 12, fontWeight: "600" },
     search: {
       backgroundColor: colors.card,
@@ -258,11 +259,11 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       width: 58,
       height: 58,
       borderRadius: 29,
-      backgroundColor: colors.ink,
+      backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
     },
-    fabPlus: { color: colors.bg, fontSize: 30, lineHeight: 32 },
+    fabPlus: { color: colors.accentInk, fontSize: 30, lineHeight: 32 },
     fabMenu: { position: "absolute", right: 20, bottom: 92, gap: 8 },
   });
 }

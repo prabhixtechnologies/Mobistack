@@ -9,6 +9,7 @@ import { selectedWorkspaceId } from "../lib/api";
 import { syncNow } from "../lib/offline";
 import { startPresence } from "../lib/presence";
 import { listenForPush, registerForPush } from "../lib/push";
+import { safeAppPath } from "../lib/safePath";
 import { applyOtaIfAvailable, checkRelease } from "../lib/updates";
 
 function SyncOnResume() {
@@ -25,7 +26,7 @@ function SyncOnResume() {
     void registerForPush();
     const stopPush = listenForPush({
       onOpened: (link) => {
-        router.push(link ? (link as never) : ("/inbox" as never));
+        router.push(safeAppPath(link, "/inbox") as never);
       },
     });
     if (!selectedWorkspaceId(user)) {

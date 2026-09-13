@@ -32,10 +32,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * The only way a caller is bound to a workspace.
@@ -56,6 +60,19 @@ public class WorkspaceAccessService {
     private final AuditService auditService;
     private final BillingService billingService;
     private final NotificationService notificationService;
+
+    /**
+     * Privileged people APIs must target the shop in the JWT. {@code @PreAuthorize} checks the
+     * selected workspace's permissions; a path id for a different shop the caller merely belongs to
+     * would otherwise inherit those privileges (invite into shop B using shop A's owner token).
+     */
+    @Transactional(readOnly = true)
+    public WorkspaceMembership requireSelected(UUID workspaceId) {
+        if (!workspaceId.equals(CurrentUser.shopId())) {
+            throw ApiException.forbidden("Select this workspace before managing its people.");
+        }
+        return requireActive(CurrentUser.userId(), workspaceId);
+    }
 
     @Transactional(readOnly = true)
     public WorkspaceMembership requireActive(UUID userId, UUID workspaceId) {
@@ -78,15 +95,14 @@ public class WorkspaceAccessService {
     @Transactional(readOnly = true)
     public MyWorkspacesResponse listMine(UUID userId, UUID selectedWorkspaceId) {
         List<WorkspaceMembership> memberships = membershipRepository.findByUserIdOrderByLastSelectedAtDesc(userId);
-        List<WorkspaceCard> cards = memberships.stream()
+        List<WorkspaceMembership> visible = memberships.stream()
                 .filter(m -> m.getStatus() != MembershipStatus.REMOVED)
                 .sorted(Comparator
                         .comparing((WorkspaceMembership m) -> m.getStatus() != MembershipStatus.ACTIVE)
                         .thenComparing(m -> m.getLastSelectedAt() == null ? Instant.EPOCH : m.getLastSelectedAt(),
                                 Comparator.reverseOrder()))
-                .map(membership -> toCard(membership, selectedWorkspaceId))
                 .toList();
-        return new MyWorkspacesResponse(selectedWorkspaceId, cards);
+        return new MyWorkspacesResponse(selectedWorkspaceId, toCards(visible, selectedWorkspaceId));
     }
 
     @Transactional
@@ -261,8 +277,13 @@ public class WorkspaceAccessService {
 
     @Transactional(readOnly = true)
     public Page<WorkspaceMember> listMembers(UUID workspaceId, Pageable pageable) {
-        requireActive(CurrentUser.userId(), workspaceId);
-        return membershipRepository.findByWorkspaceId(workspaceId, pageable).map(this::toMember);
+        requireSelected(workspaceId);
+        Page<WorkspaceMembership> page = membershipRepository.findByWorkspaceId(workspaceId, pageable);
+        Map<UUID, User> users = usersById(page.getContent().stream()
+                .map(WorkspaceMembership::getUserId)
+                .distinct()
+                .toList());
+        return page.map(membership -> toMember(membership, users.get(membership.getUserId())));
     }
 
     @Transactional
@@ -370,14 +391,14 @@ public class WorkspaceAccessService {
     }
 
     private void requireOwnerOrAdmin(UUID workspaceId) {
-        WorkspaceMembership actor = requireActive(CurrentUser.userId(), workspaceId);
+        WorkspaceMembership actor = requireSelected(workspaceId);
         if (!Set.of(SystemRole.OWNER.name(), SystemRole.ADMIN.name()).contains(actor.getRole().getCode())) {
             throw ApiException.forbidden("Only an owner or admin can manage memberships.");
         }
     }
 
     private void requireCanApproveMembers(UUID workspaceId) {
-        WorkspaceMembership actor = requireActive(CurrentUser.userId(), workspaceId);
+        WorkspaceMembership actor = requireSelected(workspaceId);
         if (canApproveMembers(actor)) {
             return;
         }
@@ -412,8 +433,58 @@ public class WorkspaceAccessService {
         return membershipRepository.save(membership);
     }
 
+    private List<WorkspaceCard> toCards(List<WorkspaceMembership> memberships, UUID selectedWorkspaceId) {
+        if (memberships.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> shopIds = memberships.stream().map(WorkspaceMembership::getWorkspaceId).distinct().toList();
+        Map<UUID, Shop> shops = shopRepository.findAllById(shopIds).stream()
+                .collect(Collectors.toMap(Shop::getId, shop -> shop));
+        Map<UUID, Long> memberCounts = countMembers(shopIds);
+        Map<UUID, Long> productCounts = countProducts(shopIds);
+        return memberships.stream()
+                .map(membership -> toCard(membership, shops.get(membership.getWorkspaceId()),
+                        memberCounts.getOrDefault(membership.getWorkspaceId(), 0L),
+                        productCounts.getOrDefault(membership.getWorkspaceId(), 0L),
+                        selectedWorkspaceId))
+                .toList();
+    }
+
+    private Map<UUID, Long> countMembers(Collection<UUID> shopIds) {
+        if (shopIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Long> counts = new HashMap<>();
+        for (var row : membershipRepository.countByWorkspaceIdInAndStatus(shopIds, MembershipStatus.ACTIVE)) {
+            counts.put(row.getWorkspaceId(), row.getTotal());
+        }
+        return counts;
+    }
+
+    private Map<UUID, Long> countProducts(Collection<UUID> shopIds) {
+        if (shopIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Long> counts = new HashMap<>();
+        for (var row : productRepository.countActiveByShopIdIn(shopIds)) {
+            counts.put(row.getShopId(), row.getTotal());
+        }
+        return counts;
+    }
+
     private WorkspaceCard toCard(WorkspaceMembership membership, UUID selectedWorkspaceId) {
         Shop workspace = shopRepository.findById(membership.getWorkspaceId()).orElseThrow();
+        return toCard(membership, workspace,
+                membershipRepository.countByWorkspaceIdAndStatus(workspace.getId(), MembershipStatus.ACTIVE),
+                productRepository.countByShopIdAndActiveTrue(workspace.getId()),
+                selectedWorkspaceId);
+    }
+
+    private WorkspaceCard toCard(WorkspaceMembership membership, Shop workspace, long memberCount,
+                                 long productCount, UUID selectedWorkspaceId) {
+        if (workspace == null) {
+            throw ApiException.notFound("Workspace", membership.getWorkspaceId());
+        }
         boolean privileged = Set.of(SystemRole.OWNER.name(), SystemRole.ADMIN.name())
                 .contains(membership.getRole().getCode());
         return new WorkspaceCard(
@@ -424,13 +495,28 @@ public class WorkspaceAccessService {
                 membership.isActive() && privileged ? workspace.getJoinCode() : null,
                 membership.getRole().getCode(),
                 membership.getStatus(),
-                membershipRepository.countByWorkspaceIdAndStatus(workspace.getId(), MembershipStatus.ACTIVE),
-                productRepository.countByShopIdAndActiveTrue(workspace.getId()),
+                memberCount,
+                productCount,
                 workspace.getId().equals(selectedWorkspaceId));
+    }
+
+    private Map<UUID, User> usersById(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(User::getId, user -> user));
     }
 
     private WorkspaceMember toMember(WorkspaceMembership membership) {
         User user = userRepository.findById(membership.getUserId()).orElseThrow();
+        return toMember(membership, user);
+    }
+
+    private WorkspaceMember toMember(WorkspaceMembership membership, User user) {
+        if (user == null) {
+            throw ApiException.notFound("User", membership.getUserId());
+        }
         return new WorkspaceMember(membership.getId(), user.getId(), user.getFullName(), user.getEmail(),
                 membership.getRole().getCode(), membership.getStatus(), membership.getJoinedAt());
     }

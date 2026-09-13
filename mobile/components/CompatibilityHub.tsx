@@ -66,6 +66,7 @@ export function CompatibilityHub({ greeting }: { greeting?: string }) {
         style={styles.search}
         placeholder="Search 9A, Realme 6…"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Search compatibility lists"
         value={query}
         onChangeText={setQuery}
       />

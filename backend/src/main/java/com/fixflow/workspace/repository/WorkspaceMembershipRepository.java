@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +37,21 @@ public interface WorkspaceMembershipRepository extends JpaRepository<WorkspaceMe
     List<WorkspaceMembership> findAllByWorkspaceIdAndStatus(UUID workspaceId, MembershipStatus status);
 
     long countByWorkspaceIdAndStatus(UUID workspaceId, MembershipStatus status);
+
+    interface WorkspaceCount {
+        UUID getWorkspaceId();
+        long getTotal();
+    }
+
+    @Query("""
+            select m.workspaceId as workspaceId, count(m) as total
+            from WorkspaceMembership m
+            where m.status = :status and m.workspaceId in :ids
+            group by m.workspaceId
+            """)
+    List<WorkspaceCount> countByWorkspaceIdInAndStatus(
+            @Param("ids") Collection<UUID> ids,
+            @Param("status") MembershipStatus status);
 
     boolean existsByWorkspaceIdAndUserId(UUID workspaceId, UUID userId);
 

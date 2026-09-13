@@ -84,9 +84,9 @@ export function CustomersPage() {
 
       {canWrite && (
         <form className="card row" onSubmit={submit}>
-          <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" required />
-          <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
-          <select className="select" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160 }}>
+          <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" aria-label="Customer name" required />
+          <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" aria-label="Customer phone" />
+          <select className="select" value={type} onChange={(e) => setType(e.target.value)} style={{ width: 160, maxWidth: "100%" }} aria-label="Customer type">
             <option value="RETAIL">Retail</option>
             <option value="WHOLESALE">Wholesale</option>
             <option value="VIP">VIP</option>
@@ -103,6 +103,7 @@ export function CustomersPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or phone…"
+          aria-label="Search customers"
         />
       </div>
 

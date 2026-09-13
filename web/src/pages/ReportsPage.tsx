@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, getAccessToken, money, qty } from "../lib/api";
+import { getDeviceId } from "../lib/device";
 import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
 import { PageHeader } from "../ui/PageHeader";
@@ -48,7 +49,10 @@ export function ReportsPage() {
     async () => {
       const token = getAccessToken();
       const response = await fetch(`/api/v1/reports/export?range=${range}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "X-MobiStack-Device": getDeviceId(),
+        },
       });
       // Without this check a rejected export saves the error page as a .csv,
       // which then opens as a spreadsheet of HTML.
@@ -74,7 +78,13 @@ export function ReportsPage() {
         subtitle="Profit is sale price minus ledger cost. Dead stock is inventory that has not moved."
         actions={
           <div className="row">
-            <select className="select" value={range} onChange={(e) => setRange(e.target.value)} style={{ width: 180 }}>
+            <select
+              className="select"
+              value={range}
+              onChange={(e) => setRange(e.target.value)}
+              style={{ width: 180, maxWidth: "100%" }}
+              aria-label="Report period"
+            >
               <option value="today">Today</option>
               <option value="yesterday">Yesterday</option>
               <option value="7d">7 days</option>
@@ -96,7 +106,14 @@ export function ReportsPage() {
       />
       {error && <div className="error">{error}</div>}
       {exportCsv.error && <div className="error">{exportCsv.error}</div>}
-      {loading && !data && <div className="muted">Adding up the numbers…</div>}
+      {loading && !data && (
+        <div className="grid-4" aria-busy="true" aria-label="Loading report">
+          <div className="skeleton skeleton--title" />
+          <div className="skeleton skeleton--title" />
+          <div className="skeleton skeleton--title" />
+          <div className="skeleton skeleton--title" />
+        </div>
+      )}
       {data && (
         <>
           <div className="grid-4">

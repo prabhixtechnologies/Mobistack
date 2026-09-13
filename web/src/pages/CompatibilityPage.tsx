@@ -53,6 +53,7 @@ export function CompatibilityPage() {
       setSearching(false);
       return;
     }
+    let live = true;
     const handle = window.setTimeout(async () => {
       setSearching(true);
       try {
@@ -62,16 +63,27 @@ export function CompatibilityPage() {
             `/api/v1/compatibility-groups?q=${encodeURIComponent(query)}&size=40`,
           ),
         ]);
+        if (!live) {
+          return;
+        }
         setHits(search.devices ?? []);
         setGroups(page.content ?? []);
         setError(null);
       } catch (err) {
+        if (!live) {
+          return;
+        }
         setError(err instanceof Error ? err.message : "Search failed");
       } finally {
-        setSearching(false);
+        if (live) {
+          setSearching(false);
+        }
       }
     }, 140);
-    return () => window.clearTimeout(handle);
+    return () => {
+      live = false;
+      window.clearTimeout(handle);
+    };
   }, [query]);
 
   async function decide(id: string, action: "approve" | "reject") {

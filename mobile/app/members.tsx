@@ -49,6 +49,7 @@ export default function MembersScreen() {
             style={field(colors)}
             placeholder="Email to invite"
             placeholderTextColor={colors.faint}
+            accessibilityLabel="Invitee email"
             autoCapitalize="none"
             value={email}
             onChangeText={setEmail}

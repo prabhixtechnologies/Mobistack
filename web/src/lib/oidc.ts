@@ -1,4 +1,5 @@
 import { IDENTITY_ISSUER } from "./config";
+import { safeAppPath } from "./safePath";
 
 /**
  * The authorization code flow with PKCE, against Prabhix Identity.
@@ -51,7 +52,7 @@ async function authorize(returnTo?: string, prompt?: string): Promise<void> {
 
   sessionStorage.setItem(VERIFIER_KEY, verifier);
   sessionStorage.setItem(STATE_KEY, state);
-  if (returnTo) sessionStorage.setItem(RETURN_KEY, returnTo);
+  sessionStorage.setItem(RETURN_KEY, safeAppPath(returnTo));
 
   const params = new URLSearchParams({
     response_type: "code",
@@ -91,7 +92,7 @@ export async function completeLogin(search: URLSearchParams): Promise<{
   const state = search.get("state");
   const expectedState = sessionStorage.getItem(STATE_KEY);
   const verifier = sessionStorage.getItem(VERIFIER_KEY);
-  const returnTo = sessionStorage.getItem(RETURN_KEY) ?? "/";
+  const returnTo = safeAppPath(sessionStorage.getItem(RETURN_KEY));
 
   sessionStorage.removeItem(VERIFIER_KEY);
   sessionStorage.removeItem(STATE_KEY);

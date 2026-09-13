@@ -1,10 +1,13 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, apiText, money } from "../lib/api";
+import { openHtmlDocument } from "../lib/printHtml";
 import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
+import { ConfirmDialog } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
 import type { PartSearchHit, GlobalSearchResponse } from "../lib/types";
 
@@ -33,12 +36,21 @@ export function SalesPage() {
   const canSell = access.has("SALES_WRITE");
   const canVoid = access.has("SALES_VOID");
   const sales = usePagedList<Sale>("/api/v1/sales", { size: 25 });
-  const [query, setQuery] = useState("");
+  const [params] = useSearchParams();
+  const [query, setQuery] = useState(params.get("q") ?? "");
   const settled = useDebounced(query);
   const [hits, setHits] = useState<PartSearchHit[]>([]);
   const [lines, setLines] = useState<Line[]>([]);
   const [method, setMethod] = useState("CASH");
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [voidTarget, setVoidTarget] = useState<Sale | null>(null);
+
+  useEffect(() => {
+    const fromUrl = params.get("q");
+    if (fromUrl) {
+      setQuery(fromUrl);
+    }
+  }, [params]);
 
   useEffect(() => {
     const term = settled.trim();
@@ -71,11 +83,7 @@ export function SalesPage() {
 
   const openInvoice = useCallback(async (id: string) => {
     const html = await apiText(`/api/v1/sales/${id}/invoice`);
-    const popup = window.open("", "_blank");
-    if (popup) {
-      popup.document.write(html);
-      popup.document.close();
-    }
+    openHtmlDocument(html);
   }, []);
 
   const checkout = useAction(
@@ -106,7 +114,7 @@ export function SalesPage() {
       await api(`/api/v1/sales/${id}/void`, { method: "POST", body: JSON.stringify({ reason: "Counter void" }) });
       sales.reload();
     },
-    { fallbackError: "Could not void that invoice." },
+    { fallbackError: "Could not void that invoice.", onDone: () => setVoidTarget(null) },
   );
 
   function submit(event: FormEvent) {
@@ -150,11 +158,7 @@ export function SalesPage() {
               className="btn ghost"
               type="button"
               disabled={voidSale.busy}
-              onClick={() => {
-                if (window.confirm("Void this invoice and return the stock?")) {
-                  void voidSale.run(sale.id);
-                }
-              }}
+              onClick={() => setVoidTarget(sale)}
             >
               Void
             </button>
@@ -183,6 +187,8 @@ export function SalesPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Part, SKU, barcode…"
+            aria-label="Find a part to sell"
+            autoComplete="off"
           />
           {hits.length > 0 && (
             <div className="card tight">
@@ -253,7 +259,7 @@ export function SalesPage() {
             </div>
           ))}
           <div className="spread">
-            <select className="select" value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 160 }}>
+            <select className="select" value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 160, maxWidth: "100%" }} aria-label="Payment method">
               <option value="CASH">Cash</option>
               <option value="UPI">UPI</option>
               <option value="CARD">Card</option>
@@ -294,6 +300,31 @@ export function SalesPage() {
           }}
         />
       </div>
+
+      <ConfirmDialog
+        open={Boolean(voidTarget)}
+        title="Void this invoice?"
+        description={
+          voidTarget
+            ? `${voidTarget.invoiceNumber} will be voided and the stock returned to the ledger. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Void invoice"
+        destructive
+        busy={voidSale.busy}
+        error={voidSale.error}
+        onConfirm={() => {
+          if (voidTarget) {
+            void voidSale.run(voidTarget.id);
+          }
+        }}
+        onClose={() => {
+          if (!voidSale.busy) {
+            setVoidTarget(null);
+            voidSale.clearError();
+          }
+        }}
+      />
     </div>
   );
 }

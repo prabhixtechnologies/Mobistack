@@ -12,6 +12,7 @@
     <meta property="og:description" content="MobiStack by Prabhix Technologies Pvt Ltd. See what fits. See stock. Sell." />
     <meta property="og:image" content="/og.png" />
     <meta name="theme-color" content="#0e7490" />
+    <meta name="color-scheme" content="light dark" />
     <script>
       (function () {
         try {
@@ -21,6 +22,8 @@
             : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
           document.documentElement.dataset.theme = theme;
           document.documentElement.style.colorScheme = theme;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", theme === "dark" ? "#071018" : "#0e7490");
         } catch (e) {}
       })();
     </script>
@@ -30,7 +33,6 @@
       href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
       rel="stylesheet"
     />
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </head>
   <body>
     <div id="root"></div>

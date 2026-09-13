@@ -82,9 +82,10 @@ export function SuppliersPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Supplier"
+            aria-label="Supplier name"
             required
           />
-          <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
+          <input className="field" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" aria-label="Supplier phone" />
           <button className="btn" disabled={create.busy}>
             {create.busy ? "Saving…" : "Add"}
           </button>
@@ -97,6 +98,7 @@ export function SuppliersPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or phone…"
+          aria-label="Search suppliers"
         />
       </div>
 

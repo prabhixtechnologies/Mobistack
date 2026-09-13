@@ -155,6 +155,7 @@ public class WorkspaceController {
 
     @GetMapping("/{id}/join-qr")
     public java.util.Map<String, String> joinQr(@PathVariable UUID id) {
+        workspaceAccessService.requireActive(CurrentUser.userId(), id);
         var mine = workspaceAccessService.listMine(CurrentUser.userId(), id);
         var card = mine.workspaces().stream().filter(w -> w.id().equals(id)).findFirst()
                 .orElseThrow(() -> com.fixflow.common.error.ApiException.notFound("Workspace", id));

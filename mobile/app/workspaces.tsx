@@ -83,8 +83,8 @@ export default function WorkspacesScreen() {
       ))}
 
       <Text style={styles.section}>Create</Text>
-      <TextInput style={styles.input} placeholder="Workspace name" placeholderTextColor={colors.faint} value={name} onChangeText={setName} />
-      <TextInput style={styles.input} placeholder="City" placeholderTextColor={colors.faint} value={city} onChangeText={setCity} />
+      <TextInput style={styles.input} placeholder="Workspace name" placeholderTextColor={colors.faint} accessibilityLabel="Workspace name" value={name} onChangeText={setName} />
+      <TextInput style={styles.input} placeholder="City" placeholderTextColor={colors.faint} accessibilityLabel="City" value={city} onChangeText={setCity} />
       <Pressable
         style={styles.btn}
         disabled={busy || !name.trim()}
@@ -111,6 +111,7 @@ export default function WorkspacesScreen() {
         placeholder="HUB-7K2P"
         autoCapitalize="characters"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Join code"
         value={joinCode}
         onChangeText={setJoinCode}
       />

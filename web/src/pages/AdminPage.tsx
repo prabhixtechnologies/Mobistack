@@ -127,10 +127,16 @@ export function AdminPage() {
 
   useEffect(() => {
     load().catch((err: Error) => setError(err.message));
-    const timer = window.setInterval(() => {
+    const tick = () => {
+      if (document.hidden) return;
       void api<LiveUser[]>("/api/v1/admin/live").then(setLive).catch(() => undefined);
-    }, 10000);
-    return () => window.clearInterval(timer);
+    };
+    const timer = window.setInterval(tick, 10000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, []);
 
   async function toggleShop(workspace: Workspace) {

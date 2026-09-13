@@ -56,6 +56,7 @@ export default function SuppliersScreen() {
         style={field(colors)}
         placeholder="Name"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Supplier name"
         value={name}
         onChangeText={setName}
       />
@@ -64,6 +65,7 @@ export default function SuppliersScreen() {
         placeholder="Phone"
         placeholderTextColor={colors.faint}
         keyboardType="phone-pad"
+        accessibilityLabel="Supplier phone"
         value={phone}
         onChangeText={setPhone}
       />
@@ -71,6 +73,7 @@ export default function SuppliersScreen() {
         style={field(colors)}
         placeholder="City"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Supplier city"
         value={city}
         onChangeText={setCity}
       />

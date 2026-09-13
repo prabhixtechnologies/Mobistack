@@ -158,6 +158,7 @@ export default function PurchasesScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="Part or SKU"
+            accessibilityLabel="Find a part to purchase"
             placeholderTextColor={colors.faint}
             autoCorrect={false}
             style={{

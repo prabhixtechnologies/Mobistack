@@ -75,6 +75,10 @@ spring:
       enabled: true
 
   data:
+    web:
+      pageable:
+        default-page-size: 25
+        max-page-size: 100
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
@@ -125,8 +129,10 @@ springdoc:
     path: /swagger-ui.html
     operations-sorter: alpha
     tags-sorter: alpha
+    enabled: ${SWAGGER_ENABLED:false}
   api-docs:
     path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:false}
 
 fixflow:
   security:

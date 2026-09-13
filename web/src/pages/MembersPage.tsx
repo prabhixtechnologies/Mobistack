@@ -137,8 +137,8 @@ export function MembersPage() {
 
       {canInvite && (
       <form className="card row" onSubmit={invite}>
-        <input className="field" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@shop" required />
-        <select className="select" value={role} onChange={(e) => setRole(e.target.value)} style={{ width: 160 }}>
+        <input className="field" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@shop" aria-label="Invitee email" required />
+        <select className="select" value={role} onChange={(e) => setRole(e.target.value)} style={{ width: 160, maxWidth: "100%" }} aria-label="Invitee role">
           <option>STAFF</option>
           <option>TECHNICIAN</option>
           <option>MANAGER</option>

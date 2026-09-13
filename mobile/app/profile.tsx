@@ -43,6 +43,7 @@ export default function ProfileScreen() {
         style={field(colors)}
         placeholder="Current password"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Current password"
         secureTextEntry
         value={currentPassword}
         onChangeText={setCurrentPassword}
@@ -51,6 +52,7 @@ export default function ProfileScreen() {
         style={field(colors)}
         placeholder="New password"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="New password"
         secureTextEntry
         value={newPassword}
         onChangeText={setNewPassword}

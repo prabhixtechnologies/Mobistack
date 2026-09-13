@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAccess } from "../lib/access";
+import { useAuth } from "../lib/auth";
+import { afterAuthPath } from "../lib/plan";
 import { permissionLabel, type Permission } from "../lib/permissions";
 import { Icon } from "../ui/navIcons";
 
@@ -17,7 +19,9 @@ export function ForbiddenPage({
   reason?: "permission" | "platform" | "unpaid";
 }) {
   const { roleLabel } = useAccess();
+  const { user } = useAuth();
   const unpaid = reason === "unpaid";
+  const home = user ? afterAuthPath(user) : "/";
 
   return (
     <div className="page">
@@ -54,7 +58,7 @@ export function ForbiddenPage({
 
         <div className="row forbidden__actions">
           {!unpaid && (
-            <Link className="btn" to="/">
+            <Link className="btn" to={home}>
               Back to dashboard
             </Link>
           )}

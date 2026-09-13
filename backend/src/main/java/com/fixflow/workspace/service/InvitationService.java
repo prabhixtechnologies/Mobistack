@@ -47,7 +47,7 @@ public class InvitationService {
 
     @Transactional
     public InvitationResponse invite(UUID workspaceId, InviteMemberRequest request) {
-        workspaceAccessService.requireActive(CurrentUser.userId(), workspaceId);
+        workspaceAccessService.requireSelected(workspaceId);
         billingService.require(workspaceId, "MEMBER_ADD");
         Role role = roleRepository.findSystemRoleByCode(request.role().trim().toUpperCase())
                 .orElseThrow(() -> ApiException.businessRule("Unknown role " + request.role()));
@@ -71,8 +71,8 @@ public class InvitationService {
         UUID invitee = userRepository.findWithRolesByEmail(request.email()).map(User::getId).orElse(null);
         notificationService.emit(workspaceId, invitee, "USER_INVITED", request.email(),
                 "You have been invited to " + workspace.getName(),
-                "Join %s as %s. Token: %s (expires in 7 days)."
-                        .formatted(workspace.getName(), role.getCode(), token));
+                "Join %s as %s. Open the invitation email or the People screen — the join token is never stored in notifications."
+                        .formatted(workspace.getName(), role.getCode()));
         auditService.record(AuditAction.MEMBER_INVITED, "WorkspaceInvitation", invitation.getId(),
                 "Invited %s as %s".formatted(request.email(), role.getCode()));
         return toResponse(invitation, token);
@@ -105,7 +105,7 @@ public class InvitationService {
 
     @Transactional
     public void cancel(UUID workspaceId, UUID invitationId) {
-        workspaceAccessService.requireActive(CurrentUser.userId(), workspaceId);
+        workspaceAccessService.requireSelected(workspaceId);
         // Matched on both ids: an id alone let a member of one shop cancel an
         // invitation belonging to another shop entirely.
         WorkspaceInvitation invitation = invitationRepository.findByIdAndWorkspaceId(invitationId, workspaceId)
@@ -116,7 +116,7 @@ public class InvitationService {
 
     @Transactional(readOnly = true)
     public List<InvitationResponse> list(UUID workspaceId) {
-        workspaceAccessService.requireActive(CurrentUser.userId(), workspaceId);
+        workspaceAccessService.requireSelected(workspaceId);
         return invitationRepository.findByWorkspaceIdOrderByCreatedAtDesc(workspaceId).stream()
                 .map(invitation -> toResponse(invitation, null))
                 .toList();

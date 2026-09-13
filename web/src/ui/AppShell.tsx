@@ -14,6 +14,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { Menu, MenuItem, MenuSeparator } from "./Menu";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Icon } from "./navIcons";
+import { SkipLink } from "./SkipLink";
 
 const SIDEBAR_KEY = "mobistack.sidebar.collapsed";
 
@@ -94,13 +95,20 @@ export function AppShell() {
       return;
     }
     const pull = () => {
+      if (document.hidden) {
+        return;
+      }
       void api<{ unread: number }>("/api/v1/inbox")
         .then((inbox) => setUnread(inbox.unread))
         .catch(() => undefined);
     };
     pull();
     const timer = window.setInterval(pull, 20000);
-    return () => window.clearInterval(timer);
+    document.addEventListener("visibilitychange", pull);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", pull);
+    };
   }, [user]);
 
   /**
@@ -138,6 +146,7 @@ export function AppShell() {
 
   return (
     <div className={shellClass}>
+      <SkipLink />
       <header className="app-header" role="banner">
         <button
           className="icon-btn header-icon sidebar-toggle"
@@ -325,7 +334,7 @@ export function AppShell() {
           </div>
         </aside>
 
-        <div className="main" id="main-content">
+        <div className="main" id="main-content" tabIndex={-1}>
           <div className="main__body">
             {unpaid && (
               <div className="banner banner-warn paywall-strip">

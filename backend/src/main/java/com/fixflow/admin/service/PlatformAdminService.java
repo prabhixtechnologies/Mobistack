@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -37,9 +39,18 @@ public class PlatformAdminService {
 
     @Transactional(readOnly = true)
     public List<WorkspaceAdminCard> listWorkspaces() {
-        return shopRepository.findAll().stream()
+        List<Shop> shops = shopRepository.findAll();
+        if (shops.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = shops.stream().map(Shop::getId).toList();
+        Map<UUID, Long> memberCounts = new HashMap<>();
+        for (var row : membershipRepository.countByWorkspaceIdInAndStatus(ids, MembershipStatus.ACTIVE)) {
+            memberCounts.put(row.getWorkspaceId(), row.getTotal());
+        }
+        return shops.stream()
                 .map(shop -> new WorkspaceAdminCard(shop.getId(), shop.getName(), shop.getCity(), shop.isActive(),
-                        membershipRepository.countByWorkspaceIdAndStatus(shop.getId(), MembershipStatus.ACTIVE),
+                        memberCounts.getOrDefault(shop.getId(), 0L),
                         shop.getExtraScreens(), shop.screenSeats()))
                 .toList();
     }

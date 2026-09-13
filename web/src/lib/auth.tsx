@@ -10,6 +10,7 @@ import {
   persistSession,
   persistUser,
   persistWorkspaces,
+  refreshSession,
 } from "./api";
 import { getDeviceId } from "./device";
 import { afterAuthPath } from "./plan";
@@ -19,6 +20,8 @@ import type { AuthResponse, AuthenticatedUser, MyWorkspacesResponse, WorkspaceCa
 interface AuthContextValue {
   user: AuthenticatedUser | null;
   workspaces: WorkspaceCard[];
+  /** False while Identity cookie restore is in flight — do not flash the login page. */
+  ready: boolean;
   login: (email: string, password: string) => Promise<AuthResponse>;
   loginWithTokens: (accessToken: string) => Promise<void>;
   acceptSession: (auth: AuthResponse) => void;
@@ -32,6 +35,10 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function atOidcCallback(): boolean {
+  return typeof window !== "undefined" && window.location.pathname === "/auth/callback";
+}
 
 function applySession(
   auth: AuthResponse,
@@ -73,34 +80,68 @@ function applyWorkspaceChange(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(getStoredUser);
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>(getStoredWorkspaces);
+  const [ready, setReady] = useState(() => atOidcCallback() || Boolean(getAccessToken()) || !isOidcEnabled());
 
   useEffect(() => {
-    if (!user && !getAccessToken()) {
-      return;
-    }
-    api<AuthenticatedUser>("/api/v1/auth/me")
-      .then((me) => {
+    let cancelled = false;
+
+    async function boot(): Promise<void> {
+      if (atOidcCallback()) {
+        return;
+      }
+
+      if (isOidcEnabled() && !getAccessToken()) {
+        const restored = await refreshSession();
+        if (!restored) {
+          clearSession();
+          if (!cancelled) {
+            setUser(null);
+            setWorkspaces([]);
+            setReady(true);
+          }
+          return;
+        }
+      }
+
+      if (!getAccessToken()) {
+        if (!cancelled) {
+          setReady(true);
+        }
+        return;
+      }
+
+      try {
+        const me = await api<AuthenticatedUser>("/api/v1/auth/me");
+        if (cancelled) {
+          return;
+        }
         persistUser(me);
         setUser(me);
-      })
-      .catch(() => {
+      } catch {
         /* keep the cached session until the next API call */
-      });
-  }, []);
+      }
 
-  useEffect(() => {
-    if (!user || workspaces.length > 0) {
-      return;
-    }
-    api<MyWorkspacesResponse>("/api/v1/workspaces")
-      .then((mine) => {
+      try {
+        const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+        if (cancelled) {
+          return;
+        }
         persistWorkspaces(mine.workspaces);
         setWorkspaces(mine.workspaces);
-      })
-      .catch(() => {
+      } catch {
         /* listing is optional until the user opens My Workspaces */
-      });
-  }, [user, workspaces.length]);
+      }
+
+      if (!cancelled) {
+        setReady(true);
+      }
+    }
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const loginWithTokens = useCallback(async (accessToken: string) => {
     persistAccessToken(accessToken);
@@ -114,12 +155,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       setWorkspaces([]);
     }
+    setReady(true);
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       workspaces,
+      ready,
       async login(email, password) {
         clearSession();
         setUser(null);
@@ -133,11 +176,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }),
         });
         applySession(auth, setUser, setWorkspaces);
+        setReady(true);
         return auth;
       },
       loginWithTokens,
       acceptSession(auth) {
         applySession(auth, setUser, setWorkspaces);
+        setReady(true);
       },
       async logout() {
         const refreshToken = getRefreshToken();
@@ -199,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       has: (permission) => Boolean(user?.permissions.includes(permission)),
     }),
-    [user, workspaces, loginWithTokens],
+    [user, workspaces, ready, loginWithTokens],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -21,6 +21,7 @@ export async function heartbeat(): Promise<void> {
 export function startPresence(): () => void {
   void heartbeat();
   const timer = setInterval(() => {
+    if (AppState.currentState !== "active") return;
     void heartbeat();
   }, 30000);
   const sub = AppState.addEventListener("change", (state) => {

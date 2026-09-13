@@ -1,8 +1,15 @@
 import type { ApiError, AuthResponse, AuthenticatedUser, WorkspaceCard } from "./types";
+import { isAbortError } from "./abort";
 import { getDeviceId } from "./device";
 import { storeGet, storeRemove, storeSet } from "./storage";
 import { IDENTITY_ISSUER } from "./config";
 import { isOidcEnabled } from "./oidc";
+
+/**
+ * Identity access tokens stay in memory. localStorage is readable to any XSS on
+ * this origin; the session cookie on Identity is what survives a refresh.
+ */
+let accessTokenMemory: string | null = null;
 
 const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN as string | undefined) ?? "";
 
@@ -34,7 +41,15 @@ function pathOnly(path: string): string {
 }
 
 export function getAccessToken(): string | null {
-  return storeGet("access");
+  if (accessTokenMemory) {
+    return accessTokenMemory;
+  }
+  const stored = storeGet("access");
+  if (stored && isOidcEnabled()) {
+    accessTokenMemory = stored;
+    storeRemove("access", "refresh");
+  }
+  return stored;
 }
 
 export function getRefreshToken(): string | null {
@@ -52,11 +67,16 @@ export function getStoredWorkspaces(): WorkspaceCard[] {
 }
 
 export function persistSession(auth: AuthResponse): void {
-  storeSet("access", auth.accessToken);
-  if (auth.refreshToken) {
-    storeSet("refresh", auth.refreshToken);
+  accessTokenMemory = auth.accessToken;
+  if (isOidcEnabled() && !auth.refreshToken) {
+    storeRemove("access", "refresh");
   } else {
-    storeRemove("refresh");
+    storeSet("access", auth.accessToken);
+    if (auth.refreshToken) {
+      storeSet("refresh", auth.refreshToken);
+    } else {
+      storeRemove("refresh");
+    }
   }
   storeSet("user", JSON.stringify(auth.user));
   if (auth.workspaces) {
@@ -64,10 +84,10 @@ export function persistSession(auth: AuthResponse): void {
   }
 }
 
-/** Identity path: store an access token without a MobiStack refresh token. */
+/** Identity path: keep the access token in memory, not in localStorage. */
 export function persistAccessToken(accessToken: string): void {
-  storeSet("access", accessToken);
-  storeRemove("refresh");
+  accessTokenMemory = accessToken;
+  storeRemove("access", "refresh");
 }
 
 export function persistUser(user: AuthenticatedUser): void {
@@ -79,6 +99,7 @@ export function persistWorkspaces(workspaces: WorkspaceCard[]): void {
 }
 
 export function clearSession(): void {
+  accessTokenMemory = null;
   storeRemove("access", "refresh", "user", "workspaces");
 }
 
@@ -127,7 +148,7 @@ function endSession(reason: "session" | "expired"): void {
  */
 let refreshInFlight: Promise<boolean> | null = null;
 
-function refreshSession(): Promise<boolean> {
+export function refreshSession(): Promise<boolean> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       if (isOidcEnabled()) {
@@ -194,7 +215,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
-  } catch {
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
     throw Object.assign(new Error(OFFLINE_API.message), OFFLINE_API);
   }
 

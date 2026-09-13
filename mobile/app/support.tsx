@@ -80,7 +80,7 @@ export default function SupportScreen() {
         ))}
       </ScrollView>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TextInput style={styles.input} value={message} onChangeText={setMessage} placeholder="Ask about stock, sales, or talk to a person" placeholderTextColor={colors.faint} />
+      <TextInput style={styles.input} value={message} onChangeText={setMessage} placeholder="Ask about stock, sales, or talk to a person" placeholderTextColor={colors.faint} accessibilityLabel="Support message" />
       <Pressable style={styles.btn} onPress={() => void send()}>
         <Text style={styles.btnText}>Send</Text>
       </Pressable>

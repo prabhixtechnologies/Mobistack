@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon, type NavIconName } from "./navIcons";
 
@@ -32,8 +32,14 @@ const LIFETIME_MS: Record<ToastKind, number> = { success: 3200, info: 4200, erro
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(0);
+  const timers = useRef(new Map<number, number>());
 
   const dismiss = useCallback((id: number) => {
+    const timer = timers.current.get(id);
+    if (timer) {
+      window.clearTimeout(timer);
+      timers.current.delete(id);
+    }
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
@@ -41,10 +47,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (kind: ToastKind, message: string) => {
       const id = nextId.current++;
       setToasts((current) => [...current.slice(-2), { id, kind, message }]);
-      window.setTimeout(() => dismiss(id), LIFETIME_MS[kind]);
+      timers.current.set(id, window.setTimeout(() => dismiss(id), LIFETIME_MS[kind]));
     },
     [dismiss],
   );
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      pending.forEach((timer) => window.clearTimeout(timer));
+      pending.clear();
+    };
+  }, []);
 
   const api = useMemo<ToastApi>(
     () => ({

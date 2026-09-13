@@ -219,7 +219,7 @@ function VerificationCard({
         </button>
       </div>
       <div className="row">
-        <input className="field" value={code} onChange={(e) => setCode(e.target.value)} placeholder="One-time code" />
+        <input className="field" value={code} onChange={(e) => setCode(e.target.value)} placeholder="One-time code" aria-label="One-time verification code" autoComplete="one-time-code" />
         <button className="btn ghost" type="button" disabled={busy} onClick={() => void send()}>
           Send code
         </button>

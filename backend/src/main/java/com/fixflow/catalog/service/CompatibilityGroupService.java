@@ -171,13 +171,19 @@ public class CompatibilityGroupService {
         copy.setActive(true);
         groupRepository.save(copy);
 
-        for (CompatibilityGroupDevice link : groupDeviceRepository.findByCompatibilityGroupId(source.getId())) {
-            CompatibilityGroupDevice clone = new CompatibilityGroupDevice();
-            clone.setCompatibilityGroupId(copy.getId());
-            clone.setDeviceModelId(link.getDeviceModelId());
-            clone.setPrimaryDevice(link.isPrimaryDevice());
-            clone.setNote(link.getNote());
-            groupDeviceRepository.save(clone);
+        List<CompatibilityGroupDevice> clones = groupDeviceRepository.findByCompatibilityGroupId(source.getId())
+                .stream()
+                .map(link -> {
+                    CompatibilityGroupDevice clone = new CompatibilityGroupDevice();
+                    clone.setCompatibilityGroupId(copy.getId());
+                    clone.setDeviceModelId(link.getDeviceModelId());
+                    clone.setPrimaryDevice(link.isPrimaryDevice());
+                    clone.setNote(link.getNote());
+                    return clone;
+                })
+                .toList();
+        if (!clones.isEmpty()) {
+            groupDeviceRepository.saveAll(clones);
         }
 
         auditService.record(AuditAction.COMPATIBILITY_GROUP_COPIED, "CompatibilityGroup", copy.getId(),

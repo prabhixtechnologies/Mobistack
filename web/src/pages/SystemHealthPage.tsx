@@ -70,8 +70,16 @@ export function SystemHealthPage() {
     if (!live) {
       return;
     }
-    const timer = window.setInterval(health.reload, REFRESH_MS);
-    return () => window.clearInterval(timer);
+    const tick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      health.reload();
+    };
+    const timer = window.setInterval(tick, REFRESH_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [live, health.reload]);
 
   const runtime = health.data?.runtime;

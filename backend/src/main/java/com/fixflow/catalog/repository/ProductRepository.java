@@ -22,6 +22,19 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     long countByShopIdAndActiveTrue(UUID shopId);
 
+    interface ShopCount {
+        UUID getShopId();
+        long getTotal();
+    }
+
+    @Query("""
+            select p.shopId as shopId, count(p) as total
+            from Product p
+            where p.active = true and p.shopId in :ids
+            group by p.shopId
+            """)
+    List<ShopCount> countActiveByShopIdIn(@Param("ids") Collection<UUID> ids);
+
     @Query("""
             select p from Product p
             where p.shopId = :shopId

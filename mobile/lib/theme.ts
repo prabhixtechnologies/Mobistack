@@ -12,6 +12,7 @@ export interface Palette {
   faint: string;
   line: string;
   accent: string;
+  accentInk: string;
   good: string;
   goodSoft: string;
   warn: string;
@@ -32,6 +33,7 @@ export const light: Palette = {
   faint: "#8fa3b5",
   line: "#d5dee8",
   accent: "#0e7490",
+  accentInk: "#f0fdfa",
   good: "#067647",
   goodSoft: "#d1fadf",
   warn: "#b45309",
@@ -48,6 +50,7 @@ export const dark: Palette = {
   faint: "#5b6b7c",
   line: "#1c3342",
   accent: "#22d3ee",
+  accentInk: "#042f2e",
   good: "#32d583",
   goodSoft: "#054f31",
   warn: "#fdb022",

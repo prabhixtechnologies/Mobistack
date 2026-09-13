@@ -82,6 +82,7 @@ export default function CustomersScreen() {
         style={styles.search}
         placeholder="Name"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Customer name"
         value={name}
         onChangeText={setName}
       />
@@ -90,6 +91,7 @@ export default function CustomersScreen() {
         placeholder="Phone"
         placeholderTextColor={colors.faint}
         keyboardType="phone-pad"
+        accessibilityLabel="Customer phone"
         value={phone}
         onChangeText={setPhone}
       />
@@ -105,6 +107,7 @@ export default function CustomersScreen() {
         style={styles.search}
         placeholder="Search name or phone"
         placeholderTextColor={colors.faint}
+        accessibilityLabel="Search customers"
         value={search}
         onChangeText={setSearch}
         autoCorrect={false}

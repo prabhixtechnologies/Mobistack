@@ -49,6 +49,7 @@ export default function SettingsScreen() {
             style={field(colors)}
             value={shop.name}
             editable={canWrite}
+            accessibilityLabel="Shop name"
             onChangeText={(name) => setShop({ ...shop, name })}
           />
           <TextInput
@@ -57,6 +58,7 @@ export default function SettingsScreen() {
             editable={canWrite}
             placeholder="Phone"
             placeholderTextColor={colors.faint}
+            accessibilityLabel="Shop phone"
             onChangeText={(phone) => setShop({ ...shop, phone })}
           />
           <TextInput
@@ -65,6 +67,7 @@ export default function SettingsScreen() {
             editable={canWrite}
             placeholder="City"
             placeholderTextColor={colors.faint}
+            accessibilityLabel="Shop city"
             onChangeText={(city) => setShop({ ...shop, city })}
           />
           <TextInput
@@ -73,6 +76,7 @@ export default function SettingsScreen() {
             editable={canWrite}
             placeholder="GST"
             placeholderTextColor={colors.faint}
+            accessibilityLabel="GST number"
             onChangeText={(gstNumber) => setShop({ ...shop, gstNumber })}
           />
           {canWrite ? (

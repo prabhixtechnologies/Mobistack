@@ -9,15 +9,23 @@ export function ThemeToggle({
   icon?: boolean;
 }) {
   const { theme, toggle } = useTheme();
+  const next = theme === "light" ? "dark" : "light";
+  const label = `Switch to ${next} mode`;
   if (icon) {
     return (
-      <button className="icon-btn header-icon" type="button" onClick={toggle} aria-label="Toggle color theme">
+      <button
+        className="icon-btn header-icon"
+        type="button"
+        onClick={toggle}
+        aria-label={label}
+        title={label}
+      >
         <Icon name={theme === "light" ? "moon" : "sun"} />
       </button>
     );
   }
   return (
-    <button className="btn ghost" type="button" onClick={toggle} aria-label="Toggle color theme">
+    <button className="btn ghost" type="button" onClick={toggle} aria-label={label}>
       {compact ? (theme === "light" ? "Dark" : "Light") : theme === "light" ? "Dark mode" : "Light mode"}
     </button>
   );

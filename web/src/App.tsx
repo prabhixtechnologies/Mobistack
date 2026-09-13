@@ -5,10 +5,11 @@ import { selectedWorkspaceId } from "./lib/types";
 import { AppShell } from "./ui/AppShell";
 import { BrandFooter, BrandMark } from "./ui/BrandMark";
 import { ThemeToggle } from "./ui/ThemeToggle";
+import { SkipLink } from "./ui/SkipLink";
 import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
 import { CompatibilityPage } from "./pages/CompatibilityPage";
 import { CompatibilityCategoryPage } from "./pages/CompatibilityCategoryPage";
-import { LoginPage } from "./pages/LoginPage";
+import { LoginPage, SessionRestore } from "./pages/LoginPage";
 import { OidcCallbackPage } from "./pages/OidcCallbackPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
 
@@ -94,6 +95,7 @@ function UnscopedWorkspaces() {
   const { logout } = useAuth();
   return (
     <div className="workspaces-shell">
+      <SkipLink />
       <header className="app-header">
         <BrandMark compact inverse />
         <div className="app-header__actions">
@@ -103,7 +105,7 @@ function UnscopedWorkspaces() {
           </button>
         </div>
       </header>
-      <div className="workspaces-shell__body">
+      <div className="workspaces-shell__body" id="main-content" tabIndex={-1}>
         <WorkspacesPage />
       </div>
       <BrandFooter />
@@ -118,7 +120,19 @@ function UnscopedWorkspaces() {
  * declare its permission.
  */
 export function App() {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
+
+  if (!ready) {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/auth/callback" element={<OidcCallbackPage />} />
+          {LegalRoutes()}
+          <Route path="*" element={<SessionRestore />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   if (!user) {
     return (
