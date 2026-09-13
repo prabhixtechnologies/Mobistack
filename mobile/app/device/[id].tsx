@@ -125,7 +125,7 @@ export default function DeviceScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "500", letterSpacing: -0.7, color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", letterSpacing: -0.7, color: colors.ink },
     section: { marginTop: 22, fontWeight: "700", marginBottom: 8, color: colors.ink },
     body: { fontSize: 16, lineHeight: 24, color: colors.ink },
     sub: { color: colors.soft, marginTop: 6 },

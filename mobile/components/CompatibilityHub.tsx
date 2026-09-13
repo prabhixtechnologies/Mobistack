@@ -149,7 +149,7 @@ function Highlighted({
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 48 },
-    hello: { fontSize: 28, fontWeight: "500", letterSpacing: -0.6, color: colors.ink, marginBottom: 8 },
+    hello: { fontSize: 28, fontWeight: "600", letterSpacing: -0.6, color: colors.ink, marginBottom: 8 },
     title: { fontSize: 32, fontWeight: "700", letterSpacing: -0.8, color: colors.ink },
     sub: { color: colors.soft, marginTop: 8, marginBottom: 16, fontWeight: "600" },
     error: { color: colors.bad, marginBottom: 12, fontWeight: "600" },

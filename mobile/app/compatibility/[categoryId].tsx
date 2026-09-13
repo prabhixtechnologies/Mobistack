@@ -269,13 +269,13 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       color: colors.ink,
     },
     btn: {
-      backgroundColor: colors.ink,
+      backgroundColor: colors.accent,
       borderRadius: 14,
       padding: 14,
       alignItems: "center",
       marginBottom: 14,
     },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
     row: {
       backgroundColor: colors.card,
       borderRadius: 16,

@@ -19,7 +19,7 @@ import { api, selectedWorkspaceId, type AuthResponse, type AuthUser } from "../l
 import { copyrightLine } from "../lib/brand";
 import { isOidcEnabled } from "../lib/config";
 import { getDeviceId } from "../lib/device";
-import { useTheme } from "../lib/theme";
+import { useTheme, type Palette } from "../lib/theme";
 
 type Method = "password" | "magic" | "email" | "phone" | "whatsapp" | "register" | "forgot";
 
@@ -37,10 +37,10 @@ export default function LoginScreen() {
  */
 function IdentityLogin() {
   const { loginWithIdentity } = useAuth();
-  const { toggle, mode } = useTheme();
+  const { toggle, mode, colors } = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const styles = makeStyles(mode === "dark");
+  const styles = makeStyles(colors);
 
   async function onContinue() {
     setBusy(true);
@@ -86,7 +86,7 @@ function IdentityLogin() {
 /** Local/dev builds without {@code EXPO_PUBLIC_IDENTITY_ISSUER}. */
 function LegacyLogin() {
   const { login, acceptSession, registerShop } = useAuth();
-  const { toggle, mode } = useTheme();
+  const { toggle, mode, colors } = useTheme();
   const params = useLocalSearchParams<{ code?: string; sso?: string }>();
   const [method, setMethod] = useState<Method>("password");
   const [email, setEmail] = useState("");
@@ -101,7 +101,7 @@ function LegacyLogin() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const styles = makeStyles(mode === "dark");
+  const styles = makeStyles(colors);
 
   useEffect(() => {
     void SecureStore.getItemAsync(REMEMBER_KEY).then((stored) => {
@@ -286,42 +286,45 @@ function LegacyLogin() {
   );
 }
 
-function makeStyles(dark: boolean) {
-  const ink = dark ? "#F8FAFC" : "#0F172A";
-  const soft = dark ? "#94A3B8" : "#64748B";
-  const bg = dark ? "#0B1020" : "#F8FAFC";
-  const card = dark ? "#151B2E" : "#FFFFFF";
-  const border = dark ? "#243047" : "#E2E8F0";
+function makeStyles(colors: Palette) {
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: bg },
+    safe: { flex: 1, backgroundColor: colors.bg },
     scroll: { padding: 24, paddingBottom: 48 },
     topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     logo: { width: 40, height: 40, borderRadius: 10 },
-    title: { fontSize: 32, fontWeight: "700", color: ink, marginTop: 24 },
-    subtitle: { color: soft, marginTop: 8, marginBottom: 24, lineHeight: 22 },
+    title: { fontSize: 32, fontWeight: "600", color: colors.ink, marginTop: 24, letterSpacing: -0.6 },
+    subtitle: { color: colors.soft, marginTop: 8, marginBottom: 24, lineHeight: 22 },
     identityBody: { flex: 1, padding: 24, justifyContent: "center" },
     tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
-    tab: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: card, borderWidth: 1, borderColor: border },
-    tabOn: { backgroundColor: ink },
-    tabLabel: { color: soft, fontSize: 13, textTransform: "capitalize" },
-    tabLabelOn: { color: bg },
-    input: {
-      backgroundColor: card,
+    tab: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.card,
       borderWidth: 1,
-      borderColor: border,
+      borderColor: colors.line,
+    },
+    tabOn: { backgroundColor: colors.accent },
+    tabLabel: { color: colors.soft, fontSize: 13, textTransform: "capitalize" },
+    tabLabelOn: { color: colors.accentInk },
+    input: {
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.line,
       borderRadius: 12,
       paddingHorizontal: 14,
       paddingVertical: 12,
-      color: ink,
+      color: colors.ink,
       marginBottom: 12,
+      minHeight: 44,
     },
-    placeholder: { color: soft },
-    primary: { backgroundColor: ink, borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8 },
+    placeholder: { color: colors.faint },
+    primary: { backgroundColor: colors.accent, borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8 },
     primaryDisabled: { opacity: 0.6 },
-    primaryLabel: { color: bg, fontWeight: "700", fontSize: 16 },
-    link: { color: "#7C3AED", marginTop: 16 },
-    error: { color: "#DC2626", marginBottom: 8 },
-    notice: { color: soft, marginBottom: 8 },
-    footer: { color: soft, textAlign: "center", marginTop: 32, fontSize: 12 },
+    primaryLabel: { color: colors.accentInk, fontWeight: "700", fontSize: 16 },
+    link: { color: colors.accent, marginTop: 16 },
+    error: { color: colors.bad, marginBottom: 8 },
+    notice: { color: colors.soft, marginBottom: 8 },
+    footer: { color: colors.soft, textAlign: "center", marginTop: 32, fontSize: 12 },
   });
 }

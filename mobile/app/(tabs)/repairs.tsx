@@ -259,7 +259,7 @@ export default function RepairsScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "500", color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
     copy: { color: colors.soft, marginTop: 8, marginBottom: 16, lineHeight: 22 },
     search: {
       backgroundColor: colors.card,
@@ -274,7 +274,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     name: { fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 4 },
     link: { fontWeight: "700", color: colors.ink },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center", marginBottom: 16 },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginBottom: 16 },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

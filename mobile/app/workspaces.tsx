@@ -207,7 +207,7 @@ function WorkspaceRow({
       {workspace.joinCode ? <Text style={{ color: colors.soft, marginTop: 4 }}>Code {workspace.joinCode}</Text> : null}
       {canOpen ? (
         <Pressable
-          style={{ backgroundColor: colors.ink, borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12, alignSelf: "flex-start" }}
+          style={{ backgroundColor: colors.accent, borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12, alignSelf: "flex-start" }}
           disabled={busy}
           onPress={onOpen}
         >
@@ -232,7 +232,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.bg },
     content: { padding: 22, paddingTop: 72, paddingBottom: 48 },
-    title: { fontSize: 32, fontWeight: "500", color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
     sub: { color: colors.soft, marginTop: 6, marginBottom: 18 },
     section: { marginTop: 22, marginBottom: 10, fontWeight: "700", color: colors.ink },
     error: { color: colors.bad, marginBottom: 10 },
@@ -246,8 +246,8 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 10,
       color: colors.ink,
     },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center" },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center" },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
     ghost: {
       borderColor: colors.line,
       borderWidth: 1,

@@ -79,7 +79,7 @@ interface ThemeValue {
 
 const ThemeContext = createContext<ThemeValue | null>(null);
 
-function fromScheme(scheme: ColorSchemeName): ThemeMode {
+function fromScheme(scheme: ColorSchemeName | null | undefined): ThemeMode {
   return scheme === "dark" ? "dark" : "light";
 }
 

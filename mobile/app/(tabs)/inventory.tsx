@@ -147,7 +147,7 @@ export default function InventoryScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "500", marginBottom: 14, color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", marginBottom: 14, color: colors.ink },
     search: {
       backgroundColor: colors.card,
       borderColor: colors.line,
@@ -179,7 +179,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
     },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center" },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center" },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

@@ -79,7 +79,7 @@ function ThemedStack() {
         <Text style={{ color: colors.soft, marginTop: 12, marginBottom: 24 }}>{notes}</Text>
         <Pressable
           onPress={() => void Linking.openURL(storeUrl)}
-          style={{ backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center" }}
+          style={{ backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center" }}
         >
           <Text style={{ color: colors.bg, fontWeight: "700" }}>Download the new build</Text>
         </Pressable>

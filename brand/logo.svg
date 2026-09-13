@@ -1,21 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" fill="none" role="img" aria-label="MobiStack">
-  <defs>
-    <linearGradient id="ms-bg" x1="6" y1="0" x2="90" y2="96" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#C4B5FD"/>
-      <stop offset="0.38" stop-color="#8B5CF6"/>
-      <stop offset="1" stop-color="#3B0764"/>
-    </linearGradient>
-    <radialGradient id="ms-glow" cx="12%" cy="22%" r="28%">
-      <stop stop-color="#fff" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect x="0" y="0" width="96" height="96" rx="24" fill="url(#ms-bg)"/>
-  <rect x="0" y="0" width="96" height="96" rx="24" fill="url(#ms-glow)"/>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="10" transform="translate(8.35 6.3) scale(1.5)">
-    <path d="M20.15 47.1 L20.15 19.15 L32 35.35 L43.85 19.15 L43.85 47.1" stroke="#F5C542" transform="translate(2.6 2.85)"/>
-    <path d="M20.15 47.1 L20.15 19.15 L32 35.35 L43.85 19.15 L43.85 47.1" stroke="#E9D5FF" transform="translate(1.3 1.4)"/>
-    <path d="M20.15 47.1 L20.15 19.15 L32 35.35 L43.85 19.15 L43.85 47.1" stroke="#FFFFFF"/>
-  </g>
-  <text x="116" y="64" fill="#151826" font-family="Plus Jakarta Sans, Instrument Sans, Segoe UI, sans-serif" font-size="42" font-weight="800" letter-spacing="-1.6">MobiStack</text>
+  <rect x="0" y="0" width="96" height="96" rx="24" fill="#0E7490"/>
+  <path d="M20.15 47.1 L20.15 19.15 L32 35.35 L43.85 19.15 L43.85 47.1" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" transform="translate(16 14) scale(1.5)"/>
+  <text x="116" y="64" fill="#0C1524" font-family="Source Sans 3, Segoe UI, sans-serif" font-size="42" font-weight="800" letter-spacing="-1.6">MobiStack</text>
 </svg>

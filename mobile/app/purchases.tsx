@@ -139,14 +139,14 @@ export default function PurchasesScreen() {
                   onPress={() => setSupplierId(supplier.id)}
                   style={{
                     borderWidth: 1,
-                    borderColor: supplier.id === chosen ? colors.ink : colors.line,
-                    backgroundColor: supplier.id === chosen ? colors.ink : colors.card,
+                    borderColor: supplier.id === chosen ? colors.accent : colors.line,
+                    backgroundColor: supplier.id === chosen ? colors.accent : colors.card,
                     borderRadius: 999,
                     paddingHorizontal: 12,
                     paddingVertical: 6,
                   }}
                 >
-                  <Text style={{ color: supplier.id === chosen ? colors.bg : colors.ink, fontWeight: "700" }}>
+                  <Text style={{ color: supplier.id === chosen ? colors.accentInk : colors.ink, fontWeight: "700" }}>
                     {supplier.name}
                   </Text>
                 </Pressable>

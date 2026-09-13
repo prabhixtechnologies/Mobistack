@@ -91,7 +91,7 @@ export default function SupportScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.bg, padding: 22, paddingTop: 72 },
-    title: { fontSize: 32, fontWeight: "500", color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
     sub: { color: colors.soft, marginTop: 6, marginBottom: 16 },
     log: { flex: 1 },
     bubble: { backgroundColor: colors.card, borderRadius: 12, padding: 12, marginBottom: 8, borderColor: colors.line, borderWidth: 1 },
@@ -99,7 +99,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     body: { color: colors.ink },
     error: { color: "#b42318", marginBottom: 8 },
     input: { borderColor: colors.line, borderWidth: 1, borderRadius: 12, padding: 12, color: colors.ink, marginBottom: 10 },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center" },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center" },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

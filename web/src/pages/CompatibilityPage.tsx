@@ -177,7 +177,7 @@ export function CompatibilityPage() {
               key={category.id}
               to={`/compatibility/${category.id}`}
               className="universal-card"
-              style={{ ["--card-accent" as string]: category.color || "#8B5CF6" }}
+              style={{ ["--card-accent" as string]: category.color || "#0E7490" }}
             >
               <span className="universal-card__n">{index + 1}</span>
               <strong>{category.name}</strong>

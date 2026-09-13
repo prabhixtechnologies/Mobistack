@@ -143,7 +143,7 @@ export default function CustomersScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "500", marginBottom: 14, color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", marginBottom: 14, color: colors.ink },
     search: {
       backgroundColor: colors.card,
       borderColor: colors.line,
@@ -156,7 +156,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     card: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 10 },
     name: { fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 4 },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center", marginBottom: 16 },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginBottom: 16 },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

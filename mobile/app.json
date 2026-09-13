@@ -45,7 +45,7 @@
       "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3B0764"
+        "backgroundColor": "#0e7490"
       },
       "usesCleartextTraffic": true,
       "permissions": [
@@ -65,7 +65,7 @@
       [
         "expo-notifications",
         {
-          "color": "#7C3AED",
+          "color": "#0e7490",
           "defaultChannel": "mobistack-default"
         }
       ],

@@ -61,14 +61,14 @@ export default function MembersScreen() {
                 onPress={() => setRole(item)}
                 style={{
                   borderWidth: 1,
-                  borderColor: role === item ? colors.ink : colors.line,
-                  backgroundColor: role === item ? colors.ink : colors.card,
+                  borderColor: role === item ? colors.accent : colors.line,
+                  backgroundColor: role === item ? colors.accent : colors.card,
                   borderRadius: 999,
                   paddingHorizontal: 12,
                   paddingVertical: 6,
                 }}
               >
-                <Text style={{ color: role === item ? colors.bg : colors.ink, fontWeight: "700" }}>{item}</Text>
+                <Text style={{ color: role === item ? colors.accentInk : colors.ink, fontWeight: "700" }}>{item}</Text>
               </Pressable>
             ))}
           </View>

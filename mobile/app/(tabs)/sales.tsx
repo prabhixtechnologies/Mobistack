@@ -220,14 +220,14 @@ export default function SalesScreen() {
             onPress={() => setMethod(item)}
             style={{
               borderWidth: 1,
-              borderColor: method === item ? colors.ink : colors.line,
-              backgroundColor: method === item ? colors.ink : colors.card,
+              borderColor: method === item ? colors.accent : colors.line,
+              backgroundColor: method === item ? colors.accent : colors.card,
               borderRadius: 999,
               paddingHorizontal: 12,
               paddingVertical: 6,
             }}
           >
-            <Text style={{ color: method === item ? colors.bg : colors.ink, fontWeight: "700" }}>{item}</Text>
+            <Text style={{ color: method === item ? colors.accentInk : colors.ink, fontWeight: "700" }}>{item}</Text>
           </Pressable>
         ))}
       </View>
@@ -266,7 +266,7 @@ export default function SalesScreen() {
 function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { padding: 22, paddingTop: 62, paddingBottom: 40 },
-    title: { fontSize: 32, fontWeight: "500", color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
     copy: { color: colors.soft, marginTop: 8, marginBottom: 16, lineHeight: 22 },
     section: { color: colors.faint, fontWeight: "700", marginTop: 20, marginBottom: 8 },
     search: {
@@ -281,7 +281,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
     card: { backgroundColor: colors.card, borderRadius: 16, padding: 14, marginBottom: 10 },
     name: { fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 4 },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center", marginVertical: 8 },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginVertical: 8 },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }

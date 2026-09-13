@@ -56,7 +56,7 @@ async function ensureChannel(): Promise<void> {
     name: "Shop alerts",
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: "#7C3AED",
+    lightColor: "#0e7490",
   });
 }
 

@@ -186,7 +186,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
   return StyleSheet.create({
     page: { flex: 1, backgroundColor: colors.bg, padding: 22, paddingTop: 72 },
     logo: { width: 40, height: 40, borderRadius: 12, marginBottom: 14 },
-    title: { fontSize: 32, fontWeight: "500", color: colors.ink },
+    title: { fontSize: 32, fontWeight: "600", color: colors.ink },
     name: { marginTop: 18, fontSize: 20, fontWeight: "700", color: colors.ink },
     sub: { color: colors.soft, marginTop: 6, marginBottom: 12 },
     legal: { color: colors.faint, fontSize: 12, marginBottom: 4 },
@@ -200,9 +200,9 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 8,
       backgroundColor: colors.card,
     },
-    chipOn: { backgroundColor: colors.ink, borderColor: colors.ink },
+    chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
     chipText: { fontWeight: "600", color: colors.ink },
-    chipOnText: { fontWeight: "600", color: colors.bg },
+    chipOnText: { fontWeight: "600", color: colors.accentInk },
     ghost: {
       borderColor: colors.line,
       borderWidth: 1,
@@ -212,7 +212,7 @@ function makeStyles(colors: ReturnType<typeof useTheme>["colors"]) {
       marginBottom: 10,
     },
     ghostText: { fontWeight: "700", color: colors.ink },
-    btn: { backgroundColor: colors.ink, borderRadius: 14, padding: 14, alignItems: "center", marginTop: 8 },
-    btnText: { color: colors.bg, fontWeight: "700" },
+    btn: { backgroundColor: colors.accent, borderRadius: 14, padding: 14, alignItems: "center", marginTop: 8 },
+    btnText: { color: colors.accentInk, fontWeight: "700" },
   });
 }
