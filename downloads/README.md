@@ -1,6 +1,11 @@
-Drop published packages here. The site serves them at:
+Android packages are published on the company store only:
 
-- /download/android  →  MobiStack.apk
-- /download/ios      →  MobiStack.ipa
+  https://store.prabhixtechnologies.com/mobistack/android.apk
 
-Do not commit the binaries.
+Upload to S3 (`s3://prabhix-apk-downloads/mobistack/android.apk`), not this folder.
+
+Optional local-only leftovers:
+
+- MobiStack.ipa  → still served at /download/ios when present
+
+Do not commit binaries.

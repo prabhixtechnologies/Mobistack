@@ -12,7 +12,7 @@ services:
     environment:
       IDENTITY_ISSUER: http://localhost:8081
       IDENTITY_JWKS_URI: http://host.docker.internal:8081/.well-known/jwks.json
-      FIXFLOW_ANDROID_DOWNLOAD_URL: http://store.prabhixtechnologies.com:8090/mobistack/android.apk
+      FIXFLOW_ANDROID_DOWNLOAD_URL: https://store.prabhixtechnologies.com/mobistack/android.apk
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

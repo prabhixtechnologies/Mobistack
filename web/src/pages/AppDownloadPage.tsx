@@ -18,17 +18,21 @@ interface Catalog {
   ios: PackageInfo;
 }
 
-function fileHref(kind: "android" | "ios"): string {
+const STORE_URL = ((import.meta.env.VITE_STORE_URL as string | undefined) || "https://store.prabhixtechnologies.com")
+  .replace(/\/$/, "");
+
+function fileHref(kind: "android" | "ios", pkg?: PackageInfo): string {
   if (kind === "ios") {
-    return "/download/ios";
+    return pkg?.url || "/download/ios";
   }
-  const store = (import.meta.env.VITE_STORE_URL as string | undefined)?.replace(/\/$/, "");
-  // Same-origin HTTPS (or a configured HTTPS store) only. The old default was an http://
-  // store host, which mixed-content-blocked the APK from a TLS console.
-  if (store && /^https:\/\//i.test(store)) {
-    return `${store}/mobistack/android.apk`;
+  return pkg?.url || `${STORE_URL}/mobistack/android.apk`;
+}
+
+function displayUrl(href: string): string {
+  if (/^https?:\/\//i.test(href)) {
+    return href;
   }
-  return "/download/android";
+  return `${BRAND.publicOrigin.replace(/\/+$/, "")}${href}`;
 }
 
 function formatSize(bytes: number): string {
@@ -73,7 +77,7 @@ function Hub({ catalog, error }: { catalog: Catalog | null; error: string | null
     <>
       <h1>Get the {BRAND.product} app</h1>
       <p className="muted">
-        Direct downloads from {BRAND.organization}. No store account is required for Android.
+        Direct downloads from {BRAND.organization}. Android installs come from the company store.
         iOS needs a signed package from your shop.
       </p>
       {error && <div className="error">{error}</div>}
@@ -95,9 +99,7 @@ function PlatformCard({
   error: string | null;
 }) {
   const ios = kind === "ios";
-  const href = fileHref(kind);
-  const origin = BRAND.publicOrigin.replace(/\/+$/, "");
-  const absolute = `${origin}${href}`;
+  const href = fileHref(kind, pkg);
   return (
     <>
       <p className="muted">
@@ -107,11 +109,11 @@ function PlatformCard({
       <p className="muted">
         {ios
           ? "This link serves the signed iOS package when one is published. iPhones cannot install a raw IPA the way Android installs an APK — use your shop provisioning or TestFlight if the file is not trusted on the device."
-          : "This link downloads the Android package. Open it on the phone and allow installs from the browser if Android asks."}
+          : "Android packages are published on the Prabhix company store. Open the download on the phone and allow installs from the browser if Android asks."}
       </p>
       {error && <div className="error">{error}</div>}
       <p className="app-dl__url">
-        <code>{absolute}</code>
+        <code>{displayUrl(href)}</code>
       </p>
       {pkg?.available ? (
         <p className="muted">
@@ -121,8 +123,8 @@ function PlatformCard({
       ) : (
         <p className="muted">
           {ios
-            ? "The iOS package is not on the server yet. The URL is ready — drop MobiStack.ipa into the downloads folder, or ask support."
-            : "The Android package is not on the server yet. The URL is ready — drop MobiStack.apk into the downloads folder, or ask support."}
+            ? "The iOS package is not published yet."
+            : "The Android package is not on the company store yet."}
         </p>
       )}
       <p className="app-dl__actions">
@@ -139,14 +141,13 @@ function PlatformCard({
 
 function PackageCard({ kind, pkg }: { kind: "android" | "ios"; pkg?: PackageInfo }) {
   const ios = kind === "ios";
-  const href = fileHref(kind);
-  const origin = BRAND.publicOrigin.replace(/\/+$/, "");
+  const href = fileHref(kind, pkg);
   return (
     <article className="card app-dl__card">
       <h2>{ios ? "iOS" : "Android"}</h2>
-      <p className="muted">{ios ? "Signed IPA when published" : "Direct APK install"}</p>
+      <p className="muted">{ios ? "Signed IPA when published" : "Company store APK"}</p>
       <p className="app-dl__url">
-        <code>{origin}{href}</code>
+        <code>{displayUrl(href)}</code>
       </p>
       {pkg?.available ? (
         <p className="muted">{pkg.filename} · {formatSize(pkg.sizeBytes)}</p>

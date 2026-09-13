@@ -200,7 +200,7 @@ fixflow:
     openai-model: ${FIXFLOW_OPENAI_MODEL:gpt-4o-mini}
   updates:
     expo-updates-url: ${FIXFLOW_EXPO_UPDATES_URL:}
-    android-download-url: ${FIXFLOW_ANDROID_DOWNLOAD_URL:https://mobistack.prabhixtechnologies.com/download/android}
+    android-download-url: ${FIXFLOW_ANDROID_DOWNLOAD_URL:https://store.prabhixtechnologies.com/mobistack/android.apk}
     ios-download-url: ${FIXFLOW_IOS_DOWNLOAD_URL:https://mobistack.prabhixtechnologies.com/download/ios}
     android-apk-path: ${FIXFLOW_ANDROID_APK_PATH:/var/mobistack/downloads/MobiStack.apk}
     ios-ipa-path: ${FIXFLOW_IOS_IPA_PATH:/var/mobistack/downloads/MobiStack.ipa}

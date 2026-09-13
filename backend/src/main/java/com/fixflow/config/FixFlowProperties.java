@@ -262,9 +262,9 @@ public class FixFlowProperties {
     @Setter
     public static class Updates {
         private String expoUpdatesUrl = "";
-        private String androidDownloadUrl = "https://mobistack.prabhixtechnologies.com/download/android";
+        private String androidDownloadUrl = "https://store.prabhixtechnologies.com/mobistack/android.apk";
         private String iosDownloadUrl = "https://mobistack.prabhixtechnologies.com/download/ios";
-        /** File served at /download/android. Directory is also accepted. */
+        /** Legacy local path; Android is no longer served from this host. */
         private String androidApkPath = "/var/mobistack/downloads/MobiStack.apk";
         /** File served at /download/ios. Directory is also accepted. */
         private String iosIpaPath = "/var/mobistack/downloads/MobiStack.ipa";

@@ -24,6 +24,10 @@ public class AppDownloadController {
         return binaries.catalog();
     }
 
+    /**
+     * Legacy MobiStack download paths. Android packages are hosted only on the company store
+     * (S3-backed); these URLs permanently redirect there and never stream bytes.
+     */
     @RequestMapping(method = {RequestMethod.GET, RequestMethod.HEAD}, path = {
             "/download/android",
             "/download/android.apk",
@@ -31,7 +35,7 @@ public class AppDownloadController {
     })
     @SecurityRequirements
     public ResponseEntity<Resource> android() {
-        return binaries.serve("ANDROID");
+        return binaries.redirectAndroidToStore();
     }
 
     @RequestMapping(method = {RequestMethod.GET, RequestMethod.HEAD}, path = {
@@ -41,6 +45,6 @@ public class AppDownloadController {
     })
     @SecurityRequirements
     public ResponseEntity<Resource> ios() {
-        return binaries.serve("IOS");
+        return binaries.serveIos();
     }
 }
