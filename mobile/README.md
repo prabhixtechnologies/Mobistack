@@ -5,8 +5,7 @@ This is the **Android / iOS counter app** for MobiStack (Prabhix Technologies Pv
 - Package: `app.prabhix.fixflow`
 - Offline: SQLite snapshot + outbox
 - Camera: barcode scan on Sales and Inventory
-- Auth: Prabhix Identity (OIDC / PKCE via Custom Tab) when `EXPO_PUBLIC_IDENTITY_ISSUER` is set;
-  otherwise password / magic link / OTP for local backends without Identity
+- Auth: Prabhix Identity only (OIDC / PKCE via Custom Tab). No in-app password / OTP / magic-link.
 
 ## Produce an APK (Windows)
 
@@ -74,13 +73,16 @@ npx expo run:ios --device
 In Xcode, open **`ios/FixFlow.xcworkspace`** (not the `.xcodeproj` after `pod install`), set your Team under **Signing & Capabilities**, pick a device, and press Run. First launch on a personal team lasts 7 days.
 
 Release builds talk to `https://mobistack.prabhixtechnologies.com` and sign in through
-`https://api.prabhixtechnologies.com` (`EXPO_PUBLIC_IDENTITY_ISSUER`). Point a local phone at the API on your Windows PC (same Wi-Fi, replace the IP):
+`https://api.prabhixtechnologies.com` (`EXPO_PUBLIC_IDENTITY_ISSUER`). EAS profiles bake both env
+vars. Point a local phone at the API on your Windows PC (same Wi-Fi, replace the IP):
 
 ```bash
-EXPO_PUBLIC_API_URL=http://192.168.1.20:8080 npx expo run:ios --device
+EXPO_PUBLIC_API_URL=http://192.168.1.20:8085 \
+EXPO_PUBLIC_IDENTITY_ISSUER=http://192.168.1.20:8081 \
+npx expo run:ios --device
 ```
 
-Omit `EXPO_PUBLIC_IDENTITY_ISSUER` for a local password form against that backend.
+Identity is required for every build. In-app password login has been removed.
 
 The backend must listen on the LAN, not only localhost. A helper script on the Mac: `bash scripts/macos-ios-build.sh` or `bash scripts/macos-ios-build.sh device`.
 

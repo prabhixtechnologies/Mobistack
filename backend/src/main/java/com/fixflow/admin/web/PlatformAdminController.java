@@ -24,6 +24,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fixflow.commerce.domain.PaymentStatus;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -96,6 +101,49 @@ public class PlatformAdminController {
                     );
                 })
                 .toList();
+    }
+
+    /**
+     * Platform-wide payment rollup for Admin Overview / Commerce KPIs.
+     * Amounts are major currency units (rupees), matching {@code /billing/orders}.
+     */
+    @GetMapping("/billing/revenue")
+    public Map<String, Object> revenue() {
+        platformAdminService.requireAdmin();
+        EnumMap<PaymentStatus, BigDecimal> totals = new EnumMap<>(PaymentStatus.class);
+        EnumMap<PaymentStatus, Long> counts = new EnumMap<>(PaymentStatus.class);
+        for (PaymentStatus status : PaymentStatus.values()) {
+            totals.put(status, BigDecimal.ZERO);
+            counts.put(status, 0L);
+        }
+        for (Object[] row : billingOrderRepository.aggregateByStatus()) {
+            PaymentStatus status = (PaymentStatus) row[0];
+            BigDecimal sum = row[1] instanceof BigDecimal bd ? bd : BigDecimal.valueOf(((Number) row[1]).doubleValue());
+            long count = ((Number) row[2]).longValue();
+            totals.put(status, sum);
+            counts.put(status, count);
+        }
+        BigDecimal captured = totals.getOrDefault(PaymentStatus.CAPTURED, BigDecimal.ZERO);
+        long capturedCount = counts.getOrDefault(PaymentStatus.CAPTURED, 0L);
+        BigDecimal pending = totals.getOrDefault(PaymentStatus.CREATED, BigDecimal.ZERO)
+                .add(totals.getOrDefault(PaymentStatus.PENDING, BigDecimal.ZERO))
+                .add(totals.getOrDefault(PaymentStatus.AUTHORIZED, BigDecimal.ZERO));
+        long pendingCount = counts.getOrDefault(PaymentStatus.CREATED, 0L)
+                + counts.getOrDefault(PaymentStatus.PENDING, 0L)
+                + counts.getOrDefault(PaymentStatus.AUTHORIZED, 0L);
+        long failedCount = counts.getOrDefault(PaymentStatus.FAILED, 0L)
+                + counts.getOrDefault(PaymentStatus.EXPIRED, 0L)
+                + counts.getOrDefault(PaymentStatus.REFUNDED, 0L)
+                + counts.getOrDefault(PaymentStatus.PARTIALLY_REFUNDED, 0L);
+        return Map.of(
+                "capturedTotal", captured,
+                "pendingTotal", pending,
+                "capturedCount", capturedCount,
+                "pendingCount", pendingCount,
+                "failedCount", failedCount,
+                "currency", "INR",
+                "asOf", Instant.now().toString()
+        );
     }
 
     @GetMapping("/plan-features")

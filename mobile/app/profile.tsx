@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Text, TextInput } from "react-native";
+import { Linking, Text } from "react-native";
 import { Card, PrimaryButton, Screen } from "../components/Screen";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { IDENTITY_ISSUER } from "../lib/config";
 import { useTheme } from "../lib/theme";
 
 interface SessionCard {
@@ -16,10 +17,6 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const [sessions, setSessions] = useState<SessionCard[]>([]);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     api<SessionCard[]>("/api/v1/auth/sessions")
@@ -28,7 +25,7 @@ export default function ProfileScreen() {
   }, []);
 
   return (
-    <Screen title="Profile" copy="This account. One live session at a time." back>
+    <Screen title="Profile" copy="This account. Password changes happen on Prabhix Identity." back>
       <Card>
         <Text style={{ fontWeight: "700", color: colors.ink }}>{user?.fullName}</Text>
         <Text style={{ color: colors.soft, marginTop: 4 }}>{user?.email}</Text>
@@ -37,40 +34,10 @@ export default function ProfileScreen() {
         </Text>
         <Text style={{ color: colors.soft, marginTop: 4 }}>{user?.planName ?? "No plan"}</Text>
       </Card>
-      {error ? <Text style={{ color: colors.bad, marginBottom: 10 }}>{error}</Text> : null}
-      {notice ? <Text style={{ color: colors.good, marginBottom: 10 }}>{notice}</Text> : null}
-      <TextInput
-        style={field(colors)}
-        placeholder="Current password"
-        placeholderTextColor={colors.faint}
-        accessibilityLabel="Current password"
-        secureTextEntry
-        value={currentPassword}
-        onChangeText={setCurrentPassword}
-      />
-      <TextInput
-        style={field(colors)}
-        placeholder="New password"
-        placeholderTextColor={colors.faint}
-        accessibilityLabel="New password"
-        secureTextEntry
-        value={newPassword}
-        onChangeText={setNewPassword}
-      />
       <PrimaryButton
-        label="Change password"
-        disabled={!currentPassword || newPassword.length < 8}
+        label="Manage account on Identity"
         onPress={() => {
-          void api("/api/v1/auth/change-password", {
-            method: "POST",
-            body: JSON.stringify({ currentPassword, newPassword }),
-          })
-            .then(() => {
-              setCurrentPassword("");
-              setNewPassword("");
-              setNotice("Password updated. Other screens were signed out.");
-            })
-            .catch((err: Error) => setError(err.message));
+          void Linking.openURL(`${IDENTITY_ISSUER}/account`);
         }}
       />
       {sessions.map((session) => (
@@ -83,16 +50,4 @@ export default function ProfileScreen() {
       ))}
     </Screen>
   );
-}
-
-function field(colors: ReturnType<typeof useTheme>["colors"]) {
-  return {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    color: colors.ink,
-  };
 }

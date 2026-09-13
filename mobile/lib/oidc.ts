@@ -33,12 +33,17 @@ export interface OidcTokens {
   expiresIn: number;
 }
 
+export interface BeginLoginOptions {
+  /** Pass {@code create} for Identity hosted signup (same as web {@code prompt=create}). */
+  prompt?: "create" | "login" | "select_account";
+}
+
 /**
  * Opens Identity in a system browser / Custom Tab, then exchanges the code for tokens.
  *
  * <p>PKCE is mandatory server-side. No client secret — this is a public client.
  */
-export async function beginLogin(): Promise<OidcTokens> {
+export async function beginLogin(options: BeginLoginOptions = {}): Promise<OidcTokens> {
   if (!isOidcEnabled()) {
     throw new Error("Identity is not configured for this build.");
   }
@@ -49,6 +54,7 @@ export async function beginLogin(): Promise<OidcTokens> {
     scopes: ["openid", "profile", "email"],
     usePKCE: true,
     responseType: AuthSession.ResponseType.Code,
+    prompt: options.prompt as AuthSession.Prompt | undefined,
   });
 
   await request.makeAuthUrlAsync(discovery());

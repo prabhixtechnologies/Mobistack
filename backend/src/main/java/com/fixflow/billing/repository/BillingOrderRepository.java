@@ -3,6 +3,7 @@ package com.fixflow.billing.repository;
 import com.fixflow.billing.domain.BillingOrder;
 import com.fixflow.commerce.domain.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,4 +33,11 @@ public interface BillingOrderRepository extends JpaRepository<BillingOrder, UUID
 
     Optional<BillingOrder> findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
             UUID workspaceId, UUID userId, String priceCode, PaymentStatus status, String purpose);
+
+    @Query("""
+            select o.status, coalesce(sum(o.amount), 0), count(o)
+            from BillingOrder o
+            group by o.status
+            """)
+    List<Object[]> aggregateByStatus();
 }

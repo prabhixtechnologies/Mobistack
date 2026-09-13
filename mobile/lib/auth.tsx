@@ -15,7 +15,6 @@ import {
   type WorkspaceCard,
 } from "./api";
 import { setActiveScope } from "./db";
-import { getDeviceId } from "./device";
 import { drainBeforeWorkspaceChange } from "./offline";
 import { forgetPushRegistration } from "./push";
 import { beginLogin as beginOidcLogin, beginLogout, isOidcEnabled, rememberIdToken } from "./oidc";
@@ -29,11 +28,8 @@ interface AuthValue {
   user: AuthUser | null;
   workspaces: WorkspaceCard[];
   ready: boolean;
-  /** Password login — only when Identity is not configured for this build. */
-  login: (email: string, password: string) => Promise<AuthUser>;
   /** Hosted Identity login (Custom Tab / system browser). */
-  loginWithIdentity: () => Promise<AuthUser>;
-  acceptSession: (auth: AuthResponse) => Promise<AuthUser>;
+  loginWithIdentity: (options?: { prompt?: "create" | "login" | "select_account" }) => Promise<AuthUser>;
   logout: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   createWorkspace: (name: string, city?: string) => Promise<void>;
@@ -47,14 +43,6 @@ interface AuthValue {
       razorpay_signature?: string;
     },
   ) => Promise<WorkspaceCard>;
-  registerShop: (input: {
-    shopName: string;
-    ownerName: string;
-    email: string;
-    password: string;
-    phone?: string;
-    city?: string;
-  }) => Promise<AuthUser>;
   refreshWorkspaces: () => Promise<void>;
 }
 
@@ -109,24 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         workspaces,
         ready,
-        async login(email, password) {
+        async loginWithIdentity(options) {
           await clearSession();
           setUser(null);
           setWorkspaces([]);
-          const auth = await api<AuthResponse>("/api/v1/auth/login", {
-            method: "POST",
-            body: JSON.stringify({ email: email.trim(), password, deviceId: await getDeviceId() }),
-          });
-          await persistSession(auth);
-          setUser(auth.user);
-          setWorkspaces(auth.workspaces ?? []);
-          return auth.user;
-        },
-        async loginWithIdentity() {
-          await clearSession();
-          setUser(null);
-          setWorkspaces([]);
-          const tokens = await beginOidcLogin();
+          const tokens = await beginOidcLogin(options);
           await rememberIdToken(tokens.idToken);
           await persistOidcTokens(tokens.accessToken, tokens.refreshToken);
           const me = await api<AuthUser>("/api/v1/auth/me");
@@ -140,12 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setWorkspaces([]);
           }
           return me;
-        },
-        async acceptSession(auth) {
-          await persistSession(auth);
-          setUser(auth.user);
-          setWorkspaces(auth.workspaces ?? []);
-          return auth.user;
         },
         async logout() {
           await clearSession();
@@ -193,19 +162,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await persistWorkspaces(mine.workspaces);
           setWorkspaces(mine.workspaces);
           return card;
-        },
-        async registerShop(input) {
-          await clearSession();
-          setUser(null);
-          setWorkspaces([]);
-          const auth = await api<AuthResponse>("/api/v1/auth/register-shop", {
-            method: "POST",
-            body: JSON.stringify(input),
-          });
-          await persistSession(auth);
-          setUser(auth.user);
-          setWorkspaces(auth.workspaces ?? []);
-          return auth.user;
         },
         async refreshWorkspaces() {
           const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
