@@ -38,6 +38,9 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_AUTH: ${SMTP_AUTH:-true}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+    volumes:
+      # Optional local IPA only. Android APKs come from the company store.
+      - ${MOBISTACK_DOWNLOADS:-./downloads}:/var/mobistack/downloads:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

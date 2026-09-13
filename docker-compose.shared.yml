@@ -35,6 +35,8 @@ services:
     # report healthy, and that container no longer starts, so left alone the backend would wait for
     # a service compose has been told never to run and the deploy would hang before it began.
     depends_on: !reset null
+    # Android APKs are on the company store (S3). No host downloads/ volume on the shared box.
+    volumes: !reset null
     environment:
       # The base file hardcodes jdbc:postgresql://postgres:5432/... — the one value in the whole
       # stack that was never parameterised, because until now there was only ever one answer.
