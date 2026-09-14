@@ -12,6 +12,8 @@ export interface NavItem {
   need?: Permission;
   /** Item requires the platform-staff flag rather than a workspace capability. */
   platformAdmin?: boolean;
+  /** Granted by Prabhix on the user, not by a shop role. */
+  commonsReviewer?: boolean;
   /** Match the path exactly — needed for `/` so it isn't active everywhere. */
   end?: boolean;
   /** Still reachable while the workspace subscription is unpaid. */
@@ -22,46 +24,67 @@ export interface NavItem {
 
 export interface NavSection {
   label: string;
+  /** Static fallback when a live hint is not loaded yet. */
+  hint?: string;
+  /** Marks the two product halves: shared catalog vs private shop. */
+  shared?: "commons" | "shop";
   items: NavItem[];
 }
 
 /**
  * The single description of primary navigation.
  *
- * The sidebar renders it, breadcrumbs take their labels from it, and the route
- * guards resolve capabilities from the same `need` codes — so adding a screen in
- * one place cannot leave the others inconsistent.
+ * Catalog facts are shared and free. Shop and operations are private to this
+ * workspace and gated by the plan. Breadcrumbs and route guards read the same
+ * `need` codes.
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Counter",
+    label: "Catalog",
+    hint: "shared across shops",
+    shared: "commons",
+    items: [
+      { to: "/commons", label: "Browse catalog", icon: "globe", tint: "cyan", end: true, allowUnpaid: true },
+      { to: "/compatibility", label: "Fitment notes", icon: "lock", tint: "slate", need: "CATALOG_READ" },
+      { to: "/commons/standing", label: "Contributor standing", icon: "pulse", tint: "blue", allowUnpaid: true },
+      {
+        to: "/commons/review",
+        label: "Catalog review",
+        icon: "shield",
+        tint: "amber",
+        commonsReviewer: true,
+        allowUnpaid: true,
+      },
+    ],
+  },
+  {
+    label: "Shop",
+    hint: "this counter",
+    shared: "shop",
     items: [
       { to: "/", label: "Dashboard", icon: "home", tint: "rose", end: true, feature: "DASHBOARD" },
       { to: "/sales", label: "Sales", icon: "cart", tint: "green", need: "SALES_READ", feature: "SALES" },
       { to: "/repairs", label: "Repairs", icon: "wrench", tint: "amber", need: "REPAIR_READ", feature: "REPAIRS" },
       { to: "/inventory", label: "Inventory", icon: "box", tint: "blue", need: "INVENTORY_READ", feature: "INVENTORY" },
+      {
+        to: "/inventory/catalog-links",
+        label: "Link a part",
+        icon: "link",
+        tint: "cyan",
+        need: "INVENTORY_READ",
+        feature: "INVENTORY",
+      },
       { to: "/purchases", label: "Purchases", icon: "truck", tint: "orange", need: "PURCHASE_READ", feature: "PURCHASES" },
+      { to: "/customers", label: "Customers", icon: "users", tint: "blue", need: "CUSTOMER_READ", feature: "CUSTOMERS" },
+      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan", need: "SUPPLIER_READ", feature: "SUPPLIERS" },
     ],
   },
   {
-    label: "People",
+    label: "Operations",
     items: [
-      { to: "/customers", label: "Customers", icon: "users", tint: "violet", need: "CUSTOMER_READ", feature: "CUSTOMERS" },
-      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan", need: "SUPPLIER_READ", feature: "SUPPLIERS" },
       { to: "/members", label: "Members", icon: "people", tint: "blue", need: "USER_READ", feature: "MEMBERS" },
       { to: "/users", label: "Access control", icon: "key", tint: "rose", need: "USER_READ", feature: "MEMBERS" },
-    ],
-  },
-  {
-    label: "Catalog",
-    items: [
-      { to: "/compatibility", label: "Compatibility", icon: "link", tint: "violet", need: "CATALOG_READ", feature: "COMPATIBILITY" },
       { to: "/import", label: "Import", icon: "upload", tint: "slate", need: "CATALOG_WRITE", feature: "IMPORT" },
-    ],
-  },
-  {
-    label: "Insights",
-    items: [
       { to: "/reports", label: "Reports", icon: "chart", tint: "green", need: "REPORT_READ", feature: "REPORTS" },
       { to: "/movements", label: "Movements", icon: "move", tint: "amber", need: "INVENTORY_READ", feature: "MOVEMENTS" },
       { to: "/audit", label: "Audit", icon: "shield", tint: "slate", need: "AUDIT_READ", feature: "AUDIT" },
@@ -70,17 +93,17 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Workspace",
     items: [
-      { to: "/workspaces", label: "Workspaces", icon: "grid", tint: "violet", allowUnpaid: true },
+      { to: "/workspaces", label: "Workspaces", icon: "grid", tint: "blue", allowUnpaid: true },
       { to: "/billing", label: "Billing", icon: "card", tint: "green", need: "WORKSPACE_BILLING", allowUnpaid: true },
-      { to: "/health", label: "System health", icon: "pulse", tint: "cyan", need: "SETTINGS_READ", feature: "AUDIT" },
       { to: "/settings", label: "Settings", icon: "settings", tint: "slate", need: "SETTINGS_READ", allowUnpaid: true },
+      { to: "/health", label: "System health", icon: "pulse", tint: "cyan", need: "SETTINGS_READ", feature: "AUDIT" },
     ],
   },
   {
     label: "Support",
     items: [
       { to: "/notifications", label: "Notifications", icon: "bell", tint: "rose", allowUnpaid: true },
-      { to: "/support", label: "Support", icon: "chat", tint: "violet", allowUnpaid: true },
+      { to: "/support", label: "Support", icon: "chat", tint: "blue", allowUnpaid: true },
     ],
   },
   {
@@ -89,27 +112,26 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-/**
- * Paths still reachable while a workspace subscription is unpaid.
- *
- * Derived from the nav catalog so a section marked `allowUnpaid` is automatically
- * permitted by the route guard too, plus the account-level screens that exist
- * outside the nav tree.
- */
 const UNPAID_ALLOWED = new Set([
   ...NAV_SECTIONS.flatMap((section) => section.items.filter((item) => item.allowUnpaid).map((item) => item.to)),
   "/profile",
+  "/commons/devices",
+  "/commons/components",
 ]);
 
 export function allowedWhileUnpaid(pathname: string): boolean {
-  return UNPAID_ALLOWED.has(pathname);
+  if (UNPAID_ALLOWED.has(pathname)) {
+    return true;
+  }
+  return pathname.startsWith("/commons/");
 }
 
-/** Labels for crumb segments that aren't top-level nav destinations. */
 const EXTRA_LABELS: Record<string, string> = {
   "/devices": "Devices",
   "/profile": "My profile",
   "/search": "Search",
+  "/commons/devices": "Devices",
+  "/commons/components": "Parts",
 };
 
 const NAV_LABELS: Record<string, string> = Object.fromEntries(
@@ -125,13 +147,6 @@ export interface Crumb {
   to?: string;
 }
 
-/**
- * Builds the crumb trail for a pathname.
- *
- * Segments that look like ids (uuid or numeric) collapse into a `detailLabel`
- * supplied by the page, so `/devices/9f3c…` reads "Dashboard / Devices / iPhone 13"
- * rather than leaking a raw key into the UI.
- */
 export function breadcrumbsFor(
   pathname: string,
   detailLabel?: string,

@@ -85,6 +85,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   "/suppliers": "SUPPLIER_READ",
   "/devices": "CATALOG_READ",
   "/compatibility": "CATALOG_READ",
+  "/inventory/catalog-links": "INVENTORY_READ",
   "/import": "CATALOG_WRITE",
   "/reports": "REPORT_READ",
   "/movements": "INVENTORY_READ",
@@ -101,13 +102,23 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
  * under a workspace is expected to declare a permission in `ROUTE_PERMISSIONS`;
  * see `routePermission`.
  */
-const OPEN_ROUTES = new Set(["/", "/profile", "/notifications", "/support", "/workspaces", "/search"]);
+const OPEN_ROUTES = new Set([
+  "/",
+  "/profile",
+  "/notifications",
+  "/support",
+  "/workspaces",
+  "/search",
+  "/commons",
+  "/commons/standing",
+  "/commons/review",
+]);
 
 /** `/admin` is platform-staff only and is gated on the `systemAdmin` flag, not a permission. */
 export const PLATFORM_ADMIN_ROUTES = new Set(["/admin"]);
 
 export function routePermission(pathname: string): Permission | null {
-  if (OPEN_ROUTES.has(pathname)) {
+  if (OPEN_ROUTES.has(pathname) || pathname.startsWith("/commons/")) {
     return null;
   }
   const match = Object.keys(ROUTE_PERMISSIONS)
@@ -133,7 +144,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
 const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   INVENTORY_ADJUST: "Adjust stock levels",
   SALES_VOID: "Void a sale",
-  COMPATIBILITY_APPROVE: "Approve compatibility changes",
+  COMPATIBILITY_APPROVE: "Approve private fitment notes",
   WORKSPACE_BILLING: "Manage billing",
   USER_INVITE: "Invite people",
   USER_WRITE: "Add, edit, and approve people",

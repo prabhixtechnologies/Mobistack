@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { apiOnce, money, qty } from "../lib/api";
 import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
@@ -89,12 +89,17 @@ export function InventoryPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Counter"
+        kicker="Shop"
         title="Inventory"
-        subtitle="Stock is the ledger. The number on the row is a cache of every movement."
+        subtitle="What is on the shelf, what it costs, and what you can sell it for."
+        actions={
+          <Link className="btn ghost" to="/inventory/catalog-links">
+            Link a part
+          </Link>
+        }
       />
 
-      <div className="row">
+      <div className="toolbar">
         <TextField
           label="Search"
           value={query}
@@ -123,6 +128,7 @@ export function InventoryPage() {
               settled.trim() || lowOnly
                 ? "Clear the search or the low-stock filter to see the whole shelf."
                 : "Receive a purchase, or import your existing list, and parts appear here.",
+            action: !settled.trim() && !lowOnly ? <Link className="btn" to="/purchases">Receive stock</Link> : undefined,
           }}
           paging={{
             total: parts.total,

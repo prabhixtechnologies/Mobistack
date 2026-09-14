@@ -6,7 +6,7 @@ import com.fixflow.common.error.ApiException;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.dto.ShopDtos.ShopResponse;
 import com.fixflow.shop.dto.ShopDtos.UpdateShopRequest;
-import com.fixflow.auth.service.DeviceSessionService;
+import com.fixflow.billing.service.ScreenSeatService;
 import com.fixflow.shop.repository.ShopRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,7 @@ public class ShopService {
 
     private final ShopRepository shopRepository;
     private final AuditService auditService;
-    private final DeviceSessionService deviceSessionService;
+    private final ScreenSeatService screenSeatService;
 
     @Transactional(readOnly = true)
     public ShopResponse get(UUID shopId) {
@@ -71,7 +71,7 @@ public class ShopService {
     }
 
     private ShopResponse toResponse(Shop shop) {
-        var screens = deviceSessionService.capacity(shop.getId());
+        var screens = screenSeatService.capacity(shop.getId());
         return new ShopResponse(shop.getId(), shop.getName(), shop.getLegalName(), shop.getPhone(),
                 shop.getEmail(), shop.getAddressLine1(), shop.getAddressLine2(), shop.getCity(),
                 shop.getState(), shop.getPostalCode(), shop.getCountry(), shop.getGstNumber(),

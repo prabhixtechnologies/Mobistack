@@ -27,3 +27,7 @@ Caddyfile       eol=lf
 *.apk           binary
 *.aab           binary
 *.ipa           binary
+
+# CI-generated OpenAPI TypeScript client.
+packages/mobistack-api/src/schema.ts linguist-generated=true
+backend/apidocs.json linguist-generated=true

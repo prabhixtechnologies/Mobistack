@@ -4,6 +4,8 @@ import com.fixflow.catalog.service.DeviceService;
 import com.fixflow.catalog.service.ProductService;
 import com.fixflow.commerce.dto.CommerceDtos.CreateSaleRequest;
 import com.fixflow.commerce.service.SaleService;
+import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
+import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.inventory.dto.InventoryDtos.StockReceiveRequest;
 import com.fixflow.inventory.service.InventoryQueryService;
 import com.fixflow.inventory.service.InventoryService;
@@ -48,6 +50,7 @@ public class SyncController {
     private final ReportService reportService;
     private final DeviceService deviceService;
     private final PartyService partyService;
+    private final CommonsCatalogService commonsCatalog;
 
     public record RepairStatusOp(java.util.UUID repairId, String status) {
     }
@@ -94,7 +97,41 @@ public class SyncController {
         dashboard.put("inventory", inventoryQueryService.snapshot(shopId));
         dashboard.put("alerts", inventoryQueryService.openAlerts(shopId, PageRequest.of(0, 8)).getContent());
         body.put("dashboard", dashboard);
+        body.put("commons", commonsSnapshot());
         return body;
+    }
+
+    /**
+     * A slice of the shared catalog so the counter app can search phones offline.
+     *
+     * <p>Not the whole graph: brands plus the most-looked-up models. Fitments are fetched live
+     * when the shop is online; caching every edge would dwarf the rest of the snapshot.
+     */
+    private Map<String, Object> commonsSnapshot() {
+        Map<String, Object> commons = new LinkedHashMap<>();
+        commons.put("brands", commonsCatalog.listBrands().stream()
+                .map(brand -> Map.<String, Object>of(
+                        "id", brand.getId(),
+                        "name", brand.getName()))
+                .toList());
+        List<CatalogDevice> popular = commonsCatalog.popularDevices(200);
+        var names = commonsCatalog.brandNames(popular.stream()
+                .map(CatalogDevice::getBrandId)
+                .distinct()
+                .toList());
+        commons.put("devices", popular.stream()
+                .map(device -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", device.getId());
+                    row.put("name", device.getName());
+                    row.put("brandId", device.getBrandId());
+                    row.put("brandName", names.get(device.getBrandId()));
+                    row.put("modelCode", device.getModelCode());
+                    row.put("variant", device.getVariant());
+                    return row;
+                })
+                .toList());
+        return commons;
     }
 
     @PostMapping

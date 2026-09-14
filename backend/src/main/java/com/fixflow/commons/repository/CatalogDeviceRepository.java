@@ -45,4 +45,6 @@ public interface CatalogDeviceRepository extends JpaRepository<CatalogDevice, UU
             order by d.lookupCount desc, d.name asc
             """)
     Page<CatalogDevice> search(@Param("term") String term, Pageable pageable);
+
+    Page<CatalogDevice> findByBrandIdOrderByNameAsc(UUID brandId, Pageable pageable);
 }

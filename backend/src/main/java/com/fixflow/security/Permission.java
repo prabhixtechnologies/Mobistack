@@ -35,5 +35,9 @@ public enum Permission {
     WORKSPACE_BILLING,
     REPORT_EXPORT,
     COMPATIBILITY_APPROVE,
+    /**
+     * Not grantable as a shop role. Attached to the principal when the user is in
+     * {@code commons_reviewers}.
+     */
     COMMONS_REVIEW
 }

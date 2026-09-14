@@ -303,7 +303,8 @@ public final class CatalogDtos {
             String location,
             Instant lastSoldAt,
             Instant lastPurchasedAt,
-            boolean active
+            boolean active,
+            UUID catalogComponentId
     ) {
     }
 

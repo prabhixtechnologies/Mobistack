@@ -8,6 +8,10 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    dedupe: ["react", "react-dom"],
+  },
+  optimizeDeps: {
+    include: ["@prabhix/oidc-client"],
   },
   server: {
     // Local Identity redirect is :5176; compose publishes API on :8082.

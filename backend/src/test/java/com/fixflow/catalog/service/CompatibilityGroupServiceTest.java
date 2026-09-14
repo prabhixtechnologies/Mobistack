@@ -104,15 +104,20 @@ class CompatibilityGroupServiceTest {
         });
         when(productCompatibilityRepository.countByCompatibilityGroupId(any())).thenReturn(0L);
         when(historyRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(groupDeviceRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         var copied = service.copy(shopId, groupId, new CopyGroupRequest(null, null));
 
         assertThat(copied.verified()).isFalse();
         assertThat(copied.name()).isEqualTo("Redmi 9 family glass copy");
-        ArgumentCaptor<CompatibilityGroupDevice> captor = ArgumentCaptor.forClass(CompatibilityGroupDevice.class);
-        verify(groupDeviceRepository).save(captor.capture());
-        assertThat(captor.getValue().getDeviceModelId()).isEqualTo(deviceId);
-        assertThat(captor.getValue().isPrimaryDevice()).isTrue();
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Iterable<CompatibilityGroupDevice>> captor =
+                ArgumentCaptor.forClass(Iterable.class);
+        verify(groupDeviceRepository).saveAll(captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
+        CompatibilityGroupDevice saved = captor.getValue().iterator().next();
+        assertThat(saved.getDeviceModelId()).isEqualTo(deviceId);
+        assertThat(saved.isPrimaryDevice()).isTrue();
     }
 
     @Test

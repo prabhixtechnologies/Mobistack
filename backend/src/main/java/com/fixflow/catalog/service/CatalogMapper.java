@@ -90,6 +90,7 @@ public class CatalogMapper {
                 variant.getLocation(),
                 variant.getLastSoldAt(),
                 variant.getLastPurchasedAt(),
-                variant.isActive());
+                variant.isActive(),
+                variant.getCatalogComponentId());
     }
 }

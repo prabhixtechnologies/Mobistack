@@ -117,7 +117,7 @@ export function MembersPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="People"
+        kicker="Operations"
         title="People"
         subtitle="Paid join requests land here. Owners, admins, and anyone with People edit permission can approve."
       />

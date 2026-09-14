@@ -32,16 +32,19 @@ export interface AuthenticatedUser {
   phone?: string;
   roles: string[];
   permissions: string[];
-  mustChangePassword: boolean;
+  /** Present only on older API payloads. Passwords are managed by Identity now. */
+  mustChangePassword?: boolean;
   systemAdmin?: boolean;
   emailVerified?: boolean;
   phoneVerified?: boolean;
   paymentRequired?: boolean;
+  localActivationAvailable?: boolean;
   catalogOnly?: boolean;
   features?: string[];
   planCode?: string | null;
   planName?: string | null;
   periodEnd?: string | null;
+  commonsReviewer?: boolean;
 }
 
 export interface AuthResponse {
@@ -126,6 +129,17 @@ export interface PartSearchHit {
   price: number;
 }
 
+export interface CommonsSearchHit {
+  id: string;
+  name: string;
+  kind: "device" | "component" | string;
+  brandId?: string;
+  brandName?: string;
+  categoryCode?: string;
+  variant?: string;
+  modelCode?: string;
+}
+
 export interface GlobalSearchResponse {
   query: string;
   devices: DeviceSearchHit[];
@@ -134,6 +148,8 @@ export interface GlobalSearchResponse {
   exactMatch?: PartSearchHit;
   totalResults: number;
   tookMillis: number;
+  commonsDevices?: CommonsSearchHit[];
+  commonsComponents?: CommonsSearchHit[];
 }
 
 export interface DeviceSummary {
@@ -215,6 +231,7 @@ export interface ProductVariant {
   location?: string;
   lastSoldAt?: string;
   active: boolean;
+  catalogComponentId?: string | null;
 }
 
 export interface Category {
@@ -295,7 +312,6 @@ export interface WorkspaceUser {
   phone?: string;
   avatarUrl?: string;
   active: boolean;
-  mustChangePassword: boolean;
   lastLoginAt?: string;
   roles: string[];
   permissions: string[];
@@ -344,4 +360,86 @@ export interface ApiError {
   code: string;
   message: string;
   violations?: { field: string; message: string }[];
+}
+
+export interface CommonsStats {
+  shopCount: number;
+  brandCount: number;
+  deviceCount: number;
+  componentCount: number;
+  fitmentCount: number;
+}
+
+export interface CommonsBrand {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+}
+
+export interface CommonsDevice {
+  id: string;
+  brandId: string;
+  brandName?: string | null;
+  name: string;
+  variant?: string | null;
+  modelCode?: string | null;
+  releaseYear?: number | null;
+}
+
+export interface CommonsComponent {
+  id: string;
+  categoryCode: string;
+  name: string;
+  description?: string | null;
+  attributes?: Record<string, unknown>;
+}
+
+export interface CommonsFit {
+  fitmentId: string;
+  componentId: string;
+  componentName?: string | null;
+  deviceId: string;
+  deviceName?: string | null;
+  fit: string;
+  confirmations: number;
+  disputes: number;
+  disputed: boolean;
+  verified: boolean;
+}
+
+export interface CommonsStanding {
+  accepted: number;
+  rejected: number;
+  trusted: boolean;
+  banned: boolean;
+  bannedReason?: string | null;
+}
+
+export interface CommonsContribution {
+  id: string;
+  kind: string;
+  status: string;
+  targetId?: string | null;
+  appliedId?: string | null;
+  reason?: string | null;
+  reviewNote?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+}
+
+export interface CatalogStockRow {
+  variantId: string;
+  sku: string;
+  name: string;
+  available: number;
+  componentId?: string | null;
+}
+
+export interface CommonsReviewer {
+  userId: string;
+  email?: string | null;
+  fullName?: string | null;
+  grantedBy?: string | null;
+  grantedAt?: string | null;
+  reason?: string | null;
 }

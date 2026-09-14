@@ -1,6 +1,5 @@
 package com.fixflow.config;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,89 +15,18 @@ import java.util.List;
 @ConfigurationProperties(prefix = "fixflow")
 public class FixFlowProperties {
 
-    private final Security security = new Security();
     private final Cors cors = new Cors();
     private final Inventory inventory = new Inventory();
     private final Demo demo = new Demo();
     private final Brand brand = new Brand();
     private final Auth auth = new Auth();
-    private final Twilio twilio = new Twilio();
     private final Platform platform = new Platform();
     private final Redis redis = new Redis();
-    private final Devices devices = new Devices();
     private final Chat chat = new Chat();
     private final Updates updates = new Updates();
     private final Razorpay razorpay = new Razorpay();
     private final Mail mail = new Mail();
     private final Push push = new Push();
-
-    @Getter
-    @Setter
-    public static class Security {
-        private final Jwt jwt = new Jwt();
-        private final Identity identity = new Identity();
-
-        /** Consecutive failed logins before the account is temporarily locked. */
-        private int maxFailedLogins = 8;
-        private Duration lockoutDuration = Duration.ofMinutes(15);
-    }
-
-    /**
-     * Trust for tokens issued by Prabhix Identity, verified against its published JWKS.
-     *
-     * <p>Blank {@code issuer} disables it. While disabled the backend accepts only its own HS256
-     * tokens. Both signature families are accepted at once so the cutover does not sign anyone out.
-     *
-     * <p>An identity token carries identity only — no shop and no permissions. Those are resolved
-     * per request from this database.
-     */
-    @Getter
-    @Setter
-    public static class Identity {
-        private String issuer = "";
-        /** Defaults to {@code {issuer}/.well-known/jwks.json}; set only if that is not where it is. */
-        private String jwksUri = "";
-        private Duration jwksCacheTtl = Duration.ofMinutes(10);
-        private Duration jwksMinRefreshInterval = Duration.ofSeconds(30);
-        private String internalBaseUrl = "http://identity:8081";
-        /**
-         * Shared secret presented as {@code X-Prabhix-Service-Token}. Blank means the mirror
-         * cannot be filled in on demand, and a subject with no local row is refused.
-         */
-        private String serviceToken = "";
-
-        public boolean canMirror() {
-            return serviceToken != null && !serviceToken.isBlank();
-        }
-
-        public boolean enabled() {
-            return issuer != null && !issuer.isBlank();
-        }
-
-        public String effectiveJwksUri() {
-            if (jwksUri != null && !jwksUri.isBlank()) {
-                return jwksUri;
-            }
-            String base = issuer.endsWith("/") ? issuer.substring(0, issuer.length() - 1) : issuer;
-            return base + "/.well-known/jwks.json";
-        }
-    }
-
-    @Getter
-    @Setter
-    public static class Jwt {
-        /**
-         * HMAC signing key. Must be at least 64 characters. There is deliberately no
-         * usable default: the app refuses to start in a non-dev profile without one.
-         */
-        @NotBlank
-        private String secret;
-
-        private String issuer = "mobistack";
-        private Duration accessTokenTtl = Duration.ofMinutes(30);
-        /** Long enough that a shop tablet offline for a week can still refresh. */
-        private Duration refreshTokenTtl = Duration.ofDays(30);
-    }
 
     @Getter
     @Setter
@@ -134,40 +62,16 @@ public class FixFlowProperties {
         private int copyrightYear = 2026;
     }
 
+    /**
+     * What little this API still knows about sign-in. Credentials, sessions and passwords belong to
+     * Prabhix Identity; a bearer token is verified there and MobiStack only resolves what the
+     * person may do in the shop they selected.
+     */
     @Getter
     @Setter
     public static class Auth {
-        /** Public web origin used to build magic links. Overridden in prod. */
+        /** Public web origin of the SPA, allowed by CORS and reported by /public/brand. */
         private String webOrigin = "https://mobistack.prabhixtechnologies.com";
-        private String magicLinkPath = "/login?magic=";
-        /**
-         * Fixed one-time code so a developer can sign in without a mail or SMS
-         * account. Blank everywhere except the dev profile: a value here accepts
-         * that code for every number in the system.
-         */
-        private String devOtp = "";
-        /** Password-free sign-in as any user. Dev profile only, for the same reason. */
-        private boolean devSsoEnabled = false;
-        private String googleClientId = "";
-        private String googleClientSecret = "";
-        private String googleRedirectPath = "/login?sso=google";
-        /** Wrong guesses a one-time code survives before it is burned. */
-        private int otpMaxAttempts = 5;
-        /** How long a caller must wait before a fresh code can be sent. */
-        private Duration otpResendCooldown = Duration.ofSeconds(45);
-    }
-
-    @Getter
-    @Setter
-    public static class Twilio {
-        private String accountSid = "";
-        private String authToken = "";
-        /** E.164 SMS sender, e.g. +14155552671 */
-        private String smsFrom = "";
-        /** WhatsApp sender, e.g. whatsapp:+14155238886 for the Twilio sandbox */
-        private String whatsappFrom = "";
-        /** Used when the user types a 10-digit local number. */
-        private String defaultCountryCode = "91";
     }
 
     @Getter
@@ -175,8 +79,11 @@ public class FixFlowProperties {
     public static class Demo {
         /** Seeds a realistic demo shop on an empty database. Off outside the dev profile. */
         private boolean seedEnabled = false;
+        /**
+         * The owner row is a placeholder mirror: it is linked to the person's Identity account by
+         * email the first time they sign in, so this must be the address of an account there.
+         */
         private String ownerEmail = "owner@prabhixtechnologies.com";
-        private String ownerPassword = "Owner@123";
     }
 
     @Getter
@@ -195,18 +102,6 @@ public class FixFlowProperties {
         private boolean enabled = false;
         private Duration presenceTtl = Duration.ofSeconds(90);
         private Duration dashboardTtl = Duration.ofSeconds(20);
-    }
-
-    @Getter
-    @Setter
-    public static class Devices {
-        /** Devices one person may stay signed in on when the shop has no override. */
-        private int defaultMaxPerUser = 3;
-        /** Hard ceiling, so a shop setting cannot raise the cap without limit. */
-        @Positive
-        private int absoluteMaxPerUser = 5;
-        /** {@code evict} ends the least recently used device; {@code reject} refuses the sign-in. */
-        private String overLimit = "evict";
     }
 
     @Getter

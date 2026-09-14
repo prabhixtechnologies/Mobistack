@@ -7,8 +7,6 @@ import { BrandFooter, BrandMark } from "./ui/BrandMark";
 import { ThemeToggle } from "./ui/ThemeToggle";
 import { SkipLink } from "./ui/SkipLink";
 import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
-import { CompatibilityPage } from "./pages/CompatibilityPage";
-import { CompatibilityCategoryPage } from "./pages/CompatibilityCategoryPage";
 import { LoginPage, SessionRestore } from "./pages/LoginPage";
 import { OidcCallbackPage } from "./pages/OidcCallbackPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
@@ -31,6 +29,14 @@ function page<P extends object, K extends string>(
 
 const DashboardPage = page(() => import("./pages/DashboardPage"), "DashboardPage");
 const SearchPage = page(() => import("./pages/SearchPage"), "SearchPage");
+const CommonsBrowsePage = page(() => import("./pages/CommonsBrowsePage"), "CommonsBrowsePage");
+const CommonsDevicePage = page(() => import("./pages/CommonsDevicePage"), "CommonsDevicePage");
+const CommonsComponentPage = page(() => import("./pages/CommonsComponentPage"), "CommonsComponentPage");
+const CommonsStandingPage = page(() => import("./pages/CommonsStandingPage"), "CommonsStandingPage");
+const CommonsReviewPage = page(() => import("./pages/CommonsReviewPage"), "CommonsReviewPage");
+const CatalogLinksPage = page(() => import("./pages/CatalogLinksPage"), "CatalogLinksPage");
+const CompatibilityPage = page(() => import("./pages/CompatibilityPage"), "CompatibilityPage");
+const CompatibilityCategoryPage = page(() => import("./pages/CompatibilityCategoryPage"), "CompatibilityCategoryPage");
 const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
 const InventoryPage = page(() => import("./pages/InventoryPage"), "InventoryPage");
 const MovementsPage = page(() => import("./pages/MovementsPage"), "MovementsPage");
@@ -97,7 +103,7 @@ function UnscopedWorkspaces() {
     <div className="workspaces-shell">
       <SkipLink />
       <header className="app-header">
-        <BrandMark compact inverse />
+        <BrandMark compact />
         <div className="app-header__actions">
           <ThemeToggle icon />
           <button className="btn ghost header-ghost" type="button" onClick={() => void logout()}>
@@ -180,10 +186,16 @@ export function App() {
           <Route element={<RequirePermission />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/commons" element={<CommonsBrowsePage />} />
+            <Route path="/commons/devices/:id" element={<CommonsDevicePage />} />
+            <Route path="/commons/components/:id" element={<CommonsComponentPage />} />
+            <Route path="/commons/standing" element={<CommonsStandingPage />} />
+            <Route path="/commons/review" element={<CommonsReviewPage />} />
             <Route path="/devices/:id" element={<DevicePage />} />
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/repairs" element={<RepairsPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/inventory/catalog-links" element={<CatalogLinksPage />} />
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />

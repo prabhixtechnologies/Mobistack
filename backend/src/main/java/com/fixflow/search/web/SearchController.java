@@ -1,7 +1,6 @@
 package com.fixflow.search.web;
 
 import com.fixflow.pricing.domain.PricingFlag;
-import com.fixflow.billing.service.BillingService;
 import com.fixflow.search.dto.SearchDtos.GlobalSearchResponse;
 import com.fixflow.search.service.SearchService;
 import com.fixflow.security.Authorize;
@@ -22,14 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class SearchController {
 
     private final SearchService searchService;
-    private final BillingService billingService;
 
     @GetMapping
     @PreAuthorize(Authorize.CATALOG_READ)
-    @Operation(summary = "Search devices, aliases, SKUs, barcodes and parts in one query")
-    public GlobalSearchResponse search(@RequestParam("q") String query,
-                                       @RequestParam(defaultValue = "NORMAL") PricingFlag flag) {
-        billingService.requireCatalog(CurrentUser.shopId());
+    @Operation(summary = "Search devices, aliases, SKUs, barcodes, parts and the shared catalog")
+    // q is optional: an empty box is a no-op, not a 400. SearchService already
+    // returns an empty payload below two characters; requiring the param made a
+    // missed query string surface as a raw Spring error on the catalog page.
+    public GlobalSearchResponse search(
+            @RequestParam(name = "q", required = false, defaultValue = "") String query,
+            @RequestParam(defaultValue = "NORMAL") PricingFlag flag) {
         return searchService.search(CurrentUser.shopId(), query, flag);
     }
 }

@@ -4,6 +4,7 @@ import com.fixflow.audit.service.AuditAction;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.billing.service.BillingService;
 import com.fixflow.catalog.repository.ProductRepository;
+import com.fixflow.commons.service.CommonsReviewerService;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.notify.NotificationService;
@@ -60,6 +61,7 @@ public class WorkspaceAccessService {
     private final AuditService auditService;
     private final BillingService billingService;
     private final NotificationService notificationService;
+    private final CommonsReviewerService commonsReviewers;
 
     /**
      * Privileged people APIs must target the shop in the JWT. {@code @PreAuthorize} checks the
@@ -253,7 +255,7 @@ public class WorkspaceAccessService {
         auditService.recordForShop(workspaceId, user.getFullName(), AuditAction.WORKSPACE_SELECTED,
                 "Workspace", workspaceId, "%s opened this workspace".formatted(user.getFullName()));
 
-        return UserPrincipal.forWorkspace(user, workspaceId, membership.getRole());
+        return withCommonsReview(UserPrincipal.forWorkspace(user, workspaceId, membership.getRole()));
     }
 
     @Transactional(readOnly = true)
@@ -261,7 +263,7 @@ public class WorkspaceAccessService {
         List<WorkspaceMembership> active = membershipRepository.findActiveForUser(
                 user.getId(), MembershipStatus.ACTIVE);
         if (active.isEmpty()) {
-            return UserPrincipal.unscoped(user);
+            return withCommonsReview(UserPrincipal.unscoped(user));
         }
 
         WorkspaceMembership chosen = active.stream()
@@ -272,7 +274,18 @@ public class WorkspaceAccessService {
                         .findFirst())
                 .orElse(active.get(0));
 
-        return UserPrincipal.forWorkspace(user, chosen.getWorkspaceId(), chosen.getRole());
+        return withCommonsReview(UserPrincipal.forWorkspace(user, chosen.getWorkspaceId(), chosen.getRole()));
+    }
+
+    /**
+     * Shared-catalog review is per person, not per shop, so it is attached even when no
+     * workspace is selected.
+     */
+    private UserPrincipal withCommonsReview(UserPrincipal principal) {
+        if (commonsReviewers.isReviewer(principal.getId())) {
+            return principal.withPermissions(Set.of(Permission.COMMONS_REVIEW));
+        }
+        return principal;
     }
 
     @Transactional(readOnly = true)

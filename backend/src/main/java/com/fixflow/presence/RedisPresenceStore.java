@@ -69,6 +69,17 @@ public class RedisPresenceStore implements PresenceStore {
         redis.delete(key(userId, deviceId));
     }
 
+    @Override
+    public void kick(String userId) {
+        ScanOptions options = ScanOptions.scanOptions().match(KEY_PREFIX + userId + ":*").count(200).build();
+        try (Cursor<String> cursor = redis.scan(options)) {
+            while (cursor.hasNext()) {
+                redis.delete(cursor.next());
+            }
+        }
+    }
+
+
     private static String key(String userId, String deviceId) {
         return KEY_PREFIX + userId + ":" + deviceId;
     }

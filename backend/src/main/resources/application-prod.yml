@@ -10,8 +10,6 @@ spring:
 fixflow:
   auth:
     web-origin: ${FIXFLOW_WEB_ORIGIN:https://mobistack.prabhixtechnologies.com}
-    dev-sso-enabled: false
-    dev-otp: ""
   platform:
     public-origin: https://mobistack.prabhixtechnologies.com
     api-origin: https://mobistack.prabhixtechnologies.com

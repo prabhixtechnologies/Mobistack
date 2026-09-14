@@ -38,17 +38,21 @@ export function afterAuthPath(
   if (user.features?.includes("DASHBOARD")) {
     return "/";
   }
-  if (user.features?.includes("COMPATIBILITY") || user.catalogOnly) {
-    return "/compatibility";
-  }
-  return "/billing";
+  return "/commons";
 }
 
 export function routeFeature(pathname: string): string | null {
   if (pathname === "/") {
     return "DASHBOARD";
   }
-  if (pathname.startsWith("/devices") || pathname.startsWith("/search") || pathname.startsWith("/compatibility")) {
+  if (
+    pathname.startsWith("/commons") ||
+    pathname.startsWith("/search") ||
+    pathname.startsWith("/compatibility")
+  ) {
+    return null;
+  }
+  if (pathname.startsWith("/devices")) {
     return "COMPATIBILITY";
   }
   if (pathname.startsWith("/sales")) return "SALES";

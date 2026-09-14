@@ -5,17 +5,24 @@ import com.fixflow.catalog.domain.Category;
 import com.fixflow.catalog.domain.DeviceModel;
 import com.fixflow.catalog.domain.Product;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupRequest;
-import com.fixflow.catalog.dto.CatalogDtos.CompatibilityLinkRequest;
 import com.fixflow.catalog.dto.CatalogDtos.ProductVariantRequest;
 import com.fixflow.catalog.repository.BrandRepository;
 import com.fixflow.catalog.repository.CategoryRepository;
 import com.fixflow.catalog.repository.DeviceModelRepository;
 import com.fixflow.catalog.repository.ProductRepository;
+import com.fixflow.catalog.repository.ProductVariantRepository;
 import com.fixflow.catalog.service.BrandService;
 import com.fixflow.catalog.service.CompatibilityGroupService;
 import com.fixflow.catalog.service.DeviceService;
 import com.fixflow.catalog.service.ProductService;
+import com.fixflow.commons.domain.CatalogEntities.CatalogComponent;
+import com.fixflow.commons.domain.CatalogEntities.FitQuality;
+import com.fixflow.commons.repository.CatalogComponentRepository;
+import com.fixflow.commons.repository.CatalogDeviceRepository;
+import com.fixflow.commons.service.CommonsCatalogService;
+import com.fixflow.commons.service.CommonsReviewerService;
 import com.fixflow.config.FixFlowProperties;
+import com.fixflow.billing.service.BillingService;
 import com.fixflow.party.domain.Customer;
 import com.fixflow.party.domain.CustomerType;
 import com.fixflow.party.domain.Supplier;
@@ -40,21 +47,26 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * Seeds a working repair shop so the flagship workflow is demonstrable
- * immediately: search "Realme 6", see compatible models, see stock and prices.
+ * immediately: search "Realme 6" in the shared Fitment Catalog, see what fits,
+ * see this shop's stock.
  *
- * <p>Only runs on an empty database under the {@code dev} profile.
+ * <p>Under the {@code dev} profile: if shops already exist, unpaid ones get a complimentary
+ * FULL_SHOP so local testing is not blocked by Razorpay. A new demo shop is created only on an
+ * empty database. The people it creates have no
+ * credentials here: each row is matched by email to a Prabhix Identity account the first time that
+ * person signs in, so the owner's address must exist in the local Identity to be usable.
  */
 @Slf4j
 @Component
@@ -68,7 +80,6 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final ShopProvisioningService shopProvisioningService;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
     private final BrandService brandService;
     private final BrandRepository brandRepository;
     private final DeviceService deviceService;
@@ -77,10 +88,16 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final CompatibilityGroupService compatibilityGroupService;
     private final ProductService productService;
     private final ProductRepository productRepository;
+    private final ProductVariantRepository productVariantRepository;
     private final SupplierRepository supplierRepository;
     private final CustomerRepository customerRepository;
     private final PriceRuleRepository priceRuleRepository;
     private final WorkspaceAccessService workspaceAccessService;
+    private final CommonsCatalogService commonsCatalog;
+    private final CatalogDeviceRepository catalogDevices;
+    private final CatalogComponentRepository catalogComponents;
+    private final CommonsReviewerService commonsReviewers;
+    private final BillingService billingService;
 
     @Override
     @Transactional
@@ -88,8 +105,24 @@ public class DemoDataSeeder implements ApplicationRunner {
         if (!properties.getDemo().isSeedEnabled()) {
             return;
         }
+
+        UUID existingOwner = userRepository.findWithRolesByEmail(properties.getDemo().getOwnerEmail())
+                .map(User::getId)
+                .orElse(null);
+        seedCommons(existingOwner);
+
         if (shopRepository.count() > 0) {
-            log.info("Database already has a shop; skipping demo seed.");
+            int granted = 0;
+            for (Shop shop : shopRepository.findAll()) {
+                if (billingService.paymentRequired(shop.getId())) {
+                    billingService.grantPilotEntitlements(shop.getId());
+                    granted++;
+                }
+            }
+            if (granted > 0) {
+                log.info("Granted complimentary FULL_SHOP to {} existing unpaid shop(s) (dev).", granted);
+            }
+            log.info("Database already has a shop; skipping demo shop seed.");
             return;
         }
 
@@ -98,7 +131,6 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "Mobile Care Hub",
                 "Rohan Deshmukh",
                 properties.getDemo().getOwnerEmail(),
-                properties.getDemo().getOwnerPassword(),
                 "9876543210",
                 "Pune"), true);
 
@@ -106,13 +138,15 @@ public class DemoDataSeeder implements ApplicationRunner {
         User owner = provisioned.owner();
         owner.setSystemAdmin(true);
         userRepository.save(owner);
+        seedCommons(owner.getId());
+        commonsReviewers.grant(owner.getId(), owner.getId(), "Demo seed: owner reviews the shared catalog");
         seedStaff(shopId, owner.getId());
         seedSecondWorkspace(provisioned.owner());
         seedSuppliersAndCustomers(shopId);
         seedPriceRules(shopId);
-        seedCatalog(shopId);
-        log.info("Demo shop ready. Sign in as {} / {}. Owner also has workspace ABC Mobile Repair.",
-                properties.getDemo().getOwnerEmail(), properties.getDemo().getOwnerPassword());
+        seedShopInventory(shopId, owner.getId());
+        log.info("Demo shop ready. Sign in through Identity as {}. Owner also has workspace ABC Mobile Repair.",
+                properties.getDemo().getOwnerEmail());
     }
 
     private void seedStaff(UUID shopId, UUID ownerId) {
@@ -120,9 +154,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         Role technician = role(SystemRole.TECHNICIAN);
         Role staff = role(SystemRole.STAFF);
 
-        createUser(shopId, ownerId, "Priya Deshmukh", "manager@prabhixtechnologies.com", "9876500001", "Manager@123", manager);
-        createUser(shopId, ownerId, "Rahul Patil", "tech@prabhixtechnologies.com", "9876500002", "Tech@123", technician);
-        createUser(shopId, ownerId, "Sneha Kulkarni", "staff@prabhixtechnologies.com", "9876500003", "Staff@123", staff);
+        createUser(shopId, ownerId, "Priya Deshmukh", "manager@prabhixtechnologies.com", "9876500001", manager);
+        createUser(shopId, ownerId, "Rahul Patil", "tech@prabhixtechnologies.com", "9876500002", technician);
+        createUser(shopId, ownerId, "Sneha Kulkarni", "staff@prabhixtechnologies.com", "9876500003", staff);
     }
 
     /**
@@ -168,7 +202,76 @@ public class DemoDataSeeder implements ApplicationRunner {
         rule(shopId, "Old stock clearance", 50, PricingFlag.OLD_STOCK, PriceRule.BaseField.CLEARANCE_PRICE);
     }
 
-    private void seedCatalog(UUID shopId) {
+    /**
+     * The shared Fitment Catalog. Per-shop compatibility groups are private notes, not the
+     * product's catalog; those are seeded separately as a single example.
+     */
+    private void seedCommons(UUID actorId) {
+        if (catalogDevices.count() > 0) {
+            log.info("Shared catalog already has devices; skipping commons seed.");
+            return;
+        }
+        log.info("Seeding the shared Fitment Catalog...");
+        record Model(String brand, String name, String code, int year) {
+        }
+        List<Model> models = List.of(
+                new Model("Realme", "Realme 6", "RMX2001", 2020),
+                new Model("Realme", "Realme 7", "RMX2151", 2020),
+                new Model("Realme", "Realme Narzo 20", "RMX2193", 2020),
+                new Model("Apple", "iPhone 11", "A2221", 2019),
+                new Model("Apple", "iPhone 12", "A2403", 2020),
+                new Model("Apple", "iPhone 12 Pro", "A2407", 2020),
+                new Model("Samsung", "Galaxy S21", "SM-G991B", 2021),
+                new Model("Xiaomi", "Redmi Note 10", "M2101K7AI", 2021),
+                new Model("Xiaomi", "Redmi Note 10S", null, 2021),
+                new Model("Vivo", "Vivo Y20", "V2027", 2020)
+        );
+        record Kind(String code, String suffix, String description) {
+        }
+        List<Kind> kinds = List.of(
+                new Kind("DISPLAY_FOLDER", "Display Folder",
+                        "Complete display assembly: panel, touch and frame, replaced as one unit."),
+                new Kind("TEMPERED_GLASS", "Tempered Glass", "Screen protector cut for this model."),
+                new Kind("BATTERY", "Battery", "Replacement cell."),
+                new Kind("BACK_COVER", "Back Cover", "Rear panel or housing."),
+                new Kind("POWER_VOLUME_FLEX", "Power Volume Flex", "Side button flex cable.")
+        );
+        for (Model model : models) {
+            var device = commonsCatalog.addDevice(model.brand(), model.name(), null, model.code(),
+                    model.year(), actorId);
+            for (Kind kind : kinds) {
+                var component = commonsCatalog.addComponent(kind.code(),
+                        model.name() + " " + kind.suffix(), kind.description(), Map.of(), actorId);
+                commonsCatalog.addFitment(component.getId(), device.getId(), FitQuality.EXACT, actorId);
+            }
+        }
+        record Cross(String component, String category, String device) {
+        }
+        for (Cross row : List.of(
+                new Cross("Realme 6 Display Folder", "DISPLAY_FOLDER", "Realme 7"),
+                new Cross("Realme 6 Display Folder", "DISPLAY_FOLDER", "Realme Narzo 20"),
+                new Cross("Realme 6 Tempered Glass", "TEMPERED_GLASS", "Realme 7"),
+                new Cross("Realme 6 Tempered Glass", "TEMPERED_GLASS", "Realme Narzo 20"),
+                new Cross("iPhone 12 Display Folder", "DISPLAY_FOLDER", "iPhone 12 Pro"),
+                new Cross("Redmi Note 10 Display Folder", "DISPLAY_FOLDER", "Redmi Note 10S")
+        )) {
+            var component = catalogComponents.findByIdentity(row.category(), row.component()).orElse(null);
+            var device = catalogDevices.search(row.device(), org.springframework.data.domain.PageRequest.of(0, 1))
+                    .getContent().stream()
+                    .filter(item -> item.getName().equalsIgnoreCase(row.device()))
+                    .findFirst()
+                    .orElse(null);
+            if (component != null && device != null) {
+                commonsCatalog.addFitment(component.getId(), device.getId(), FitQuality.COMPATIBLE, actorId);
+            }
+        }
+    }
+
+    /**
+     * Private shop stock, linked to the shared catalog. One private fitment note is kept so
+     * "Propose to shared catalog" has something to show.
+     */
+    private void seedShopInventory(UUID shopId, UUID ownerId) {
         Brand realme = brandService.findOrCreate(shopId, "Realme");
         Brand apple = brandService.findOrCreate(shopId, "Apple");
         Brand samsung = brandService.findOrCreate(shopId, "Samsung");
@@ -187,13 +290,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         DeviceModel realme7 = device(shopId, realme, "Realme 7", "RMX2151", 2020,
                 List.of("Realme 7i", "RMX2103"));
         DeviceModel realmeNarzo = device(shopId, realme, "Realme Narzo 20", "RMX2193", 2020, List.of());
-        DeviceModel iphone11 = device(shopId, apple, "iPhone 11", "A2221", 2019,
-                List.of("iPhone 11 2019"));
-        DeviceModel iphone12 = device(shopId, apple, "iPhone 12", "A2403", 2020, List.of());
-        DeviceModel s21 = device(shopId, samsung, "Galaxy S21", "SM-G991B", 2021, List.of("S21"));
-        DeviceModel redmiNote10 = device(shopId, xiaomi, "Redmi Note 10", "M2101K7AI", 2021,
-                List.of("Redmi Note 10S"));
-        DeviceModel vivoY20 = device(shopId, vivo, "Vivo Y20", "V2027", 2020, List.of());
+        device(shopId, apple, "iPhone 11", "A2221", 2019, List.of("iPhone 11 2019"));
 
         UUID display = category(shopId, "DISPLAY_FOLDER");
         UUID glass = category(shopId, "TEMPERED_GLASS");
@@ -203,60 +300,19 @@ public class DemoDataSeeder implements ApplicationRunner {
         UUID frame = category(shopId, "FRAME");
         UUID flex = category(shopId, "POWER_VOLUME_FLEX");
 
-        UUID realmeDisplayGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "REALME_DISPLAY_GROUP_001",
-                "Realme 6 / 6i / 7 display family",
+        compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
+                "BENCH_NOTE_REALME_DISPLAY",
+                "Realme 6 family — bench note",
                 display,
-                "Same 6.5\" IPS panel and 24-pin connector. Confirmed on the bench.",
-                true, true,
-                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()), null)).id();
-
-        UUID realmeGlassGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "REALME_GLASS_GROUP_001",
-                "Realme 6 family glass",
-                glass, null, true, true,
-                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()), null)).id();
-
-        UUID realmeBatteryGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "REALME_BATTERY_GROUP_001",
-                "Realme 6 / 7 4300 mAh battery",
-                battery, "Narzo 20 takes a different cell.", true, true,
-                List.of(realme6.getId(), realme7.getId()), null)).id();
-
-        UUID realmeBackGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "REALME_BACK_GROUP_001",
-                "Realme 6 back cover",
-                back, "Realme 7 has a different camera island — do not mix.", true, true,
-                List.of(realme6.getId()), null)).id();
-
-        UUID iphone11DisplayGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "IPHONE_11_DISPLAY_GROUP",
-                "iPhone 11 display",
-                display, null, true, true,
-                List.of(iphone11.getId()), null)).id();
-
-        UUID iphone11GlassGroup = compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "IPHONE_11_GLASS_GROUP",
-                "iPhone 11 glass",
-                glass, null, true, true,
-                List.of(iphone11.getId()), null)).id();
-
-        // Unused in links but present so the catalog is not a single-brand shop.
-        compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "S21_DISPLAY_GROUP", "Galaxy S21 display", display, null, true, true,
-                List.of(s21.getId()), null));
-        compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "NOTE10_DISPLAY_GROUP", "Redmi Note 10 display", display, null, true, true,
-                List.of(redmiNote10.getId()), null));
-        compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "Y20_DISPLAY_GROUP", "Vivo Y20 display", display, null, true, true,
-                List.of(vivoY20.getId()), null));
+                "Same 6.5\" IPS panel. Propose this to the shared catalog once confirmed.",
+                false, true,
+                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()), null));
 
         Supplier a1 = supplierRepository.findByShopIdAndName(shopId, "A1 Mobile Parts").orElseThrow();
         Supplier gz = supplierRepository.findByShopIdAndName(shopId, "Guangzhou Display Hub").orElseThrow();
 
-        // ---- Realme family parts ------------------------------------
-        addPart(shopId, display, realme.getId(), "Realme 6 / 7 Display", realmeDisplayGroup, null,
+        addPart(shopId, display, realme.getId(), "Realme 6 / 7 Display",
+                catalogPart("DISPLAY_FOLDER", "Realme 6 Display Folder"),
                 List.of(variant("GX Incell", "GX", "A+", null, gz.getId(),
                                 "2800", "4500", "4000", "4800", "3500", "3200",
                                 2, 3, 90, "A1-D-01"),
@@ -264,22 +320,25 @@ public class DemoDataSeeder implements ApplicationRunner {
                                 "2200", "3800", "3400", "4000", "3000", "2800",
                                 1, 2, 30, "A1-D-01")));
 
-        addPart(shopId, glass, realme.getId(), "Realme 6 / 7 Tempered Glass", realmeGlassGroup, null,
+        addPart(shopId, glass, realme.getId(), "Realme 6 / 7 Tempered Glass",
+                catalogPart("TEMPERED_GLASS", "Realme 6 Tempered Glass"),
                 List.of(variant("2.5D Clear", null, "A", null, a1.getId(),
                         "50", "80", "70", "100", "60", "50",
                         12, 8, 0, "A1-G-02")));
 
-        addPart(shopId, oca, realme.getId(), "Realme 6 / 7 OCA", realmeDisplayGroup, null,
+        addPart(shopId, oca, realme.getId(), "Realme 6 / 7 OCA", null,
                 List.of(variant("250um sheet", null, "A", null, a1.getId(),
                         "18", "40", "30", "50", "25", "20",
                         8, 10, 0, "A1-G-02")));
 
-        addPart(shopId, battery, realme.getId(), "Realme 6 Battery 4300mAh", realmeBatteryGroup, null,
+        addPart(shopId, battery, realme.getId(), "Realme 6 Battery 4300mAh",
+                catalogPart("BATTERY", "Realme 6 Battery"),
                 List.of(variant("OEM equivalent", "OEM", "A", null, a1.getId(),
                         "280", "450", "400", "520", "350", "300",
                         3, 4, 90, "A1-B-03")));
 
-        addPart(shopId, back, realme.getId(), "Realme 6 Back Cover", realmeBackGroup, null,
+        addPart(shopId, back, realme.getId(), "Realme 6 Back Cover",
+                catalogPart("BACK_COVER", "Realme 6 Back Cover"),
                 List.of(variant("Comet White", null, "A", "White", a1.getId(),
                                 "90", "180", "150", "200", "120", "100",
                                 3, 3, 0, "A1-C-04"),
@@ -287,18 +346,19 @@ public class DemoDataSeeder implements ApplicationRunner {
                                 "90", "180", "150", "200", "120", "100",
                                 2, 3, 0, "A1-C-04")));
 
-        addPart(shopId, frame, realme.getId(), "Realme 6 Middle Frame", realmeDisplayGroup, null,
+        addPart(shopId, frame, realme.getId(), "Realme 6 Middle Frame", null,
                 List.of(variant("Aftermarket", null, "B", "Black", a1.getId(),
                         "220", "380", "340", "420", "280", "250",
                         1, 2, 0, "A1-C-04")));
 
-        addPart(shopId, flex, realme.getId(), "Realme 6 Power Volume Flex", null, realme6.getId(),
+        addPart(shopId, flex, realme.getId(), "Realme 6 Power Volume Flex",
+                catalogPart("POWER_VOLUME_FLEX", "Realme 6 Power Volume Flex"),
                 List.of(variant("Original pull", null, "A", null, a1.getId(),
                         "40", "90", "75", "110", "60", "50",
                         4, 4, 0, "A1-F-05")));
 
-        // ---- iPhone 11 (the repair-job example from the spec) -------
-        addPart(shopId, display, apple.getId(), "iPhone 11 Display", iphone11DisplayGroup, null,
+        addPart(shopId, display, apple.getId(), "iPhone 11 Display",
+                catalogPart("DISPLAY_FOLDER", "iPhone 11 Display Folder"),
                 List.of(variant("GX Hard OLED", "GX", "A+", "Black", gz.getId(),
                                 "2800", "4500", "4000", "4800", "3500", "3200",
                                 3, 2, 180, "A1-D-11"),
@@ -306,10 +366,15 @@ public class DemoDataSeeder implements ApplicationRunner {
                                 "1600", "2800", "2500", "3000", "2200", "2000",
                                 2, 2, 90, "A1-D-11")));
 
-        addPart(shopId, glass, apple.getId(), "iPhone 11 Tempered Glass", iphone11GlassGroup, null,
+        addPart(shopId, glass, apple.getId(), "iPhone 11 Tempered Glass",
+                catalogPart("TEMPERED_GLASS", "iPhone 11 Tempered Glass"),
                 List.of(variant("9H Clear", null, "A", null, a1.getId(),
                         "50", "150", "120", "180", "90", "70",
                         18, 10, 0, "A1-G-11")));
+    }
+
+    private UUID catalogPart(String categoryCode, String name) {
+        return catalogComponents.findByIdentity(categoryCode, name).map(CatalogComponent::getId).orElse(null);
     }
 
     // -----------------------------------------------------------------
@@ -326,17 +391,17 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private void addPart(UUID shopId, UUID categoryId, UUID brandId, String name,
-                         UUID groupId, UUID deviceId, List<ProductVariantRequest> variants) {
+                         UUID catalogComponentId, List<ProductVariantRequest> variants) {
         Product product = productRepository.save(applyProduct(shopId, categoryId, brandId, name));
-        if (groupId != null) {
-            productService.addCompatibility(shopId, product.getId(),
-                    new CompatibilityLinkRequest(groupId, null, null, null));
-        }
-        if (deviceId != null) {
-            productService.addCompatibility(shopId, product.getId(),
-                    new CompatibilityLinkRequest(null, deviceId, null, null));
-        }
-        variants.forEach(variant -> productService.addVariant(shopId, product.getId(), variant));
+        variants.forEach(variant -> {
+            var added = productService.addVariant(shopId, product.getId(), variant);
+            if (catalogComponentId != null) {
+                productVariantRepository.findByIdAndShopId(added.id(), shopId).ifPresent(row -> {
+                    row.setCatalogComponentId(catalogComponentId);
+                    productVariantRepository.save(row);
+                });
+            }
+        });
     }
 
     private Product applyProduct(UUID shopId, UUID categoryId, UUID brandId, String name) {
@@ -378,14 +443,12 @@ public class DemoDataSeeder implements ApplicationRunner {
         priceRuleRepository.save(rule);
     }
 
-    private void createUser(UUID shopId, UUID invitedBy, String name, String email, String phone, String password,
-                            Role role) {
+    private void createUser(UUID shopId, UUID invitedBy, String name, String email, String phone, Role role) {
         User user = new User();
         user.setShopId(shopId);
         user.setFullName(name);
         user.setEmail(email);
         user.setPhone(phone);
-        user.setPasswordHash(passwordEncoder.encode(password));
         user.setRoles(new LinkedHashSet<>(Set.of(role)));
         userRepository.save(user);
         Shop shop = shopRepository.findById(shopId).orElseThrow();

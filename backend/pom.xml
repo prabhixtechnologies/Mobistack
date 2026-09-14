@@ -29,7 +29,9 @@
           springdoc is only on the classpath — so the integration test is what catches it.
         -->
         <springdoc.version>3.1.0</springdoc.version>
-        <jjwt.version>0.12.6</jjwt.version>
+        <identity-client.version>1.0.0</identity-client.version>
+        <!-- Same AWS SDK line as Identity/oneOps so CloudWatch export talks to the same API. -->
+        <awssdk.version>2.29.52</awssdk.version>
         <!--
           Testcontainers is version-managed by the Boot parent from 4.x onwards, so the pin is gone
           and the modules below inherit it. Pinning it separately is how a build ends up resolving a
@@ -72,6 +74,19 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+        <!--
+          Boot 4 does not auto-configure CloudWatch export. Wired in CloudWatchMetricsConfiguration
+          when CLOUDWATCH_METRICS=true (or profile cloudwatch). Off by default so tests stay local.
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-cloudwatch2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cloudwatch</artifactId>
+            <version>${awssdk.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
@@ -104,22 +119,18 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!--
+          Bearer tokens are verified against Prabhix Identity's published RS256 keys by this starter;
+          MobiStack no longer signs or verifies anything itself. It also carries jjwt 0.12.6
+          (api at compile scope, impl and jackson at runtime), which is why jjwt is not declared here
+          any more: declaring it again at test scope would win Maven's nearest-wins mediation and pull
+          the api jar off the runtime classpath. The filter test signs its tokens with that transitive
+          copy.
+        -->
         <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-api</artifactId>
-            <version>${jjwt.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
+            <groupId>com.prabhix</groupId>
+            <artifactId>identity-spring-boot-starter</artifactId>
+            <version>${identity-client.version}</version>
         </dependency>
 
         <dependency>
@@ -189,6 +200,19 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <!--
+      identity-spring-boot-starter is published to GitHub Packages from the Identity repository.
+      CI authenticates through actions/setup-java with server-id "github"; a laptop puts the same
+      server id and a token with read:packages in ~/.m2/settings.xml. The offline path is to build
+      it locally: mvn -f Identity/client/pom.xml install.
+    -->
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/prabhixtechnologies/Identity</url>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>
@@ -278,6 +302,30 @@
                               profile written to run it, and a skipped test reports as a pass.
                             -->
                             <excludedGroups combine.self="override"/>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+          Writes backend/apidocs.json from a running instance (SWAGGER_ENABLED=true).
+
+            $env:SWAGGER_ENABLED='true'; mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
+            mvn -Pgenerate-openapi springdoc-openapi:generate
+        -->
+        <profile>
+            <id>generate-openapi</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springdoc</groupId>
+                        <artifactId>springdoc-openapi-maven-plugin</artifactId>
+                        <version>1.5</version>
+                        <configuration>
+                            <apiDocsUrl>http://localhost:8080/v3/api-docs</apiDocsUrl>
+                            <outputFileName>apidocs.json</outputFileName>
+                            <outputDir>${project.basedir}</outputDir>
                         </configuration>
                     </plugin>
                 </plugins>

@@ -1,8 +1,8 @@
--- A starting point for the shared compatibility catalog.
+-- A starting point for the shared Fitment Catalog.
 --
 -- The catalog_* tables are global — no shop_id — and Flyway leaves them empty. That is a problem on
--- a fresh database, because the COMPATIBILITY plan sells exactly one thing: type a phone, see which
--- parts fit it. On an empty catalog it sells a blank screen.
+-- a fresh database: the commons is free and is how a shop looks up which parts fit a phone. On an
+-- empty catalog that lookup is a blank screen.
 --
 -- What this seeds, and what it deliberately does not:
 --

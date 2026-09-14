@@ -10,11 +10,18 @@ import com.fixflow.catalog.repository.DeviceAliasRepository;
 import com.fixflow.catalog.repository.DeviceModelRepository;
 import com.fixflow.catalog.repository.ProductVariantRepository;
 import com.fixflow.common.util.TextNormalizer;
+import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
+import com.fixflow.commons.domain.CatalogEntities.CatalogComponent;
+import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
+import com.fixflow.commons.repository.CatalogBrandRepository;
+import com.fixflow.commons.repository.CatalogComponentRepository;
+import com.fixflow.commons.repository.CatalogDeviceRepository;
 import com.fixflow.config.FixFlowProperties;
 import com.fixflow.pricing.domain.PricingFlag;
 import com.fixflow.pricing.service.PriceContext;
 import com.fixflow.pricing.service.PricingService;
 import com.fixflow.search.dto.SearchDtos.BrandHit;
+import com.fixflow.search.dto.SearchDtos.CommonsSearchHit;
 import com.fixflow.search.dto.SearchDtos.GlobalSearchResponse;
 import com.fixflow.search.dto.SearchDtos.PartSearchHit;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +58,9 @@ public class SearchService {
     private final CategoryRepository categoryRepository;
     private final PricingService pricingService;
     private final FixFlowProperties properties;
+    private final CatalogDeviceRepository catalogDevices;
+    private final CatalogComponentRepository catalogComponents;
+    private final CatalogBrandRepository catalogBrands;
 
     @Transactional(readOnly = true)
     public GlobalSearchResponse search(UUID shopId, String rawQuery, PricingFlag flag) {
@@ -59,7 +69,7 @@ public class SearchService {
 
         if (trimmed.length() < MIN_QUERY_LENGTH) {
             return new GlobalSearchResponse(trimmed, List.of(), List.of(), List.of(), null, 0,
-                    elapsedMillis(startedAt));
+                    elapsedMillis(startedAt), List.of(), List.of());
         }
 
         String normalized = TextNormalizer.normalize(trimmed);
@@ -69,10 +79,13 @@ public class SearchService {
         List<DeviceSearchHit> devices = searchDevices(shopId, normalized);
         List<PartSearchHit> parts = searchParts(shopId, normalized, trimmed, effectiveFlag);
         List<BrandHit> brands = searchBrands(shopId, normalized);
+        List<CommonsSearchHit> commonsDevices = searchCommonsDevices(trimmed);
+        List<CommonsSearchHit> commonsComponents = searchCommonsComponents(trimmed);
 
-        int total = devices.size() + parts.size() + brands.size();
+        int total = devices.size() + parts.size() + brands.size()
+                + commonsDevices.size() + commonsComponents.size();
         return new GlobalSearchResponse(trimmed, devices, parts, brands, exactMatch, total,
-                elapsedMillis(startedAt));
+                elapsedMillis(startedAt), commonsDevices, commonsComponents);
     }
 
     /**
@@ -167,6 +180,47 @@ public class SearchService {
     private Map<UUID, String> categoryNames(UUID shopId) {
         return categoryRepository.findByShopIdOrderBySortOrderAscNameAsc(shopId).stream()
                 .collect(Collectors.toMap(Category::getId, Category::getName));
+    }
+
+    private List<CommonsSearchHit> searchCommonsDevices(String term) {
+        List<CatalogDevice> rows = catalogDevices.search(term, PageRequest.of(0, DEFAULT_DEVICE_LIMIT))
+                .getContent();
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> brandNames = catalogBrands.findAllById(rows.stream()
+                        .map(CatalogDevice::getBrandId)
+                        .distinct()
+                        .toList())
+                .stream()
+                .collect(Collectors.toMap(CatalogBrand::getId, CatalogBrand::getName));
+        return rows.stream()
+                .map(device -> new CommonsSearchHit(
+                        device.getId(),
+                        device.getName(),
+                        "device",
+                        device.getBrandId(),
+                        brandNames.get(device.getBrandId()),
+                        null,
+                        device.getVariant(),
+                        device.getModelCode()))
+                .toList();
+    }
+
+    private List<CommonsSearchHit> searchCommonsComponents(String term) {
+        return catalogComponents.search(term, PageRequest.of(0, DEFAULT_PART_LIMIT))
+                .getContent()
+                .stream()
+                .map(component -> new CommonsSearchHit(
+                        component.getId(),
+                        component.getName(),
+                        "component",
+                        null,
+                        null,
+                        component.getCategoryCode(),
+                        null,
+                        null))
+                .toList();
     }
 
     private static long elapsedMillis(long startedAtNanos) {

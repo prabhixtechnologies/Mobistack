@@ -47,19 +47,43 @@ public class UserPrincipal implements UserDetails {
 
     public static UserPrincipal from(User user) {
         return new UserPrincipal(user.getId(), user.getShopId(), user.getEmail(), user.getFullName(),
-                user.isActive() && !user.isLocked(), user.roleCodes(), user.effectivePermissions());
+                user.isActive(), user.roleCodes(), user.effectivePermissions());
     }
 
     /** Token for a verified ACTIVE membership. Permissions come from that role only. */
     public static UserPrincipal forWorkspace(User user, UUID workspaceId, Role role) {
         return new UserPrincipal(user.getId(), workspaceId, user.getEmail(), user.getFullName(),
-                user.isActive() && !user.isLocked(), Set.of(role.getCode()), role.permissionCodes());
+                user.isActive(), Set.of(role.getCode()), role.permissionCodes());
     }
 
     /** Logged in but no workspace selected yet — My Workspaces screen. */
     public static UserPrincipal unscoped(User user) {
         return new UserPrincipal(user.getId(), null, user.getEmail(), user.getFullName(),
-                user.isActive() && !user.isLocked(), Set.of(), Set.of());
+                user.isActive(), Set.of(), Set.of());
+    }
+
+    /**
+     * Adds authorities that are not part of the shop role — today, shared-catalog review.
+     */
+    public UserPrincipal withPermissions(Set<Permission> extra) {
+        if (extra == null || extra.isEmpty()) {
+            return this;
+        }
+        Set<Permission> merged = new LinkedHashSet<>(permissions);
+        merged.addAll(extra);
+        return new UserPrincipal(id, shopId, email, fullName, enabled, roles, merged);
+    }
+
+    /**
+     * A oneOps BFF call acting for a staff member who may have no MobiStack shop at all.
+     *
+     * <p>The id is Identity's, which this database also uses as {@code users.id} when the person
+     * has been mirrored — and is still a stable actor id when they have not.
+     */
+    public static UserPrincipal platformBff(UUID actingUserId) {
+        return new UserPrincipal(actingUserId, null,
+                "staff+" + actingUserId + "@prabhix.internal", "Platform staff", true,
+                Set.of("PLATFORM_BFF"), Set.of());
     }
 
     public boolean hasWorkspace() {
@@ -75,7 +99,7 @@ public class UserPrincipal implements UserDetails {
         return authorities;
     }
 
-    /** Never exposed: the JWT filter authenticates, so no password is held in memory. */
+    /** Never exposed: Identity authenticates, so no password exists on this side at all. */
     @Override
     public String getPassword() {
         return null;

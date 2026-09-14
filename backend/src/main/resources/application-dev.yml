@@ -1,15 +1,16 @@
 # Local development profile: run with -Dspring-boot.run.profiles=dev
+#
+# Sign-in needs a local Identity (Identity/README.md); its issuer is http://localhost:8081 unless
+# IDENTITY_ISSUER says otherwise. Without one, no bearer token is accepted.
+prabhix:
+  identity:
+    issuer: ${IDENTITY_ISSUER:http://localhost:8081}
+    internal-base-url: ${IDENTITY_INTERNAL_URL:http://localhost:8081}
+    service-token: ${IDENTITY_SERVICE_TOKEN:local-dev-identity-service-token}
+
 fixflow:
-  security:
-    jwt:
-      # Development-only key. Never reuse this outside a local machine.
-      secret: fixflow-local-development-signing-key-do-not-use-in-production-0123456789
   auth:
     web-origin: ${FIXFLOW_WEB_ORIGIN:http://localhost:5173}
-    # Shortcuts that only exist here: a fixed OTP and an SSO bypass so a
-    # developer can sign in without mail or Twilio credentials.
-    dev-otp: "123456"
-    dev-sso-enabled: true
   platform:
     public-origin: ${FIXFLOW_PUBLIC_ORIGIN:http://localhost:5173}
     api-origin: ${FIXFLOW_API_ORIGIN:http://localhost:8080}
@@ -18,8 +19,8 @@ fixflow:
     enabled: ${FIXFLOW_REDIS_ENABLED:false}
   demo:
     seed-enabled: true
+    # Must be the address of an Identity account: the demo shop's owner row is a mirror of it.
     owner-email: owner@prabhixtechnologies.com
-    owner-password: Owner@123
 
 spring:
   jpa:

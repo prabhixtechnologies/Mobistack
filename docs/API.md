@@ -9,33 +9,19 @@ Every business request is scoped to the workspace encoded in the access token. A
 
 ## Authentication
 
+Sign-in is **Prabhix Identity** (OIDC + PKCE). This backend verifies RS256 access tokens via
+`identity-spring-boot-starter`. It does not mint user tokens and has no password, magic-link, OTP
+or Google endpoints.
+
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/auth/login` | Email + password. Access + rotating refresh token |
-| POST | `/auth/register` | Create a user without a shop |
-| POST | `/auth/register-shop` | Creates a shop and its first OWNER |
-| POST | `/auth/magic-link` | Passwordless email link. The code is never returned in the API response |
-| POST | `/auth/magic-link/consume` | Exchange the token for a session |
-| POST | `/auth/email-otp` / `/auth/email-otp/verify` | Passwordless email code |
-| POST | `/auth/phone/start` / `/auth/phone/verify` | SMS OTP via Twilio (creates the user if needed) |
-| POST | `/auth/whatsapp/start` / `/auth/whatsapp/verify` | WhatsApp OTP via Twilio |
-| POST | `/auth/sso/dev` | Local SSO stand-in (`fixflow.auth.dev-sso-enabled`) |
-| GET | `/auth/sso/google/start` | Google authorization URL when a client id is configured |
-| POST | `/auth/sso/google` | Exchange the Google code for a MobiStack session |
-| GET | `/auth/methods` | Available methods + brand card |
+| GET | `/auth/me` | Current user + workspace permissions |
+| POST | `/auth/logout` | Clears the local session cookie if one was issued |
 | GET | `/public/brand` | Product name, organisation, tagline, copyright, public HTTPS origin |
 | GET | `/public/platform` | Canonical URLs, support email, HTTPS flag |
 | GET | `/public/app-release` | OTA channel + min native build (`platform`, `build`) |
-| GET | `/auth/sessions` | Active devices for this account |
-| DELETE | `/auth/sessions/{id}` | Revoke one device |
-| POST | `/auth/refresh` | Replay of a used refresh token kills every session |
-| POST | `/auth/forgot-password` | Sends reset instructions if the account exists |
-| POST | `/auth/reset-password` | Consumes the reset token |
-| POST | `/auth/request-otp` | SMS OTP via Twilio. The code is never returned in the API response |
-| POST | `/auth/verify-otp` | Marks the phone verified (does not issue a session) |
-| POST | `/auth/logout` | Revokes the refresh token |
-| GET | `/auth/me` | Current user + permissions |
-| POST | `/auth/change-password` | Ends every other session |
+
+Account changes (password, passkeys, email, sessions) go to Identity `/account`, not here.
 
 ## Workspaces
 
@@ -55,9 +41,65 @@ Every business request is scoped to the workspace encoded in the access token. A
 
 | Method | Path | What it answers |
 | --- | --- | --- |
-| GET | `/search?q=realme+6` | Devices, aliases, SKUs, barcodes, parts |
-| GET | `/devices/{id}/compatibility?flag=NORMAL` | Compatible models + stock + price by category |
+| GET | `/commons/devices?q=realme+6` | Shared Fitment Catalog — what phones exist |
+| GET | `/commons/devices/{id}/fits` | What parts fit that phone |
+| GET | `/search?q=realme+6` | Shared catalog hits, plus this shop's aliases, SKUs, barcodes, parts |
+| GET | `/inventory/catalog-links/devices/{catalogDeviceId}/stock` | This shop's stock that fits the catalog phone |
+| GET | `/devices/{id}/compatibility?flag=NORMAL` | This shop's private device graph + stock + price |
 | GET | `/pricing/quote/{variantId}?flag=REPAIR` | Resolved unit price and why |
+
+## Fitment Catalog (`/commons`)
+
+The catalog is **global and free**. There is no shop id on these rows, and they are not gated on the
+`COMPATIBILITY` plan. Anyone signed in may read them, including an unpaid workspace. Contributing
+is also `isAuthenticated()`. Reviewing is not a shop permission: Prabhix grants it per user.
+
+`GET /auth/me` includes `commonsReviewer` when the caller is in `commons_reviewers`.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/commons/stats` | Shop count + catalog sizes (for “shared with N shops”) |
+| GET | `/commons/brands` | |
+| GET | `/commons/devices` | `q`, optional `brandId`, page, size |
+| GET | `/commons/devices/{id}` | |
+| GET | `/commons/devices/{id}/fits` | Confirm/dispute counts, verified flag |
+| GET | `/commons/components` | `q` optional |
+| GET | `/commons/components/{id}` | |
+| GET | `/commons/components/{id}/devices` | The other direction |
+| POST | `/commons/contributions` | `kind`: `ADD_DEVICE`, `ADD_COMPONENT`, `ADD_FITMENT`, `CONFIRM_FITMENT`, `DISPUTE_FITMENT` |
+| GET | `/commons/contributions/mine` | |
+| GET | `/commons/standing` | Accepted / rejected / trusted / banned |
+| GET | `/commons/review/queue` | Requires catalog review (table, not a shop role) |
+| POST | `/commons/review/{id}/accept` | |
+| POST | `/commons/review/{id}/reject` | |
+| POST | `/commons/review/fitments/{id}/verify` | Settles a dispute |
+| POST | `/commons/review/contributors/{userId}/trust` | |
+| POST | `/commons/review/contributors/{userId}/ban` | |
+
+Grant and revoke review (platform staff / BFF). The oneOps BFF is the intended writer; MobiStack
+exposes both surfaces so a grant still works before that BFF client exists.
+
+| Method | Path | Auth |
+| --- | --- | --- |
+| GET, POST | `/api/v1/admin/commons-reviewers` | Platform admin BFF (`X-Prabhix-Acting-User`) |
+| POST | `/api/v1/admin/commons-reviewers/{userId}/grant` | same |
+| POST | `/api/v1/admin/commons-reviewers/{userId}/revoke` | same |
+| GET, POST | `/internal/admin/commons-reviewers` | Service token + acting user |
+| POST | `/internal/admin/commons-reviewers/{userId}/grant` | same |
+| POST | `/internal/admin/commons-reviewers/{userId}/revoke` | same |
+
+`POST` body: `{ "userId", "reason" }`. Table PK is `user_id`.
+
+Shop inventory points at catalog parts (these **are** tenant data and need inventory permission):
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| PUT | `/inventory/catalog-links/{variantId}` | `{ "componentId" }` |
+| DELETE | `/inventory/catalog-links/{variantId}` | |
+| GET | `/inventory/catalog-links/devices/{catalogDeviceId}/stock` | `INVENTORY_READ` |
+
+Private per-shop groups remain at `/compatibility-groups`. `COMPATIBILITY_APPROVE` still approves
+those notes. `GET /sync/snapshot` includes a `commons` slice: brands plus up to 200 popular devices.
 
 ## Commerce
 

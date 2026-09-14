@@ -1,5 +1,6 @@
 package com.fixflow.commons.web;
 
+import com.fixflow.common.web.PageResponse;
 import com.fixflow.commons.domain.CatalogContribution;
 import com.fixflow.commons.domain.CatalogContribution.Kind;
 import com.fixflow.commons.domain.CatalogContributor;
@@ -9,11 +10,11 @@ import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
+import com.fixflow.shop.repository.ShopRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,8 +49,22 @@ public class CommonsController {
 
     private final CommonsCatalogService catalog;
     private final ContributionService contributions;
+    private final ShopRepository shops;
 
     // --- Reading -----------------------------------------------------------------------------------
+
+    /**
+     * How large the shared catalog is, and how many shops it is shared with.
+     *
+     * <p>Shop count is the one number that is not itself catalog data: it is how the UI labels the
+     * Fitment Catalog area ("shared with N shops") without asking a tenant endpoint.
+     */
+    @GetMapping("/stats")
+    @PreAuthorize("isAuthenticated()")
+    public StatsView stats() {
+        return new StatsView(shops.count(), catalog.brandCount(), catalog.deviceCount(),
+                catalog.componentCount(), catalog.fitmentCount());
+    }
 
     @GetMapping("/brands")
     @PreAuthorize("isAuthenticated()")
@@ -59,18 +74,44 @@ public class CommonsController {
 
     @GetMapping("/devices")
     @PreAuthorize("isAuthenticated()")
-    public Page<DeviceView> devices(@RequestParam String q,
-                                    @RequestParam(defaultValue = "0") int page,
-                                    @RequestParam(defaultValue = "20") int size) {
-        return catalog.searchDevices(q, page, size).map(DeviceView::of);
+    public PageResponse<DeviceView> devices(@RequestParam(required = false) String q,
+                                            @RequestParam(required = false) UUID brandId,
+                                            @RequestParam(defaultValue = "0") int page,
+                                            @RequestParam(defaultValue = "20") int size) {
+        boolean blank = q == null || q.isBlank();
+        var result = brandId != null && blank
+                ? catalog.devicesForBrand(brandId, page, size)
+                : blank ? catalog.listDevices(page, size) : catalog.searchDevices(q, page, size);
+        var names = catalog.brandNames(result.getContent().stream()
+                .map(CatalogDevice::getBrandId)
+                .distinct()
+                .toList());
+        return PageResponse.of(result, device -> DeviceView.of(device, names.get(device.getBrandId())));
+    }
+
+    @GetMapping("/devices/{deviceId}")
+    @PreAuthorize("isAuthenticated()")
+    public DeviceView device(@PathVariable UUID deviceId) {
+        CatalogDevice device = catalog.requireDevice(deviceId);
+        var names = catalog.brandNames(List.of(device.getBrandId()));
+        return DeviceView.of(device, names.get(device.getBrandId()));
     }
 
     @GetMapping("/components")
     @PreAuthorize("isAuthenticated()")
-    public Page<ComponentView> components(@RequestParam String q,
-                                          @RequestParam(defaultValue = "0") int page,
-                                          @RequestParam(defaultValue = "20") int size) {
-        return catalog.searchComponents(q, page, size).map(ComponentView::of);
+    public PageResponse<ComponentView> components(@RequestParam(required = false) String q,
+                                                  @RequestParam(defaultValue = "0") int page,
+                                                  @RequestParam(defaultValue = "20") int size) {
+        var result = q == null || q.isBlank()
+                ? catalog.listComponents(page, size)
+                : catalog.searchComponents(q, page, size);
+        return PageResponse.of(result, ComponentView::of);
+    }
+
+    @GetMapping("/components/{componentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ComponentView component(@PathVariable UUID componentId) {
+        return ComponentView.of(catalog.requireComponent(componentId));
     }
 
     /** What fits this phone. The question the commons exists to answer. */
@@ -88,7 +129,9 @@ public class CommonsController {
     @GetMapping("/components/{componentId}/devices")
     @PreAuthorize("isAuthenticated()")
     public List<DeviceView> devicesFor(@PathVariable UUID componentId) {
-        return catalog.devicesForComponent(componentId).stream().map(DeviceView::of).toList();
+        List<CatalogDevice> found = catalog.devicesForComponent(componentId);
+        var names = catalog.brandNames(found.stream().map(CatalogDevice::getBrandId).distinct().toList());
+        return found.stream().map(device -> DeviceView.of(device, names.get(device.getBrandId()))).toList();
     }
 
     // --- Contributing ------------------------------------------------------------------------------
@@ -107,9 +150,9 @@ public class CommonsController {
 
     @GetMapping("/contributions/mine")
     @PreAuthorize("isAuthenticated()")
-    public Page<ContributionView> mine(@RequestParam(defaultValue = "0") int page,
-                                       @RequestParam(defaultValue = "20") int size) {
-        return contributions.mine(CurrentUser.userId(), page, size).map(ContributionView::of);
+    public PageResponse<ContributionView> mine(@RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "20") int size) {
+        return PageResponse.of(contributions.mine(CurrentUser.userId(), page, size), ContributionView::of);
     }
 
     @GetMapping("/standing")
@@ -122,9 +165,9 @@ public class CommonsController {
 
     @GetMapping("/review/queue")
     @PreAuthorize(Authorize.COMMONS_REVIEW)
-    public Page<ContributionView> queue(@RequestParam(defaultValue = "0") int page,
-                                        @RequestParam(defaultValue = "20") int size) {
-        return contributions.queue(page, size).map(ContributionView::of);
+    public PageResponse<ContributionView> queue(@RequestParam(defaultValue = "0") int page,
+                                                @RequestParam(defaultValue = "20") int size) {
+        return PageResponse.of(contributions.queue(page, size), ContributionView::of);
     }
 
     @PostMapping("/review/{id}/accept")
@@ -189,6 +232,10 @@ public class CommonsController {
     public record BanRequest(boolean banned, String reason) {
     }
 
+    public record StatsView(long shopCount, long brandCount, long deviceCount, long componentCount,
+                            long fitmentCount) {
+    }
+
     public record BrandView(UUID id, String name, String logoUrl) {
         static BrandView of(CatalogBrand brand) {
             return new BrandView(brand.getId(), brand.getName(), brand.getLogoUrl());
@@ -197,12 +244,13 @@ public class CommonsController {
 
     public record DeviceView(UUID id,
                              UUID brandId,
+                             String brandName,
                              String name,
                              String variant,
                              String modelCode,
                              Integer releaseYear) {
-        static DeviceView of(CatalogDevice device) {
-            return new DeviceView(device.getId(), device.getBrandId(), device.getName(),
+        static DeviceView of(CatalogDevice device, String brandName) {
+            return new DeviceView(device.getId(), device.getBrandId(), brandName, device.getName(),
                     device.getVariant(), device.getModelCode(), device.getReleaseYear());
         }
     }

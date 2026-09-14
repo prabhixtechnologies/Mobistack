@@ -80,7 +80,7 @@ interface PaymentRow {
   paidAt?: string;
 }
 
-type AdminTab = "shops" | "plans" | "payments" | "live" | "support" | "releases";
+type AdminTab = "shops" | "plans" | "payments" | "live" | "support" | "releases" | "reviewers";
 
 const emptyPlan = {
   code: "",
@@ -101,6 +101,11 @@ export function AdminPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [featureDefs, setFeatureDefs] = useState<FeatureDef[]>([]);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [reviewers, setReviewers] = useState<
+    { userId: string; email?: string; fullName?: string; reason?: string; grantedAt?: string }[]
+  >([]);
+  const [reviewerId, setReviewerId] = useState("");
+  const [reviewerReason, setReviewerReason] = useState("");
   const [draft, setDraft] = useState(emptyPlan);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [reply, setReply] = useState("");
@@ -127,6 +132,13 @@ export function AdminPage() {
     setPayments(paymentRows);
   }
 
+  async function loadReviewers() {
+    const rows = await api<
+      { userId: string; email?: string; fullName?: string; reason?: string; grantedAt?: string }[]
+    >("/api/v1/admin/commons-reviewers");
+    setReviewers(rows);
+  }
+
   useEffect(() => {
     load().catch((err: Error) => setError(err.message));
     const tick = () => {
@@ -140,6 +152,13 @@ export function AdminPage() {
       document.removeEventListener("visibilitychange", tick);
     };
   }, []);
+
+  useEffect(() => {
+    if (tab !== "reviewers") {
+      return;
+    }
+    loadReviewers().catch((err: Error) => setError(err.message));
+  }, [tab]);
 
   async function toggleShop(workspace: Workspace) {
     await api(`/api/v1/admin/workspaces/${workspace.id}/${workspace.active ? "suspend" : "activate"}`, { method: "POST" });
@@ -162,7 +181,7 @@ export function AdminPage() {
         subtitle="Plans, payments, live users, support, and the native/OTA release gate."
         actions={
         <div className="method-tabs">
-          {(["shops", "plans", "payments", "live", "support", "releases"] as const).map((id) => (
+          {(["shops", "plans", "payments", "live", "support", "releases", "reviewers"] as const).map((id) => (
             <button key={id} className={`method-tab ${tab === id ? "on" : ""}`} type="button" onClick={() => setTab(id)}>
               {id}
             </button>
@@ -510,6 +529,60 @@ export function AdminPage() {
             </div>
             ))
           )}
+        </div>
+      )}
+
+      {tab === "reviewers" && (
+        <div className="stack">
+          <form
+            className="card stack"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void api("/api/v1/admin/commons-reviewers", {
+                method: "POST",
+                body: JSON.stringify({ userId: reviewerId.trim(), reason: reviewerReason.trim() || undefined }),
+              })
+                .then(() => {
+                  setReviewerId("");
+                  setReviewerReason("");
+                  return loadReviewers();
+                })
+                .catch((err: Error) => setError(err.message));
+            }}
+          >
+            <strong>Grant catalog review</strong>
+            <p className="faint">User-level, granted by Prabhix. Not a shop role.</p>
+            <TextField label="User id" value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} required />
+            <TextField label="Reason" value={reviewerReason} onChange={(event) => setReviewerReason(event.target.value)} />
+            <button className="btn" type="submit">
+              Grant
+            </button>
+          </form>
+          <div className="card tight">
+            {reviewers.length === 0 ? (
+              <EmptyState compact icon="shield" title="No reviewers yet" hint="Grant a user id to open the shared catalog queue." />
+            ) : (
+              reviewers.map((row) => (
+                <div className="category-row" key={row.userId}>
+                  <div>
+                    <div style={{ fontWeight: 650 }}>{row.fullName ?? row.email ?? row.userId}</div>
+                    <div className="faint">{row.reason ?? row.userId}</div>
+                  </div>
+                  <button
+                    className="btn ghost"
+                    type="button"
+                    onClick={() =>
+                      void api(`/api/v1/admin/commons-reviewers/${row.userId}/revoke`, { method: "POST" })
+                        .then(loadReviewers)
+                        .catch((err: Error) => setError(err.message))
+                    }
+                  >
+                    Revoke
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

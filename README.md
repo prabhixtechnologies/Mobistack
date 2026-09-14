@@ -16,6 +16,7 @@ This repository is a monorepo:
 | `backend/` | Java 25, Spring Boot 4.1, PostgreSQL, Flyway | API, domain, pricing, inventory ledger |
 | `web/` | React 19, TypeScript, Vite | Owner / manager console |
 | `mobile/` | React Native, Expo, TypeScript | Native Android + iOS counter app with SQLite offline cache |
+| `packages/mobistack-api` | TypeScript | `@prabhix/mobistack-api` types from `backend/apidocs.json` |
 | `docs/` | Markdown | API notes |
 
 ## What you can do today
@@ -44,7 +45,8 @@ A workspace is still the `shops` row — same UUID. Access is `User → Membersh
 - Maven 3.8+
 - Node 20+
 - PostgreSQL 16
-- Docker optional — `docker compose -f docker-compose.yml -f docker-compose.local.yml up postgres redis` if you have it
+- Docker optional — the Infra repository's compose stack runs Postgres, Redis and Identity for
+  every product: `cd ..\Infra; docker compose -f docker-compose.yml -f docker-compose.local.yml up -d postgres redis identity`
 
 ### PostgreSQL without Docker
 
@@ -73,26 +75,27 @@ A JWT signing key is supplied by `application-dev.yml`. Every other profile refu
 
 ## Laptop Docker
 
+This repository has no compose files of its own. MobiStack is a profile of the one stack in the
+Infra repository, locally as in production:
+
 ```powershell
-docker compose --profile full -f docker-compose.yml -f docker-compose.local.yml up --build -d
+cd ..\Infra
+$env:COMPOSE_PROFILES = "identity,mobistack"
+docker compose -f docker-compose.yml -f docker-compose.local.yml up --build -d
 ```
 
-Web: [http://localhost:4173](http://localhost:4173). API: [http://localhost:8080](http://localhost:8080).  
-Do not start `--profile prod` / Caddy on the laptop.
+Web: [http://localhost:5176](http://localhost:5176). API: [http://localhost:8082](http://localhost:8082).
+Identity, which it signs in through: [http://localhost:8081](http://localhost:8081).
 
-## Production (Amazon ECR → EC2)
+## Production
 
-Canonical origin: **https://mobistack.prabhixtechnologies.com**
+Canonical origin: **https://mobistack.prabhixtechnologies.com** — magic links, invoices, CORS and
+release-app URLs are all built from it.
 
-Magic links, Google redirects, invoices, CORS, and release-app URLs use that host.
-
-1. Test on the laptop with the command above.
-2. Push `main` and let GitHub Actions publish to ECR — no registry secrets, the workflow assumes an IAM role through OIDC. `.\deploy\publish.ps1` does the same from a laptop when CI is unavailable.
-3. On the EC2 that the subdomain points at: copy `deploy/.env.prod.example` to `.env`, then `./deploy/ec2-up.sh`.
-
-EC2 only pulls images. It does not build Java or Node. Caddy terminates TLS (Let's Encrypt) on ports 80 and 443. Postgres and Redis are not published on the host.
-
-Full runbook: [deploy/README.md](deploy/README.md).
+Push `main` and **Build and verify** publishes both images to Amazon ECR, tagged with the short
+commit sha. Putting a build live is the Infra repository's **Deploy** workflow, with
+`mobistack_backend_tag` and `mobistack_web_tag` set to that sha. The server pulls images; it never
+builds Java or Node. Details in [deploy/README.md](deploy/README.md).
 
 ## Run the web console
 
@@ -147,3 +150,5 @@ mvn test "-Djava.version=17"
 ```
 
 Integration tests that need Docker are tagged `integration` and skipped unless you pass `-Pintegration`.
+
+`packages/mobistack-api` (`@prabhix/mobistack-api`) is generated from `backend/apidocs.json`. CI regenerates it and fails on drift. Refresh the snapshot with `SWAGGER_ENABLED=true` and `backend/scripts/export-openapi.ps1`, or `mvn -Pgenerate-openapi springdoc-openapi:generate`.

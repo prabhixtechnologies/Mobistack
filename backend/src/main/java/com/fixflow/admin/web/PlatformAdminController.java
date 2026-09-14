@@ -2,9 +2,11 @@ package com.fixflow.admin.web;
 
 import com.fixflow.admin.service.PlatformAdminService;
 import com.fixflow.admin.service.PlatformAdminService.WorkspaceAdminCard;
-import com.fixflow.auth.service.DeviceSessionService;
+import com.fixflow.billing.service.ScreenSeatService;
 import com.fixflow.billing.repository.BillingOrderRepository;
 import com.fixflow.billing.service.PlanService;
+import com.fixflow.commons.domain.CatalogContribution;
+import com.fixflow.commons.service.ContributionService;
 import com.fixflow.flags.service.FeatureFlagService;
 import com.fixflow.flags.service.FeatureFlagService.FlagCard;
 import com.fixflow.presence.PresenceService;
@@ -15,6 +17,7 @@ import com.fixflow.support.service.SupportService;
 import com.fixflow.updates.service.AppReleaseService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fixflow.commerce.domain.PaymentStatus;
@@ -43,11 +47,12 @@ public class PlatformAdminController {
     private final FeatureFlagService featureFlagService;
     private final BillingOrderRepository billingOrderRepository;
     private final PresenceService presenceService;
-    private final DeviceSessionService deviceSessionService;
+    private final ScreenSeatService screenSeatService;
     private final SupportService supportService;
     private final AppReleaseService appReleaseService;
     private final ShopRepository shopRepository;
     private final PlanService planService;
+    private final ContributionService contributionService;
 
     @GetMapping("/workspaces")
     public List<WorkspaceAdminCard> workspaces() {
@@ -185,23 +190,13 @@ public class PlatformAdminController {
         return presenceService.liveAll();
     }
 
-    @GetMapping("/sessions/{userId}")
-    public List<DeviceSessionService.SessionCard> sessions(@PathVariable UUID userId) {
-        platformAdminService.requireAdmin();
-        return deviceSessionService.listMine(userId, null);
-    }
-
-    @PostMapping("/sessions/{userId}/revoke-device")
-    public Map<String, Integer> revokeDevice(@PathVariable UUID userId, @RequestBody Map<String, String> body) {
-        platformAdminService.requireAdmin();
-        int revoked = deviceSessionService.revokeUserDevice(userId, body.get("deviceId"));
-        return Map.of("revoked", revoked);
-    }
-
-    @PostMapping("/sessions/{userId}/revoke-all")
-    public Map<String, Integer> revokeAll(@PathVariable UUID userId) {
-        platformAdminService.requireAdmin();
-        return Map.of("revoked", deviceSessionService.revokeAll(userId));
+    @PostMapping("/live/{userId}/kick")
+    public Map<String, Object> kick(@PathVariable UUID userId,
+                                    @RequestBody(required = false) Map<String, String> body) {
+        UUID actor = platformAdminService.requireAdmin();
+        String deviceId = body == null ? null : body.get("deviceId");
+        int kicked = presenceService.kick(userId, deviceId);
+        return Map.of("kicked", kicked, "userId", userId, "actor", actor);
     }
 
     @PostMapping({"/workspaces/{id}/screens", "/workspaces/{id}/device-limit"})
@@ -211,7 +206,7 @@ public class PlatformAdminController {
         if (extra == null && body.get("maxDevicesPerUser") != null) {
             extra = Math.max(0, body.get("maxDevicesPerUser") - 1);
         }
-        deviceSessionService.setExtraScreens(id, extra == null ? 0 : extra);
+        screenSeatService.setExtraScreens(id, extra == null ? 0 : extra);
         return shopRepository.findById(id).orElseThrow();
     }
 
@@ -244,5 +239,46 @@ public class PlatformAdminController {
                                                          @RequestBody AppReleaseService.ReleaseUpdate body) {
         platformAdminService.requireAdmin();
         return appReleaseService.update(platform, body);
+    }
+
+    @GetMapping("/commons/queue")
+    public Page<ContributionCard> commonsQueue(@RequestParam(defaultValue = "0") int page,
+                                               @RequestParam(defaultValue = "20") int size) {
+        platformAdminService.requireAdmin();
+        return contributionService.queue(page, size).map(ContributionCard::of);
+    }
+
+    @PostMapping("/commons/{id}/accept")
+    public ContributionCard commonsAccept(@PathVariable UUID id,
+                                          @RequestBody(required = false) Map<String, String> body) {
+        UUID actor = platformAdminService.requireAdmin();
+        String note = body == null ? null : body.get("note");
+        return ContributionCard.of(contributionService.accept(actor, id, note));
+    }
+
+    @PostMapping("/commons/{id}/reject")
+    public ContributionCard commonsReject(@PathVariable UUID id,
+                                          @RequestBody(required = false) Map<String, String> body) {
+        UUID actor = platformAdminService.requireAdmin();
+        String note = body == null ? null : body.get("note");
+        return ContributionCard.of(contributionService.reject(actor, id, note));
+    }
+
+    public record ContributionCard(UUID id,
+                                   CatalogContribution.Kind kind,
+                                   CatalogContribution.Status status,
+                                   UUID targetId,
+                                   UUID appliedId,
+                                   UUID submittedBy,
+                                   String reason,
+                                   String reviewNote,
+                                   Instant createdAt,
+                                   Instant reviewedAt) {
+        static ContributionCard of(CatalogContribution contribution) {
+            return new ContributionCard(contribution.getId(), contribution.getKind(),
+                    contribution.getStatus(), contribution.getTargetId(), contribution.getAppliedId(),
+                    contribution.getSubmittedBy(), contribution.getReason(), contribution.getReviewNote(),
+                    contribution.getCreatedAt(), contribution.getReviewedAt());
+        }
     }
 }

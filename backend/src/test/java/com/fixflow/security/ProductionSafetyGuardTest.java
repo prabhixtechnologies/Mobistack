@@ -1,6 +1,7 @@
 package com.fixflow.security;
 
 import com.fixflow.config.FixFlowProperties;
+import com.prabhix.identity.client.IdentityClientProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -9,38 +10,68 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProductionSafetyGuardTest {
 
-    @Test
-    void prodRejectsKnownLocalJwt() {
-        FixFlowProperties properties = new FixFlowProperties();
-        properties.getSecurity().getJwt().setSecret("fixflow-local-development-signing-key-do-not-use-in-production-0123456789");
+    private static IdentityClientProperties identity(String issuer, String serviceToken) {
+        return new IdentityClientProperties(issuer, null, null, null, null,
+                "http://identity:8081", serviceToken, null);
+    }
+
+    private static MockEnvironment profile(String name) {
         MockEnvironment env = new MockEnvironment();
-        env.setActiveProfiles("prod");
-        ProductionSafetyGuard guard = new ProductionSafetyGuard(env, properties);
+        env.setActiveProfiles(name);
+        return env;
+    }
+
+    @Test
+    void prodRejectsMissingIssuer() {
+        ProductionSafetyGuard guard = new ProductionSafetyGuard(profile("prod"), new FixFlowProperties(),
+                identity("", "a-real-service-token"));
         assertThatThrownBy(guard::rejectUnsafeProduction)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("JWT");
+                .hasMessageContaining("IDENTITY_ISSUER");
+    }
+
+    @Test
+    void prodRejectsLocalServiceToken() {
+        ProductionSafetyGuard guard = new ProductionSafetyGuard(profile("prod"), new FixFlowProperties(),
+                identity("https://id.prabhixtechnologies.com", "local-dev-identity-service-token"));
+        assertThatThrownBy(guard::rejectUnsafeProduction)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("service token");
+    }
+
+    @Test
+    void prodRejectsMissingServiceToken() {
+        ProductionSafetyGuard guard = new ProductionSafetyGuard(profile("prod"), new FixFlowProperties(),
+                identity("https://id.prabhixtechnologies.com", ""));
+        assertThatThrownBy(guard::rejectUnsafeProduction)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("IDENTITY_SERVICE_TOKEN");
     }
 
     @Test
     void prodRejectsDemoSeed() {
         FixFlowProperties properties = new FixFlowProperties();
-        properties.getSecurity().getJwt().setSecret("a-production-grade-signing-key-that-is-longer-than-sixty-four-characters");
         properties.getDemo().setSeedEnabled(true);
-        MockEnvironment env = new MockEnvironment();
-        env.setActiveProfiles("prod");
-        ProductionSafetyGuard guard = new ProductionSafetyGuard(env, properties);
-        assertThatThrownBy(guard::rejectUnsafeProduction).isInstanceOf(IllegalStateException.class);
+        ProductionSafetyGuard guard = new ProductionSafetyGuard(profile("prod"), properties,
+                identity("https://id.prabhixtechnologies.com", "a-real-service-token"));
+        assertThatThrownBy(guard::rejectUnsafeProduction)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("demo seed");
     }
 
     @Test
-    void devAllowsLocalSecret() {
+    void prodAcceptsCompleteConfiguration() {
+        ProductionSafetyGuard guard = new ProductionSafetyGuard(profile("prod"), new FixFlowProperties(),
+                identity("https://id.prabhixtechnologies.com", "a-real-service-token"));
+        assertThatCode(guard::rejectUnsafeProduction).doesNotThrowAnyException();
+    }
+
+    @Test
+    void devAllowsLocalConfiguration() {
         FixFlowProperties properties = new FixFlowProperties();
-        properties.getSecurity().getJwt().setSecret("fixflow-local-development-signing-key-do-not-use-in-production-0123456789");
         properties.getDemo().setSeedEnabled(true);
-        properties.getAuth().setDevSsoEnabled(true);
-        MockEnvironment env = new MockEnvironment();
-        env.setActiveProfiles("dev");
-        ProductionSafetyGuard guard = new ProductionSafetyGuard(env, properties);
+        ProductionSafetyGuard guard = new ProductionSafetyGuard(profile("dev"), properties,
+                identity("", "local-dev-identity-service-token"));
         assertThatCode(guard::rejectUnsafeProduction).doesNotThrowAnyException();
     }
 }

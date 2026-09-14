@@ -37,7 +37,8 @@ export type NavIconName =
   | "trash"
   | "edit"
   | "pulse"
-  | "server";
+  | "server"
+  | "globe";
 
 export function NavIcon({ name }: { name: NavIconName }) {
   switch (name) {
@@ -119,6 +120,13 @@ export function NavIcon({ name }: { name: NavIconName }) {
       return <path d="M3 12h4l2-6 3 12 2.5-6H21" />;
     case "server":
       return <path d="M4 5h16v5H4Zm0 9h16v5H4Zm3-6.5h.01M7 16.5h.01" />;
+    case "globe":
+      return (
+        <>
+          <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+          <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+        </>
+      );
   }
 }
 

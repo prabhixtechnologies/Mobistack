@@ -9,6 +9,7 @@ import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
 import { ConfirmDialog } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
+import { humanLabel } from "../lib/labels";
 import type { PartSearchHit, GlobalSearchResponse } from "../lib/types";
 
 interface Sale {
@@ -131,7 +132,7 @@ export function SalesPage() {
       render: (sale) => (
         <div className="cell-identity">
           <strong>{sale.invoiceNumber}</strong>
-          <span className="faint">{sale.status}</span>
+          <span className="faint">{humanLabel(sale.status)}</span>
         </div>
       ),
     },
@@ -171,17 +172,18 @@ export function SalesPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Counter"
+        kicker="Shop"
         title="Sales"
-        subtitle="Scan or type a SKU, add the part, take the money. Stock leaves the ledger on complete."
+        subtitle="Find a part, add it to the ticket, take payment. Stock leaves the ledger when the sale completes."
       />
       {checkout.error && <div className="error">{checkout.error}</div>}
       {voidSale.error && <div className="error">{voidSale.error}</div>}
       {searchError && <div className="error">{searchError}</div>}
 
+      <div className="pos">
       {canSell ? (
-        <form className="card stack" onSubmit={submit}>
-          <strong>New invoice</strong>
+        <form className="pos__ticket" onSubmit={submit}>
+          <h2>This ticket</h2>
           <input
             className="field"
             value={query}
@@ -191,7 +193,7 @@ export function SalesPage() {
             autoComplete="off"
           />
           {hits.length > 0 && (
-            <div className="card tight">
+            <div className="pos__hits">
               {hits.map((hit) => (
                 <button
                   key={hit.variantId}
@@ -230,8 +232,11 @@ export function SalesPage() {
               ))}
             </div>
           )}
+          {lines.length === 0 && hits.length === 0 && (
+            <p className="faint">Search a phone part or scan a barcode to start.</p>
+          )}
           {lines.map((line, index) => (
-            <div className="spread" key={line.variantId}>
+            <div className="pos__line" key={line.variantId}>
               <div>
                 {line.name}
                 <div className="faint">{money.format(line.unitPrice)}</div>
@@ -258,8 +263,8 @@ export function SalesPage() {
               </div>
             </div>
           ))}
-          <div className="spread">
-            <select className="select" value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 160, maxWidth: "100%" }} aria-label="Payment method">
+          <div className="pos__total">
+            <select className="select" value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 140, maxWidth: "100%" }} aria-label="Payment method">
               <option value="CASH">Cash</option>
               <option value="UPI">UPI</option>
               <option value="CARD">Card</option>
@@ -272,12 +277,12 @@ export function SalesPage() {
           </button>
         </form>
       ) : (
-        <div className="card tight faint">
+        <div className="pos__ticket faint">
           Your role can read invoices but not raise them. Ask an owner for the “Take sales” permission.
         </div>
       )}
 
-      <div className="card tight">
+      <div>
         <DataTable
           columns={columns}
           rows={sales.loading && sales.rows.length === 0 ? undefined : sales.rows}
@@ -299,6 +304,7 @@ export function SalesPage() {
             noun: "invoices",
           }}
         />
+      </div>
       </div>
 
       <ConfirmDialog

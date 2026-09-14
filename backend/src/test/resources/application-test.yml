@@ -7,10 +7,16 @@ spring:
     hibernate:
       ddl-auto: none
 
+# An issuer nothing answers at: the context still assembles, and any bearer token presented to it
+# is refused because no key can be fetched. Tests that need a valid token supply their own
+# IdentityKeySource bean instead.
+prabhix:
+  identity:
+    issuer: http://identity.test
+    internal-base-url: http://identity.test
+    service-token: test-service-token
+
 fixflow:
-  security:
-    jwt:
-      secret: fixflow-test-signing-key-that-is-definitely-longer-than-sixty-four-chars
   redis:
     enabled: false
   demo:

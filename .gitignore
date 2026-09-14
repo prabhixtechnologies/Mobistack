@@ -39,6 +39,7 @@ web-build/
 **/android/local.properties
 **/android/keystore.properties
 **/android/app/mobistack-release.keystore
+**/android/app/debug.keystore
 mobile/.secrets/
 **/ios/Pods/
 **/ios/build/

@@ -70,7 +70,7 @@ export function SuppliersPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="People"
+        kicker="Shop"
         title="Suppliers"
         subtitle="Who you buy glass and boards from. Purchases post against these names."
       />

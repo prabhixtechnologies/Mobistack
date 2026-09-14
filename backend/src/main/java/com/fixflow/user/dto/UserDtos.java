@@ -15,14 +15,17 @@ public final class UserDtos {
     private UserDtos() {
     }
 
+    /**
+     * Adds a person to the workspace by email. No credential is set here: they sign in through
+     * Prabhix Identity, and the row created for them is linked to that account by email on their
+     * first request.
+     */
     @Schema(name = "CreateUserRequest")
     public record CreateUserRequest(
             @NotBlank @Size(max = 160) String fullName,
             @NotBlank @Email @Size(max = 255) String email,
             @Size(max = 32) String phone,
-            @NotBlank @Size(min = 8, max = 100) String password,
-            @NotEmpty Set<String> roles,
-            Boolean mustChangePassword
+            @NotEmpty Set<String> roles
     ) {
     }
 
@@ -43,7 +46,6 @@ public final class UserDtos {
             String phone,
             String avatarUrl,
             boolean active,
-            boolean mustChangePassword,
             Instant lastLoginAt,
             Set<String> roles,
             Set<String> permissions

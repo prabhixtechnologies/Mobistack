@@ -1,10 +1,14 @@
 # Verifies and builds. Nothing here touches the running site or a store: this
-# workflow decides whether a commit is deployable, and the two hand-triggered
-# workflows decide when it goes out.
+# workflow decides whether a commit is deployable, and shipping it is a separate,
+# hand-triggered decision made elsewhere.
 #
 #   build.yml         checks, tests, pushes images, builds the APK/AAB   (this file)
-#   deploy-ec2.yml    restarts the server on a chosen build, refreshes the APK download
 #   play-release.yml  uploads a build to Google Play
+#
+# Putting a build live is the Infra repository's Deploy workflow (Infra/.github/workflows/deploy.yml),
+# which takes the short sha this workflow tagged the images with as mobistack_backend_tag and
+# mobistack_web_tag. MobiStack runs there as the `mobistack` profile of the one production compose
+# stack; this repository holds no compose files, no Caddyfile and no server access.
 #
 # Images go to Amazon ECR, and only there. The migration is finished and the Docker Hub path is
 # gone, so there is nothing to configure per repository: no DOCKERHUB_* secrets, no
@@ -12,7 +16,7 @@
 # provider, so no long-lived key is stored anywhere.
 #
 # The repositories prabhix/mobistack-backend and prabhix/mobistack-web must exist before the first
-# push; deploy/aws/ecr-create-repos.sh in the Platform repository creates them.
+# push; deploy/aws/ecr-create-repos.sh in the Infra repository creates them.
 #
 # The push job now fails rather than skipping when it cannot reach the registry. It used to skip, so
 # that a fork without credentials still got a green build, but that also meant a missing variable
@@ -29,7 +33,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Extra image tag (also always pushes latest + git SHA)
+        description: Extra image tag (also always pushes latest + the short git sha)
         required: false
         default: ""
 
@@ -82,40 +86,34 @@ jobs:
           fi
           echo "Dev sign-in shortcuts are off by default."
 
-      - name: Android version is the same in app.json and build.gradle
+  openapi:
+    name: OpenAPI client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/mobistack-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/mobistack-api/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Generate TypeScript client
+        run: npm run generate
+      - name: Fail if the snapshot or generated client drifted
         run: |
           set -euo pipefail
-          # android/ is committed and Gradle is run against it directly, so
-          # build.gradle is the version that ships while app.json is the one
-          # people read and edit. Drift between them means a release that
-          # believes it is one build and identifies itself as another.
-          json_code=$(node -p 'require("./mobile/app.json").expo.android.versionCode')
-          json_name=$(node -p 'require("./mobile/app.json").expo.version')
-          gradle_code=$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*/\1/p' \
-            mobile/android/app/build.gradle | head -n 1)
-          gradle_name=$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*/\1/p' \
-            mobile/android/app/build.gradle | head -n 1)
-          ok=true
-          if [ "$json_code" != "$gradle_code" ]; then
-            echo "versionCode differs: app.json $json_code, build.gradle $gradle_code"
-            ok=false
-          fi
-          if [ "$json_name" != "$gradle_name" ]; then
-            echo "version differs: app.json $json_name, build.gradle $gradle_name"
-            ok=false
-          fi
-          if [ "$ok" != true ]; then
-            echo "Update both, or run VERSION_CODE=<n> node mobile/scripts/set-version-code.js"
-            exit 1
-          fi
-          echo "Android version $json_name ($json_code) agrees in both files."
-
-      # The deploy script only ever runs on the server, where a mistake in it
-      # costs a failed release and a blind log. This drives the real text of it
-      # against stubbed docker and curl: it exists because a version of the
-      # wrapper exited 0 on a failed deploy and reported the site live.
-      - name: Deploy workflow behaves on failure
-        run: bash deploy/test/deploy-workflow-cases.sh
+          git diff --exit-code --ignore-cr-at-eol -- src/schema.ts ../../backend/apidocs.json
+          node -e "
+            const s = require('../../backend/apidocs.json').components.schemas;
+            for (const n of ['AuthenticatedUser','BillingOverview','CheckoutOrderResponse']) {
+              if (!s[n]) { console.error('apidocs.json is missing schema ' + n); process.exit(1); }
+            }
+            console.log('MobiStack schemas present');
+          "
 
   # The schema is one generated baseline (Platform's deploy/squash-baseline.py produced it), and
   # nothing else in CI runs it, so without this job a broken baseline reaches a real database first.
@@ -409,20 +407,8 @@ jobs:
           npm ci
           npm run build
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: mobile/package-lock.json
-
-      - name: Mobile typecheck
-        working-directory: mobile
-        run: |
-          npm ci
-          npx tsc --noEmit
-
   push:
-    needs: [checks, migrations, test]
+    needs: [checks, migrations, test, openapi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -471,18 +457,26 @@ jobs:
           PREFIX: ${{ steps.ecr.outputs.registry }}/prabhix/
           EXTRA: ${{ github.event.inputs.tag }}
         run: |
+          # The short sha, like every other repository's CI, because that is the tag the Deploy
+          # workflow's inputs and deploy/.env.prod carry — and the one git and GitHub show, so it
+          # can be copied rather than resolved. The full sha stays as well for the images already
+          # pinned by it.
+          short="${GITHUB_SHA:0:7}"
           {
             echo "backend<<EOF"
             echo "${PREFIX}mobistack-backend:latest"
+            echo "${PREFIX}mobistack-backend:${short}"
             echo "${PREFIX}mobistack-backend:${GITHUB_SHA}"
             if [ -n "${EXTRA}" ]; then echo "${PREFIX}mobistack-backend:${EXTRA}"; fi
             echo "EOF"
             echo "web<<EOF"
             echo "${PREFIX}mobistack-web:latest"
+            echo "${PREFIX}mobistack-web:${short}"
             echo "${PREFIX}mobistack-web:${GITHUB_SHA}"
             if [ -n "${EXTRA}" ]; then echo "${PREFIX}mobistack-web:${EXTRA}"; fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+          echo "Deploy with: mobistack_backend_tag=${short} mobistack_web_tag=${short}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Push backend
         uses: docker/build-push-action@v6
@@ -501,111 +495,3 @@ jobs:
           tags: ${{ steps.tags.outputs.web }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  android-apk:
-    needs: test
-    runs-on: ubuntu-latest
-    env:
-      EXPO_PUBLIC_API_URL: https://mobistack.prabhixtechnologies.com
-      EXPO_PUBLIC_IDENTITY_ISSUER: https://api.prabhixtechnologies.com
-      ANDROID_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: mobile/package-lock.json
-
-      - uses: android-actions/setup-android@v3
-
-      - name: Install JS dependencies
-        working-directory: mobile
-        run: npm ci
-
-      - name: Assemble release APK and AAB
-        working-directory: mobile
-        run: node ./scripts/assemble-apk.js
-
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobistack-android-apk
-          path: mobile/android/app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-
-      - name: Upload Android AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobistack-android-aab
-          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-
-  # Publishing the APK to the site lives in deploy-ec2.yml, and Play in
-  # play-release.yml. Both are hand-triggered: a build proves a commit works,
-  # and shipping it is a separate decision. Play in particular cannot be
-  # automatic, since it rejects a version code it has already accepted.
-
-  ios-module:
-    needs: test
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: mobile/package-lock.json
-
-      - name: Install JS dependencies
-        working-directory: mobile
-        run: npm ci
-
-      - name: Pack Xcode project
-        run: |
-          mkdir -p dist
-          python3 - <<'PY'
-          import os, zipfile
-          root = "mobile/ios"
-          skip = {".gradle", "build", "Pods", "DerivedData"}
-          with zipfile.ZipFile("dist/mobistack-ios-xcode.zip", "w", zipfile.ZIP_DEFLATED) as zf:
-              for dirpath, dirnames, filenames in os.walk(root):
-                  dirnames[:] = [d for d in dirnames if d not in skip]
-                  for name in filenames:
-                      path = os.path.join(dirpath, name)
-                      zf.write(path, os.path.relpath(path, "mobile"))
-          PY
-
-      - name: Install CocoaPods and build simulator app
-        continue-on-error: true
-        working-directory: mobile/ios
-        run: |
-          pod install
-          xcodebuild \
-            -workspace FixFlow.xcworkspace \
-            -scheme FixFlow \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
-      - name: Upload iOS module
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobistack-ios-module
-          path: |
-            dist/mobistack-ios-xcode.zip
-            mobile/ios/build/Build/Products/Debug-iphonesimulator/*.app
-          if-no-files-found: error

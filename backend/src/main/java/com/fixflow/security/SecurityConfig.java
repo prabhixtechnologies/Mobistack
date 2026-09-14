@@ -5,6 +5,7 @@ import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;
 import com.fixflow.security.jwt.JwtAuthenticationFilter;
+
 import com.fixflow.workspace.web.WorkspaceGuardFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -35,37 +36,28 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /**
+     * Everything else needs a bearer token from Prabhix Identity. There is no sign-in route here:
+     * credentials, OTPs and sessions are Identity's, and the SPA arrives with a token already.
+     */
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/auth/login",
-            "/api/v1/auth/refresh",
-            "/api/v1/auth/register-shop",
-            "/api/v1/auth/forgot-password",
-            "/api/v1/auth/reset-password",
-            "/api/v1/auth/request-otp",
-            "/api/v1/auth/verify-otp",
-            "/api/v1/auth/methods",
-            "/api/v1/auth/register",
-            "/api/v1/auth/magic-link",
-            "/api/v1/auth/magic-link/consume",
-            "/api/v1/auth/email-otp",
-            "/api/v1/auth/email-otp/verify",
-            "/api/v1/auth/phone/start",
-            "/api/v1/auth/phone/verify",
-            "/api/v1/auth/whatsapp/start",
-            "/api/v1/auth/whatsapp/verify",
-            "/api/v1/auth/sso/google/start",
-            "/api/v1/auth/sso/google",
             "/api/v1/public/**",
             "/download/**",
             "/actuator/health/**",
             // Razorpay cannot present a token. Its authenticity is proved by the
             // HMAC signature over the raw body, checked inside the handler.
-            "/api/v1/billing/webhooks/razorpay"
+            "/api/v1/billing/webhooks/razorpay",
+            // Service-to-service. The JWT filter skips this prefix; PlatformAdminAuthFilter
+            // accepts the shared token and names the acting staff member. A shop JWT is not
+            // a credential here — requireAdmin refuses anything that is not the BFF.
+            "/api/v1/admin/**",
+            "/internal/**"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final WorkspaceGuardFilter workspaceGuardFilter;
-    private final AuthRateLimitFilter authRateLimitFilter;
+    private final ApiRateLimitFilter apiRateLimitFilter;
+    private final PlatformAdminAuthFilter platformAdminAuthFilter;
     private final FixFlowProperties properties;
     private final ObjectMapper objectMapper;
 
@@ -75,14 +67,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> {
-                    auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll();
-                    if (properties.getAuth().isDevSsoEnabled()) {
-                        auth.requestMatchers("/api/v1/auth/sso/dev").permitAll();
-                    }
-                    auth.requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                            .anyRequest().authenticated();
-                })
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        .anyRequest().authenticated())
                 // Set here as well as at the reverse proxy: the API is also reached
                 // directly in development and from the mobile app, and a header
                 // that only exists in the Caddy config protects neither.
@@ -99,7 +87,8 @@ public class SecurityConfig {
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
-                .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(platformAdminAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(workspaceGuardFilter, JwtAuthenticationFilter.class);
 
@@ -115,8 +104,16 @@ public class SecurityConfig {
     }
 
     @Bean
-    public FilterRegistrationBean<AuthRateLimitFilter> authRateLimitRegistration(AuthRateLimitFilter filter) {
-        FilterRegistrationBean<AuthRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+    public FilterRegistrationBean<PlatformAdminAuthFilter> platformAdminAuthRegistration(
+            PlatformAdminAuthFilter filter) {
+        FilterRegistrationBean<PlatformAdminAuthFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<ApiRateLimitFilter> apiRateLimitRegistration(ApiRateLimitFilter filter) {
+        FilterRegistrationBean<ApiRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }
@@ -147,6 +144,9 @@ public class SecurityConfig {
                 "Accept-Language",
                 "X-Requested-With",
                 "Idempotency-Key",
+                com.prabhix.identity.client.IdentityInternalClient.SERVICE_TOKEN_HEADER,
+                com.prabhix.identity.client.IdentityInternalClient.ACTING_USER_HEADER,
+                com.prabhix.identity.client.IdentityInternalClient.ACTING_REASON_HEADER,
                 com.fixflow.workspace.web.WorkspaceGuardFilter.WORKSPACE_HEADER,
                 com.fixflow.workspace.web.WorkspaceGuardFilter.WORKSPACE_HEADER_LEGACY,
                 com.fixflow.common.web.ClientRequests.DEVICE_HEADER,

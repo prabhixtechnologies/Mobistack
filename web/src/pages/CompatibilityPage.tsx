@@ -4,9 +4,10 @@ import { api } from "../lib/api";
 import { highlightText, groupLine, phoneLabel } from "../lib/compatibility";
 import { useAccess } from "../lib/access";
 import { EmptyState } from "../ui/EmptyState";
-import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import { Icon } from "../ui/navIcons";
 import type {
+  CommonsSearchHit,
   CompatibilityGroup,
   CompatibilityOverview,
   DeviceSearchHit,
@@ -29,9 +30,11 @@ export function CompatibilityPage() {
   const [overview, setOverview] = useState<CompatibilityOverview | null>(null);
   const [groups, setGroups] = useState<CompatibilityGroup[]>([]);
   const [hits, setHits] = useState<DeviceSearchHit[]>([]);
+  const [commonsHits, setCommonsHits] = useState<CommonsSearchHit[]>([]);
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const [proposing, setProposing] = useState<string | null>(null);
 
   useEffect(() => {
     api<CompatibilityOverview>("/api/v1/compatibility-groups/overview")
@@ -51,6 +54,7 @@ export function CompatibilityPage() {
   useEffect(() => {
     if (query.trim().length < 2) {
       setHits([]);
+      setCommonsHits([]);
       setGroups([]);
       setSearching(false);
       return;
@@ -69,6 +73,7 @@ export function CompatibilityPage() {
           return;
         }
         setHits(search.devices ?? []);
+        setCommonsHits(search.commonsDevices ?? []);
         setGroups(page.content ?? []);
         setError(null);
       } catch (err) {
@@ -97,6 +102,31 @@ export function CompatibilityPage() {
     }
   }
 
+  async function propose(group: CompatibilityGroup) {
+    const category = overview?.categories.find((row) => row.id === group.categoryId);
+    const devices = (group.devices ?? []).map((device) => device.deviceName).filter(Boolean).join(", ");
+    setProposing(group.id);
+    setError(null);
+    try {
+      await api("/api/v1/commons/contributions", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ADD_COMPONENT",
+          payload: {
+            categoryCode: category?.code ?? "UNFILED",
+            name: group.name,
+            description: group.notes ?? "",
+          },
+          reason: `Proposed from private fitment notes. Devices: ${devices || group.name}`,
+        }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not propose that note");
+    } finally {
+      setProposing(null);
+    }
+  }
+
   const searchingNow = query.trim().length >= 2;
   const categories = overview?.categories ?? [];
   const matchLabel = useMemo(() => {
@@ -110,25 +140,36 @@ export function CompatibilityPage() {
     <div className="page">
       <PageHeader
         kicker="Catalog"
-        title="Compatibility"
-        subtitle="Open a part list, then add the phones that share that part. Search still finds a phone on the counter."
+        title="Fitment notes"
+        subtitle="What this shop has seen on the bench. Propose a line when it belongs in the shared catalog."
         actions={
-          canWrite ? (
-            <Link className="btn ghost" to="/import">
-              Import list
+          <div className="row">
+            <Link className="btn ghost" to="/commons">
+              Open shared catalog
             </Link>
-          ) : null
+            {canWrite ? (
+              <Link className="btn ghost" to="/import">
+                Import list
+              </Link>
+            ) : null}
+          </div>
         }
       />
       {error && <div className="error">{error}</div>}
-      <TextField
-        label="Search phones and lists"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search 9A, Realme 6, iPhone 11…"
-        autoFocus
-        autoComplete="off"
-      />
+      <div className="catalog-command catalog-command--solo">
+        <label className="catalog-command__field">
+          <Icon name="search" />
+          <input
+            className="catalog-command__input"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search 9A, Realme 6, iPhone 11…"
+            autoFocus
+            autoComplete="off"
+            aria-label="Search phones and lists"
+          />
+        </label>
+      </div>
       {matchLabel && <p className="compat-match">{searching ? "Searching…" : matchLabel}</p>}
 
       {searchingNow ? (
@@ -136,24 +177,42 @@ export function CompatibilityPage() {
           {groups.length > 0 && (
             <section className="card tight">
               {groups.map((group, index) => (
-                <Link
+                <article
                   key={group.id}
                   className={`universal-row${groupLine(group.devices).toLowerCase().includes(query.trim().toLowerCase()) ? " is-hit" : ""}`}
-                  to={group.categoryId ? `/compatibility/${group.categoryId}` : "/compatibility"}
                 >
                   <span className="universal-row__n">{index + 1}</span>
-                  <div>
+                  <Link to={group.categoryId ? `/compatibility/${group.categoryId}` : "/compatibility"}>
                     <div className="universal-row__meta">
                       {group.categoryName ?? "Unfiled"}
                       {group.verified ? " · Verified" : ""}
                     </div>
                     <div className="universal-row__line">{highlightText(groupLine(group.devices) || group.name, query)}</div>
-                  </div>
-                </Link>
+                  </Link>
+                  {canWrite && (
+                    <button
+                      className="btn ghost btn--sm"
+                      type="button"
+                      disabled={proposing === group.id}
+                      onClick={() => void propose(group)}
+                    >
+                      {proposing === group.id ? "Proposing…" : "Propose to shared catalog"}
+                    </button>
+                  )}
+                </article>
               ))}
             </section>
           )}
           <section className="card tight">
+            {commonsHits.map((device) => (
+              <Link key={device.id} to={`/commons/devices/${device.id}`} className="category-row">
+                <div>
+                  <div style={{ fontWeight: 650 }}>{[device.brandName, device.name].filter(Boolean).join(" ")}</div>
+                  <div className="faint">Shared catalog</div>
+                </div>
+                <span className="badge neutral">What fits</span>
+              </Link>
+            ))}
             {hits.map((device) => (
               <Link key={device.id} to={`/devices/${device.id}`} className="category-row">
                 <div>
@@ -163,14 +222,14 @@ export function CompatibilityPage() {
                     {device.matchedAliases.length > 0 ? ` · ${device.matchedAliases.join(", ")}` : ""}
                   </div>
                 </div>
-                <span className="badge neutral">Stock &amp; price</span>
+                <span className="badge neutral">Shop stock</span>
               </Link>
             ))}
-            {hits.length === 0 && groups.length === 0 && (
+            {hits.length === 0 && commonsHits.length === 0 && groups.length === 0 && (
               <EmptyState
                 compact
                 icon="search"
-                title={searching ? "Searching…" : "No matching group or phone"}
+                title={searching ? "Searching…" : "No matching note or phone"}
                 hint="Try a shorter model name, like 9A or Realme 6."
               />
             )}
@@ -196,8 +255,8 @@ export function CompatibilityPage() {
             <EmptyState
               compact
               icon="box"
-              title={overview ? "No part lists yet" : "Loading the part lists…"}
-              hint={overview ? "Import a pasted list to fill this shop's catalogue." : undefined}
+              title={overview ? "No private notes yet" : "Loading the part lists…"}
+              hint={overview ? "Import a pasted list, or keep notes on the bench until you propose them." : undefined}
             />
           )}
         </section>

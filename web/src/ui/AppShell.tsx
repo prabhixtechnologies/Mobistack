@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { useAccess } from "../lib/access";
@@ -9,7 +9,7 @@ import { api } from "../lib/api";
 import { usePresence } from "../lib/presence";
 import { BrandFooter, BrandMark } from "./BrandMark";
 import { ThemeToggle } from "./ThemeToggle";
-import { GlobalSearch } from "./GlobalSearch";
+import { GlobalSearch, openCommandPalette } from "./GlobalSearch";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Menu, MenuItem, MenuSeparator } from "./Menu";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -30,7 +30,7 @@ function initials(name?: string): string {
 }
 
 export function AppShell() {
-  const { user, workspaces, logout, switchWorkspace } = useAuth();
+  const { user, workspaces, logout, switchWorkspace, refreshUser } = useAuth();
   const access = useAccess();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -50,7 +50,24 @@ export function AppShell() {
   });
   const [navOpen, setNavOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
   usePresence(Boolean(user));
+  const localUnlock = Boolean(user?.localActivationAvailable);
+  const canBill = access.has("WORKSPACE_BILLING");
+
+  async function activateLocalShop() {
+    setUnlocking(true);
+    setUnlockError(null);
+    try {
+      await api("/api/v1/billing/dev/activate", { method: "POST" });
+      await refreshUser();
+    } catch (cause) {
+      setUnlockError(cause instanceof Error ? cause.message : "Could not activate the local shop.");
+    } finally {
+      setUnlocking(false);
+    }
+  }
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
@@ -123,6 +140,9 @@ export function AppShell() {
     if (unpaid && !item.allowUnpaid) {
       return false;
     }
+    if (item.commonsReviewer && !user?.commonsReviewer) {
+      return false;
+    }
     if (item.feature && !access.isPlatformAdmin && !features.includes(item.feature)) {
       return false;
     }
@@ -160,7 +180,7 @@ export function AppShell() {
           <Icon name="panelLeft" />
         </button>
 
-        <BrandMark compact inverse />
+        <BrandMark compact />
 
         {ENVIRONMENT && ENVIRONMENT !== "PRODUCTION" && (
           <span className="env-badge" title="You are not on production">
@@ -289,9 +309,18 @@ export function AppShell() {
           aria-hidden={drawer && !navOpen}
           inert={drawer && !navOpen ? true : undefined}
         >
+          <div className="sidebar-product">
+            <div className="sidebar-product__name">MobiStack</div>
+            <div className="sidebar-product__tag">Shop operations</div>
+          </div>
           <div className="sidebar-workspace">
-            <strong>{user?.workspaceName ?? user?.shopName ?? "Workspace"}</strong>
-            <span>{access.roleLabel}</span>
+            <span className="sidebar-workspace__mark" aria-hidden>
+              {(user?.workspaceName ?? user?.shopName ?? "W").trim().charAt(0).toUpperCase()}
+            </span>
+            <div>
+              <strong>{user?.workspaceName ?? user?.shopName ?? "Workspace"}</strong>
+              <span>{access.roleLabel}</span>
+            </div>
           </div>
 
           <nav className="nav-group">
@@ -304,7 +333,7 @@ export function AppShell() {
                     to={item.to}
                     end={item.end}
                     title={item.label}
-                    className={({ isActive }) => `nav-link tint-${item.tint}${isActive ? " active" : ""}`}
+                    className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
                   >
                     <span className="nav-ico">
                       <Icon name={item.icon} />
@@ -337,13 +366,34 @@ export function AppShell() {
         <div className="main" id="main-content" tabIndex={-1}>
           <div className="main__body">
             {unpaid && (
-              <div className="banner banner-warn paywall-strip">
-                Payment pending — open Billing and pay this month or the shop stays locked.
+              <div className="lock-bar">
+                <div>
+                  <strong>Shop features are locked</strong>
+                  <p>
+                    The shared catalog stays open. Dashboard, stock, sales, and private fitment notes
+                    need a live plan.
+                    {unlockError ? ` ${unlockError}` : ""}
+                  </p>
+                </div>
+                <div className="lock-bar__actions">
+                  {localUnlock && canBill && (
+                    <button className="btn" type="button" disabled={unlocking} onClick={() => void activateLocalShop()}>
+                      {unlocking ? "Turning on…" : "Turn on local shop"}
+                    </button>
+                  )}
+                  {canBill && (
+                    <Link className="btn ghost" to="/billing">
+                      Open billing
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
-            <div className="main__crumbs">
-              <Breadcrumbs />
-            </div>
+            {pathname !== "/" && (
+              <div className="main__crumbs">
+                <Breadcrumbs />
+              </div>
+            )}
             <ErrorBoundary resetKey={pathname}>
               <Outlet />
             </ErrorBoundary>
@@ -356,6 +406,41 @@ export function AppShell() {
       <NavLink to="/support" className="support-fab" aria-label="Open support">
         <Icon name="chat" />
       </NavLink>
+
+      {drawer && (
+        <nav className="app-dock" aria-label="Primary shop actions">
+          {access.has("SALES_READ") && (
+            <NavLink to="/sales" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
+              <Icon name="cart" />
+              Sale
+            </NavLink>
+          )}
+          <button className="app-dock__item" type="button" onClick={() => openCommandPalette()}>
+            <Icon name="search" />
+            Search
+          </button>
+          {access.has("REPAIR_READ") && (
+            <NavLink to="/repairs" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
+              <Icon name="wrench" />
+              Repairs
+            </NavLink>
+          )}
+          {access.has("INVENTORY_READ") && (
+            <NavLink to="/inventory" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
+              <Icon name="box" />
+              Stock
+            </NavLink>
+          )}
+          <button
+            className="app-dock__item"
+            type="button"
+            onClick={() => setNavOpen((value) => !value)}
+          >
+            <Icon name="panelLeft" />
+            Menu
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

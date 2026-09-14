@@ -39,6 +39,7 @@ interface Overview {
   razorpayKeyId?: string;
   razorpayEnabled?: boolean;
   paymentRequired?: boolean;
+  localActivationAvailable?: boolean;
   screens?: {
     included: number;
     extra: number;
@@ -74,6 +75,7 @@ export function BillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [paying, setPaying] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
 
   async function load() {
     setData(await api<Overview>("/api/v1/billing"));
@@ -118,6 +120,22 @@ export function BillingPage() {
     }
   }
 
+  async function activateLocal() {
+    setError(null);
+    setNotice(null);
+    setUnlocking(true);
+    try {
+      await api("/api/v1/billing/dev/activate", { method: "POST" });
+      await load();
+      await refreshUser();
+      setNotice("Local shop is on. Dashboard, stock, sales, and private fitment notes are unlocked.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not activate the local shop.");
+    } finally {
+      setUnlocking(false);
+    }
+  }
+
   async function buy(plan: PlanCard) {
     setError(null);
     setNotice(null);
@@ -152,6 +170,18 @@ export function BillingPage() {
         <div className="banner banner-warn">
           This shop has no live plan. Choose one below and pay to turn the features on.
         </div>
+      )}
+      {data?.localActivationAvailable && activating && (
+        <article className="card stack">
+          <strong>Local testing</strong>
+          <p className="faint">
+            Razorpay is not required on this machine. Turn the full shop on, then open Private
+            fitment notes under My Shop — or click Pay on a plan; the DEV gateway confirms instantly.
+          </p>
+          <button className="btn" type="button" disabled={unlocking || paying !== null} onClick={() => void activateLocal()}>
+            {unlocking ? "Turning on…" : "Turn on local shop"}
+          </button>
+        </article>
       )}
       {current && current.status === "ACTIVE" && (
         <div className="banner">

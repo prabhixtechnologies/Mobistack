@@ -20,7 +20,6 @@ import com.fixflow.workspace.repository.WorkspaceMembershipRepository;
 import com.fixflow.workspace.service.JoinCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +31,10 @@ import java.util.Set;
  * the default part categories and an OWNER account. Kept separate from
  * {@code AuthService} because the demo seeder and any future admin console
  * need the same behaviour.
+ *
+ * <p>The owner row carries no credential. Sign-in is Prabhix Identity's; the row here is either a
+ * mirror of an existing Identity account or a placeholder that the security filter links up by
+ * email the first time that person signs in.
  */
 @Slf4j
 @Service
@@ -42,13 +45,11 @@ public class ShopProvisioningService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final CategoryRepository categoryRepository;
-    private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final WorkspaceMembershipRepository membershipRepository;
     private final BillingService billingService;
 
-    public record NewShop(String shopName, String ownerName, String email, String rawPassword,
-                          String phone, String city) {
+    public record NewShop(String shopName, String ownerName, String email, String phone, String city) {
     }
 
     public record ProvisionedShop(Shop shop, User owner) {
@@ -85,7 +86,6 @@ public class ShopProvisioningService {
         owner.setFullName(request.ownerName());
         owner.setEmail(request.email().toLowerCase());
         owner.setPhone(request.phone());
-        owner.setPasswordHash(passwordEncoder.encode(request.rawPassword()));
         owner.setRoles(new LinkedHashSet<>(Set.of(ownerRole)));
         owner.setEmailVerified(false);
         userRepository.save(owner);

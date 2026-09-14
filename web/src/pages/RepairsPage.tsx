@@ -8,6 +8,7 @@ import { LoadMore } from "../ui/DataTable";
 import { SelectField, TextField } from "../ui/Field";
 import { Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
+import { humanLabel } from "../lib/labels";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
 interface Repair {
@@ -123,9 +124,9 @@ export function RepairsPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Counter"
+        kicker="Shop"
         title="Repairs"
-        subtitle="Open a job, fit a part from stock, collect when it is ready."
+        subtitle="Take the phone in, move it through the bench, collect when it is ready for pickup."
       />
       {problems.map((message) => (
         <div className="error" key={message}>
@@ -134,8 +135,8 @@ export function RepairsPage() {
       ))}
 
       {canWrite && (
-        <form className="card stack" onSubmit={submitJob}>
-          <strong>New job</strong>
+        <form className="toolbar" onSubmit={submitJob}>
+          <strong className="visually-hidden">New job</strong>
           <input
             className="field"
             value={problem}
@@ -156,20 +157,21 @@ export function RepairsPage() {
               min={0}
               value={labor}
               onChange={(e) => setLabor(Number(e.target.value))}
+              aria-label="Labour charge"
             />
           </div>
           <button className="btn" disabled={create.busy}>
-            {create.busy ? "Opening…" : "Open job"}
+            {create.busy ? "Opening…" : "Book repair"}
           </button>
         </form>
       )}
 
-      <div className="card row">
+      <div className="toolbar">
         <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 220, maxWidth: "100%" }} aria-label="Job status">
           <option value="">All jobs</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
-              {status.replaceAll("_", " ")}
+              {humanLabel(status)}
             </option>
           ))}
         </select>
@@ -198,21 +200,24 @@ export function RepairsPage() {
         />
       ) : (
         <>
+          <div className="job-list">
           {jobs.rows.map((job) => (
-            <article className="card stack" key={job.id}>
-              <div className="spread">
-                <div>
-                  <div style={{ fontWeight: 700 }}>{job.jobNumber}</div>
-                  <div className="faint">
-                    {job.customerName ?? "Walk-in"} · {job.deviceName ?? "Device unknown"}
-                  </div>
+            <article className="job-row" key={job.id}>
+              <div>
+                <strong>{job.jobNumber}</strong>
+                <div className="job-row__meta">
+                  {job.customerName ?? "Walk-in"} · {job.deviceName ?? "Device unknown"}
                 </div>
-                <span className="badge neutral">{job.status}</span>
+                <p style={{ margin: "8px 0 0" }}>{job.problem}</p>
+                <div className="muted" style={{ marginTop: 6 }}>
+                  {money.format(job.total)} · paid {money.format(job.paid)}
+                  {access.has("REPORT_READ") && ` · profit ${money.format(job.profit)}`}
+                </div>
               </div>
-              <p style={{ margin: 0 }}>{job.problem}</p>
-              <div className="muted">
-                {money.format(job.total)} · paid {money.format(job.paid)}
-                {access.has("REPORT_READ") && ` · profit ${money.format(job.profit)}`}
+              <div>
+                <span className={`status-chip${job.status === "READY" ? " status-chip--ready" : job.status === "WAITING_FOR_PART" ? " status-chip--warn" : " status-chip--open"}`}>
+                  {humanLabel(job.status)}
+                </span>
               </div>
               {canWrite && (
                 <div className="row">
@@ -222,10 +227,11 @@ export function RepairsPage() {
                     disabled={changeStatus.busy}
                     onChange={(e) => void changeStatus.run(job, e.target.value)}
                     style={{ width: 200, maxWidth: "100%" }}
+                    aria-label={`Status for ${job.jobNumber}`}
                   >
                     {STATUSES.map((status) => (
                       <option key={status} value={status}>
-                        {status.replaceAll("_", " ")}
+                        {humanLabel(status)}
                       </option>
                     ))}
                   </select>
@@ -241,7 +247,8 @@ export function RepairsPage() {
               )}
             </article>
           ))}
-          <div className="card tight">
+          </div>
+          <div>
             <LoadMore
               loaded={jobs.rows.length}
               total={jobs.total}

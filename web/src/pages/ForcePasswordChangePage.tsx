@@ -1,60 +1,22 @@
-import { useState } from "react";
-import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { ACCOUNT_URL } from "../lib/config";
 import { BRAND } from "../lib/brand";
-import { TextField } from "../ui/Field";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { SkipLink } from "../ui/SkipLink";
 import { Icon } from "../ui/navIcons";
 
 /**
- * Blocking screen for accounts carrying `mustChangePassword`.
+ * Blocking screen when Identity still reports that this account must pick its own password.
  *
- * An admin who creates an account sets a temporary password; until it's replaced
- * the app refuses to route anywhere else (see `App`), so a shared starter
- * credential can't linger in use. There is deliberately no skip — only sign out.
+ * The form used to post to this API. Passwords live at Identity now, so this page only deep-links
+ * there and offers sign-out.
  */
 export function ForcePasswordChangePage() {
-  const { user, logout, refreshUser } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (newPassword !== confirmPassword) {
-      setError("The two new passwords don't match.");
-      return;
-    }
-    if (newPassword.length < 8) {
-      setError("Use at least 8 characters.");
-      return;
-    }
-    if (newPassword === currentPassword) {
-      setError("Choose a password different from the temporary one.");
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await api("/api/v1/auth/change-password", {
-        method: "POST",
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      // Clears `mustChangePassword`, which releases the routing block in `App`.
-      await refreshUser();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "That didn't work.");
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { user, logout } = useAuth();
 
   return (
     <div className="login-wrap">
-      <SkipLink href="#main-content" label="Skip to password form" />
+      <SkipLink href="#main-content" label="Skip to account link" />
       <div className="login-card stack" id="main-content" tabIndex={-1}>
         <div className="auth-top">
           <ThemeToggle compact />
@@ -66,42 +28,17 @@ export function ForcePasswordChangePage() {
 
         <h1>Choose your own password</h1>
         <p className="muted">
-          You're signed in as <strong>{user?.email}</strong> with a temporary password set by your workspace
-          admin. Pick a new one to continue into {BRAND.product}.
+          You're signed in as <strong>{user?.email}</strong> with a temporary password. Set a new one on
+          Prabhix Identity to continue into {BRAND.product}.
         </p>
 
-        <form className="stack" onSubmit={submit}>
-          {error && <p className="error">{error}</p>}
-          <TextField
-            label="Temporary password"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-          />
-          <TextField
-            label="New password"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            hint="At least 8 characters."
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-          />
-          <TextField
-            label="Confirm new password"
-            type="password"
-            required
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-          />
-          <button className="auth-submit" type="submit" disabled={busy}>
-            {busy ? "Saving…" : "Set password and continue"}
-          </button>
-        </form>
+        {ACCOUNT_URL ? (
+          <a className="auth-submit" href={ACCOUNT_URL}>
+            Open Identity account
+          </a>
+        ) : (
+          <p className="error">Identity is not configured in this build, so this password cannot be changed here.</p>
+        )}
 
         <button className="auth-link auth-link--center" type="button" onClick={() => void logout()}>
           Sign out instead

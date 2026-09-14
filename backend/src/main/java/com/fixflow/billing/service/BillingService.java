@@ -59,7 +59,8 @@ public class BillingService {
 
     public record BillingOverview(List<PlanService.PlanCard> plans, SubscriptionCard subscription,
                                   List<PaymentReceipt> recentPayments, ScreenCard screens,
-                                  String razorpayKeyId, boolean razorpayEnabled, boolean paymentRequired) {
+                                  String razorpayKeyId, boolean razorpayEnabled, boolean paymentRequired,
+                                  boolean localActivationAvailable) {
     }
 
     public record CheckoutOrderResponse(
@@ -93,7 +94,7 @@ public class BillingService {
     private final com.fixflow.notify.MailGateway mailGateway;
     private final com.fixflow.notify.WorkspaceNotifier notifier;
     private final PlanService planService;
-    private final com.fixflow.auth.service.DeviceSessionService deviceSessionService;
+    private final ScreenSeatService screenSeatService;
 
     public static final String CATALOG = "CATALOG";
     public static final String SALES = "SALES";
@@ -114,8 +115,8 @@ public class BillingService {
                 : new SubscriptionCard(current.code(), current.name(),
                 row == null ? WorkspaceSubscription.NONE : row.getStatus(),
                 row == null ? null : row.getPeriodEnd(), current.features());
-        var capacity = deviceSessionService.capacity(workspaceId);
-        var screenPrice = priceRepository.findByCodeAndActiveTrue(com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE)
+        var capacity = screenSeatService.capacity(workspaceId);
+        var screenPrice = priceRepository.findByCodeAndActiveTrue(ScreenSeatService.EXTRA_SCREEN_PRICE)
                 .orElse(null);
         java.math.BigDecimal unit = screenPrice == null ? java.math.BigDecimal.valueOf(50) : screenPrice.getAmount();
         int subscribed = capacity.subscribed();
@@ -131,10 +132,11 @@ public class BillingService {
                         capacity.live(), capacity.periodEnd(), unit,
                         unit.multiply(java.math.BigDecimal.valueOf(Math.max(subscribed, 1))),
                         screenPrice == null ? "INR" : screenPrice.getCurrency(),
-                        com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE, "MONTHLY"),
+                        ScreenSeatService.EXTRA_SCREEN_PRICE, "MONTHLY"),
                 enabled ? razorpayGateway.keyId() : null,
                 enabled,
-                paymentRequired(workspaceId));
+                paymentRequired(workspaceId),
+                localActivationAvailable());
     }
 
     @Transactional
@@ -143,9 +145,9 @@ public class BillingService {
             throw new ApiException(ErrorCode.VALIDATION_FAILED,
                     "Pay the join fee from My workspaces. Each shop join is a separate payment.");
         }
-        boolean renewScreens = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(priceCode);
+        boolean renewScreens = ScreenSeatService.EXTRA_SCREEN_RENEW.equals(priceCode);
         BillingPrice price = resolvePrice(renewScreens
-                ? com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE
+                ? ScreenSeatService.EXTRA_SCREEN_PRICE
                 : priceCode);
         java.math.BigDecimal amount = price.getAmount();
         String storedCode = price.getCode();
@@ -158,8 +160,8 @@ public class BillingService {
                         "This shop has no extra screens to renew. Add one first.");
             }
             amount = price.getAmount().multiply(java.math.BigDecimal.valueOf(shop.getExtraScreens()));
-            storedCode = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW;
-            purpose = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW;
+            storedCode = ScreenSeatService.EXTRA_SCREEN_RENEW;
+            purpose = ScreenSeatService.EXTRA_SCREEN_RENEW;
         }
         long amountPaise = RazorpayMoney.requireMinimum(RazorpayMoney.toPaise(amount));
 
@@ -452,6 +454,28 @@ public class BillingService {
         planService.grantComplimentary(workspaceId, "FULL_SHOP");
     }
 
+    public boolean localActivationAvailable() {
+        return !production();
+    }
+
+    /**
+     * Turns the full shop on without Razorpay. Local and demo only — production
+     * must take a real payment.
+     */
+    @Transactional
+    public void activateLocalShop(UUID workspaceId) {
+        if (production()) {
+            throw new ApiException(ErrorCode.FORBIDDEN,
+                    "Local shop activation is not available in production.");
+        }
+        grantPilotEntitlements(workspaceId);
+        log.info("Granted complimentary FULL_SHOP to workspace {} (local activation)", workspaceId);
+    }
+
+    private boolean production() {
+        return environment.acceptsProfiles(Profiles.of("prod"));
+    }
+
     @Transactional
     public void notifyPaymentPending(UUID workspaceId, UUID userId, String email) {
         notificationService.emit(workspaceId, userId, "PAYMENT_PENDING", email,
@@ -638,9 +662,9 @@ public class BillingService {
         order.setUpdatedAt(Instant.now());
         orderRepository.save(order);
         UUID workspaceId = order.getWorkspaceId();
-        if (com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
-                || com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(order.getPurpose())) {
-            int extra = deviceSessionService.renewExtraScreens(workspaceId);
+        if (ScreenSeatService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
+                || ScreenSeatService.EXTRA_SCREEN_RENEW.equals(order.getPurpose())) {
+            int extra = screenSeatService.renewExtraScreens(workspaceId);
             auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
                     "Renewed " + extra + " extra screens for the month");
             notifyOwner(workspaceId, "PAYMENT_RECEIVED",
@@ -649,8 +673,8 @@ public class BillingService {
                             + " stay on for this month. Pay again next month or those screens turn off.");
             return order;
         }
-        if (com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_PRICE.equals(order.getPriceCode())) {
-            int extra = deviceSessionService.addExtraScreen(workspaceId);
+        if (ScreenSeatService.EXTRA_SCREEN_PRICE.equals(order.getPriceCode())) {
+            int extra = screenSeatService.addExtraScreen(workspaceId);
             auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
                     "Added extra screen #" + extra + " (monthly)");
             notifyOwner(workspaceId, "PAYMENT_RECEIVED",
@@ -726,7 +750,7 @@ public class BillingService {
     }
 
     private PaymentReceipt toReceipt(BillingOrder order) {
-        String planName = com.fixflow.auth.service.DeviceSessionService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
+        String planName = ScreenSeatService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
                 ? "Extra screens (month)"
                 : priceRepository.findByCode(order.getPriceCode())
                 .map(price -> planService.planName(price.getPlanId()))

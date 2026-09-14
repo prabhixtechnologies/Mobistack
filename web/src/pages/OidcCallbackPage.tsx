@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { completeLogin, rememberIdToken } from "../lib/oidc";
+import { completeLogin, isSilentLoginError, rememberIdToken } from "@prabhix/oidc-client";
+import "../lib/oidc-config";
 import { useAuth } from "../lib/auth";
 import { AuthGate, AuthGateLink } from "./LoginPage";
 import { BRAND, copyrightLine } from "../lib/brand";
@@ -30,6 +31,10 @@ export function OidcCallbackPage() {
         await loginWithTokens(tokens.accessToken);
         navigate(returnTo, { replace: true });
       } catch (err) {
+        if (isSilentLoginError(err)) {
+          navigate("/login?sso=0", { replace: true });
+          return;
+        }
         setMessage(err instanceof Error ? err.message : "Sign-in did not complete.");
       }
     })();

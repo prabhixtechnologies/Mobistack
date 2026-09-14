@@ -1,8 +1,7 @@
 package com.fixflow.workspace.web;
 
-import com.fixflow.auth.dto.AuthDtos.AuthResponse;
+import com.fixflow.auth.dto.AuthDtos.WorkspaceSession;
 import com.fixflow.auth.service.AuthService;
-import com.fixflow.common.web.ClientRequests;
 import com.fixflow.common.web.PageResponse;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
@@ -18,7 +17,6 @@ import com.fixflow.workspace.service.InvitationService;
 import com.fixflow.workspace.service.WorkspaceAccessService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -54,10 +52,10 @@ public class WorkspaceController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a workspace and select it (new access token)")
-    public AuthResponse create(@Valid @RequestBody CreateWorkspaceRequest request, HttpServletRequest http) {
+    @Operation(summary = "Create a workspace and select it; the bearer token stays the same")
+    public WorkspaceSession create(@Valid @RequestBody CreateWorkspaceRequest request) {
         WorkspaceCard card = workspaceAccessService.create(CurrentUser.userId(), request);
-        return authService.switchWorkspace(CurrentUser.userId(), card.id(), ClientRequests.clientInfo(http, null));
+        return authService.switchWorkspace(CurrentUser.userId(), card.id());
     }
 
     @PostMapping("/join/checkout")
@@ -81,9 +79,9 @@ public class WorkspaceController {
     }
 
     @PostMapping("/{id}/select")
-    @Operation(summary = "Switch the selected workspace and issue a new access token")
-    public AuthResponse select(@PathVariable UUID id, HttpServletRequest http) {
-        return authService.switchWorkspace(CurrentUser.userId(), id, ClientRequests.clientInfo(http, null));
+    @Operation(summary = "Switch the selected workspace; the bearer token stays the same")
+    public WorkspaceSession select(@PathVariable UUID id) {
+        return authService.switchWorkspace(CurrentUser.userId(), id);
     }
 
     @PostMapping("/{id}/join/cancel")

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -63,7 +64,7 @@ class BillingServiceTest {
     @Mock
     private PlanService planService;
     @Mock
-    private com.fixflow.auth.service.DeviceSessionService deviceSessionService;
+    private ScreenSeatService screenSeatService;
 
     private BillingService billingService;
 
@@ -71,7 +72,7 @@ class BillingServiceTest {
     void setUp() {
         billingService = new BillingService(priceRepository, orderRepository, entitlementRepository,
                 webhookEventRepository, auditService, environment, razorpayGateway, notificationService,
-                shopRepository, userRepository, mailGateway, notifier, planService, deviceSessionService);
+                shopRepository, userRepository, mailGateway, notifier, planService, screenSeatService);
     }
 
     @Test
@@ -116,7 +117,7 @@ class BillingServiceTest {
         assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
         assertThat(captured.getGatewayPaymentId()).isEqualTo("pay_1");
         verify(planService).activateFromOrder(captured);
-        verify(deviceSessionService, never()).addExtraScreen(any());
+        verify(screenSeatService, never()).addExtraScreen(any());
     }
 
     @Test
@@ -128,13 +129,13 @@ class BillingServiceTest {
         when(orderRepository.findByGatewayOrderIdAndWorkspaceId("order_screen", workspaceId))
                 .thenReturn(Optional.of(order));
         when(razorpayGateway.verifyCheckoutSignature("order_screen", "pay_1", "good-sig")).thenReturn(true);
-        when(deviceSessionService.addExtraScreen(workspaceId)).thenReturn(1);
+        when(screenSeatService.addExtraScreen(workspaceId)).thenReturn(1);
 
         BillingOrder captured = billingService.verifyPayment(workspaceId,
                 new BillingService.VerifyPaymentRequest("order_screen", "pay_1", "good-sig"));
 
         assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
-        verify(deviceSessionService).addExtraScreen(workspaceId);
+        verify(screenSeatService).addExtraScreen(workspaceId);
         verify(planService, never()).activateFromOrder(any());
     }
 
@@ -147,14 +148,14 @@ class BillingServiceTest {
         when(orderRepository.findByGatewayOrderIdAndWorkspaceId("order_renew", workspaceId))
                 .thenReturn(Optional.of(order));
         when(razorpayGateway.verifyCheckoutSignature("order_renew", "pay_1", "good-sig")).thenReturn(true);
-        when(deviceSessionService.renewExtraScreens(workspaceId)).thenReturn(2);
+        when(screenSeatService.renewExtraScreens(workspaceId)).thenReturn(2);
 
         BillingOrder captured = billingService.verifyPayment(workspaceId,
                 new BillingService.VerifyPaymentRequest("order_renew", "pay_1", "good-sig"));
 
         assertThat(captured.getStatus()).isEqualTo(PaymentStatus.CAPTURED);
-        verify(deviceSessionService).renewExtraScreens(workspaceId);
-        verify(deviceSessionService, never()).addExtraScreen(any());
+        verify(screenSeatService).renewExtraScreens(workspaceId);
+        verify(screenSeatService, never()).addExtraScreen(any());
         verify(planService, never()).activateFromOrder(any());
     }
 
@@ -188,6 +189,27 @@ class BillingServiceTest {
         assertThat(billingService.catalogOnly(workspaceId)).isTrue();
         assertThatThrownBy(() -> billingService.require(workspaceId, "SALES"))
                 .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void activateLocalShopRejectedInProduction() {
+        when(environment.acceptsProfiles(Profiles.of("prod"))).thenReturn(true);
+
+        assertThatThrownBy(() -> billingService.activateLocalShop(UUID.randomUUID()))
+                .isInstanceOf(ApiException.class)
+                .extracting(ex -> ((ApiException) ex).getCode())
+                .isEqualTo(ErrorCode.FORBIDDEN);
+        verify(planService, never()).grantComplimentary(any(), any());
+    }
+
+    @Test
+    void activateLocalShopGrantsFullShopOutsideProduction() {
+        UUID workspaceId = UUID.randomUUID();
+        when(environment.acceptsProfiles(Profiles.of("prod"))).thenReturn(false);
+
+        billingService.activateLocalShop(workspaceId);
+
+        verify(planService).grantComplimentary(workspaceId, "FULL_SHOP");
     }
 
     @Test

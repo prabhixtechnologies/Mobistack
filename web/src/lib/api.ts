@@ -3,7 +3,8 @@ import { isAbortError } from "./abort";
 import { getDeviceId } from "./device";
 import { storeGet, storeRemove, storeSet } from "./storage";
 import { IDENTITY_ISSUER } from "./config";
-import { isOidcEnabled } from "./oidc";
+import { isOidcEnabled } from "@prabhix/oidc-client";
+import "./oidc-config";
 
 /**
  * Identity access tokens stay in memory. localStorage is readable to any XSS on

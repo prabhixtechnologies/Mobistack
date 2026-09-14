@@ -1,6 +1,5 @@
 package com.fixflow.catalog.web;
 
-import com.fixflow.billing.service.BillingService;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupRequest;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupResponse;
 import com.fixflow.catalog.dto.CatalogDtos.CompatibilityOverviewResponse;
@@ -38,12 +37,10 @@ import java.util.UUID;
 public class CompatibilityGroupController {
 
     private final CompatibilityGroupService compatibilityGroupService;
-    private final BillingService billingService;
 
     @GetMapping("/overview")
     @PreAuthorize(Authorize.CATALOG_READ)
     public CompatibilityOverviewResponse overview() {
-        billingService.requireCatalog(CurrentUser.shopId());
         return compatibilityGroupService.overview(CurrentUser.shopId());
     }
 
@@ -52,7 +49,6 @@ public class CompatibilityGroupController {
     public PageResponse<CompatibilityGroupResponse> list(@RequestParam(required = false) UUID categoryId,
                                                          @RequestParam(required = false) String q,
                                                          @PageableDefault(size = 50) Pageable pageable) {
-        billingService.requireCatalog(CurrentUser.shopId());
         return PageResponse.of(compatibilityGroupService.list(CurrentUser.shopId(), categoryId, q, pageable));
     }
 

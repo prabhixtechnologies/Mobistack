@@ -1,21 +1,25 @@
 package com.fixflow.security.jwt;
 
 import tools.jackson.databind.ObjectMapper;
-import com.fixflow.auth.service.DeviceSessionService;
 import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
-import com.fixflow.user.service.IdentityUserMirror;
 import com.fixflow.workspace.service.WorkspaceAccessService;
+import com.prabhix.identity.client.BearerTokens;
+import com.prabhix.identity.client.IdentityClientException;
+import com.prabhix.identity.client.IdentityToken;
+import com.prabhix.identity.client.IdentityTokenException;
+import com.prabhix.identity.client.IdentityTokenVerifier;
+import com.prabhix.identity.client.IdentityUserMirror;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,17 +29,33 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Turns a Prabhix Identity bearer token into a MobiStack principal.
+ *
+ * <p>The token proves who is calling and nothing more: Identity signs it RS256 and this filter only
+ * verifies it against the published keys, so no MobiStack process can mint one. Everything about
+ * what the caller may do is resolved here from this database: the mirrored user row, the shop
+ * named by {@code X-MobiStack-Workspace}, and the permissions of their role in it.
+ */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String BEARER_PREFIX = "Bearer ";
     public static final String WORKSPACE_HEADER = "X-MobiStack-Workspace";
 
-    private final JwtService jwtService;
-    private final DeviceSessionService deviceSessionService;
+    /** Service-to-service routes authenticate with the shared token, never with a bearer. */
+    private static final String INTERNAL_PREFIX = "/internal/";
+    /**
+     * Platform admin is the oneOps BFF's, over the service token. A shop JWT must not mint
+     * a principal here even if the owner once held {@code system_admin}.
+     */
+    private static final String ADMIN_PREFIX = "/api/v1/admin";
+
+    private final IdentityTokenVerifier tokenVerifier;
     private final UserRepository userRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final IdentityUserMirror identityUserMirror;
@@ -46,18 +66,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header == null || !header.startsWith(BEARER_PREFIX)) {
+        String token = BearerTokens.from(request);
+        if (token == null || isInternal(request)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(BEARER_PREFIX.length()).trim();
         try {
-            JwtService.ParsedToken parsed = jwtService.parseDetailed(token);
-            UserPrincipal principal = parsed.source() == JwtService.TokenSource.IDENTITY
-                    ? authorizeIdentityToken(parsed.principal(), request)
-                    : authorizeMobistackToken(parsed.principal(), token);
+            IdentityToken identity = verify(token);
+            UserPrincipal principal = authorizeIdentityToken(identity, request);
 
             var authentication = new UsernamePasswordAuthenticationToken(
                     principal, null, principal.getAuthorities());
@@ -65,8 +82,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (ApiException ex) {
             SecurityContextHolder.clearContext();
-            // Sign-in and other anonymous routes must still run when the browser
-            // still has an expired or replaced access token in localStorage.
+            // Anonymous routes must still run when the browser still has an expired or replaced
+            // access token in storage.
             if (isAnonymousOk(request)) {
                 filterChain.doFilter(request, response);
                 return;
@@ -79,32 +96,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
+     * Maps the verifier's refusal onto the error vocabulary the clients already handle. EXPIRED is
+     * the one they act on (silent re-login through Identity); the rest are a sign-out.
+     */
+    private IdentityToken verify(String token) {
+        try {
+            return tokenVerifier.verify(token);
+        } catch (IdentityTokenException ex) {
+            throw switch (ex.reason()) {
+                case EXPIRED -> new ApiException(ErrorCode.TOKEN_EXPIRED, "Your session has expired.");
+                case INVALID -> new ApiException(ErrorCode.TOKEN_INVALID, "That token is not valid.");
+                case UNTRUSTED -> new ApiException(ErrorCode.UNAUTHENTICATED,
+                        "This deployment does not trust an identity issuer.");
+            };
+        }
+    }
+
+    /**
      * Builds authority for an identity token, which carries none of its own.
      *
      * <p>Subject is preferred; email is the fallback for accounts that already existed in Identity
      * under a different id (platform imports). Absent entirely means Identity knows this person and
-     * this database has not been told yet — ordinary for anyone who signs up after the bulk import —
-     * so {@link IdentityUserMirror} fills the row once rather than treating it as a credential
-     * failure. Workspace and permissions still come from this database. Device-session limits do not
-     * apply: Identity tokens have no device claim and a different session model.
+     * this database has not been told yet, which is ordinary for anyone who signs up after the bulk
+     * import, so {@link IdentityUserMirror} fills the row once rather than treating it as a
+     * credential failure. Workspace and permissions still come from this database.
      */
-    private UserPrincipal authorizeIdentityToken(UserPrincipal fromToken, HttpServletRequest request) {
-        User user = userRepository.findWithRolesById(fromToken.getId())
-                .or(() -> {
-                    String email = fromToken.getEmail();
-                    if (email == null || email.isBlank()) {
-                        return java.util.Optional.empty();
-                    }
-                    return userRepository.findWithRolesByEmail(email);
-                })
-                .orElseGet(() -> {
-                    identityUserMirror.pull(fromToken.getId());
-                    return userRepository.findWithRolesById(fromToken.getId())
-                            .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED,
-                                    "This account is not provisioned on MobiStack"));
-                });
+    private UserPrincipal authorizeIdentityToken(IdentityToken token, HttpServletRequest request) {
+        User user = userRepository.findWithRolesById(token.subject())
+                .or(() -> byEmail(token.email()))
+                .orElseGet(() -> mirror(token.subject()));
 
-        if (!user.isActive() || user.isLocked()) {
+        if (!user.isActive()) {
             throw new ApiException(ErrorCode.UNAUTHENTICATED, "This account is not active");
         }
 
@@ -112,13 +134,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return workspaceAccessService.principalFor(user, preferred);
     }
 
-    private UserPrincipal authorizeMobistackToken(UserPrincipal principal, String token) {
-        String deviceId = jwtService.deviceIdFrom(token);
-        if (deviceId != null && !deviceSessionService.isLive(principal.getId(), deviceId)) {
-            throw new ApiException(ErrorCode.SESSION_REPLACED,
-                    "This device's session has ended. Sign in again to continue.");
+    private Optional<User> byEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
         }
-        return principal;
+        return userRepository.findWithRolesByEmail(email);
+    }
+
+    private User mirror(UUID subject) {
+        try {
+            identityUserMirror.pull(subject);
+        } catch (IdentityClientException ex) {
+            // NOT_FOUND: Identity signed a token for someone it will no longer describe. Anything
+            // else: Identity could not be asked, and a person with no row cannot be authorized
+            // without it. Both are a refusal of this request, not a server error.
+            log.warn("Could not mirror identity user {}: {} ({})", subject, ex.getMessage(), ex.kind());
+            throw new ApiException(ErrorCode.UNAUTHENTICATED, "This account is not provisioned on MobiStack");
+        }
+        return userRepository.findWithRolesById(subject)
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHENTICATED,
+                        "This account is not provisioned on MobiStack"));
     }
 
     private UUID preferredWorkspace(HttpServletRequest request, User user) {
@@ -134,38 +169,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return user.getShopId();
     }
 
+    private static boolean isInternal(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        if (path == null) {
+            return false;
+        }
+        return path.startsWith(INTERNAL_PREFIX) || path.equals(ADMIN_PREFIX) || path.startsWith(ADMIN_PREFIX + "/");
+    }
+
     static boolean isAnonymousOk(HttpServletRequest request) {
         String path = request.getRequestURI();
         if (path == null) {
             return false;
         }
-        if (path.startsWith("/api/v1/public/") || path.startsWith("/download/")
-                || path.startsWith("/actuator/health")) {
-            return true;
-        }
-        if (!path.startsWith("/api/v1/auth/")) {
-            return false;
-        }
-        return path.equals("/api/v1/auth/login")
-                || path.equals("/api/v1/auth/refresh")
-                || path.equals("/api/v1/auth/register")
-                || path.equals("/api/v1/auth/register-shop")
-                || path.equals("/api/v1/auth/forgot-password")
-                || path.equals("/api/v1/auth/reset-password")
-                || path.equals("/api/v1/auth/request-otp")
-                || path.equals("/api/v1/auth/verify-otp")
-                || path.equals("/api/v1/auth/methods")
-                || path.equals("/api/v1/auth/magic-link")
-                || path.equals("/api/v1/auth/magic-link/consume")
-                || path.equals("/api/v1/auth/email-otp")
-                || path.equals("/api/v1/auth/email-otp/verify")
-                || path.equals("/api/v1/auth/phone/start")
-                || path.equals("/api/v1/auth/phone/verify")
-                || path.equals("/api/v1/auth/whatsapp/start")
-                || path.equals("/api/v1/auth/whatsapp/verify")
-                || path.equals("/api/v1/auth/sso/google/start")
-                || path.equals("/api/v1/auth/sso/google")
-                || path.equals("/api/v1/auth/sso/dev");
+        return path.startsWith("/api/v1/public/")
+                || path.startsWith("/download/")
+                || path.startsWith("/actuator/health");
     }
 
     private void writeError(HttpServletRequest request, HttpServletResponse response, ApiException ex)

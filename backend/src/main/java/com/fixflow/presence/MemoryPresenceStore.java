@@ -34,6 +34,13 @@ public class MemoryPresenceStore implements PresenceStore {
         live.remove(key(userId, deviceId));
     }
 
+    @Override
+    public void kick(String userId) {
+        String prefix = userId + ":";
+        live.keySet().removeIf(key -> key.startsWith(prefix));
+    }
+
+
     private static String key(String userId, String deviceId) {
         return userId + ":" + deviceId;
     }

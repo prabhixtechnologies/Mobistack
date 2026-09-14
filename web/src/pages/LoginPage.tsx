@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
-import { useState, type ReactNode } from "react";
-import { beginLogin, beginSignup, isOidcEnabled } from "../lib/oidc";
+import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { beginLogin, beginSignup, beginSilentLogin, isOidcEnabled } from "@prabhix/oidc-client";
+import "../lib/oidc-config";
 import { LogoMark } from "../ui/LogoMark";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { SkipLink } from "../ui/SkipLink";
@@ -11,15 +12,59 @@ import { BRAND, copyrightLine } from "../lib/brand";
  *
  * Every Prabhix product uses the same Identity hosted login (OIDC). This page starts that
  * flow; the white panel is the interaction surface, not a second password form.
+ *
+ * If Identity already has a session, we never show the Welcome card: a silent
+ * `prompt=none` authorize recovers it. `?sso=0` is the bounce from a failed
+ * silent check so we do not loop.
  */
 export function LoginPage() {
   if (!isOidcEnabled()) return <MissingIssuer />;
 
-  return (
-    <AuthGate>
-      <LoginActions />
-    </AuthGate>
-  );
+  return <LoginGateway />;
+}
+
+function LoginGateway() {
+  const [searchParams] = useSearchParams();
+  if (searchParams.get("sso") === "0") {
+    return (
+      <AuthGate>
+        <LoginActions />
+      </AuthGate>
+    );
+  }
+  return <SilentSso />;
+}
+
+function SilentSso() {
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void beginSilentLogin("/").catch((cause) => {
+      setError(cause instanceof Error ? cause.message : "Could not continue sign-in.");
+    });
+  }, []);
+
+  if (error) {
+    return (
+      <AuthGate>
+        <AuthBrand />
+        <div className="auth-intro">
+          <h1 className="auth-heading">Could not continue</h1>
+          <p className="auth-error" role="alert">
+            {error}
+          </p>
+        </div>
+        <div className="auth-actions auth-actions--stack">
+          <Link className="auth-submit" to="/login?sso=0">
+            Back to sign in
+          </Link>
+        </div>
+        <AuthLegal />
+      </AuthGate>
+    );
+  }
+
+  return <SessionRestore />;
 }
 
 function LoginActions() {

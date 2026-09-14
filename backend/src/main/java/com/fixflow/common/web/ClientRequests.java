@@ -1,8 +1,6 @@
 package com.fixflow.common.web;
 
-import com.fixflow.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.HttpHeaders;
 
 public final class ClientRequests {
 
@@ -11,15 +9,6 @@ public final class ClientRequests {
     public static final String IDEMPOTENCY_HEADER = "Idempotency-Key";
 
     private ClientRequests() {
-    }
-
-    public static AuthService.ClientInfo clientInfo(HttpServletRequest http, String deviceId) {
-        String resolved = deviceId == null || deviceId.isBlank() ? firstHeader(http, DEVICE_HEADER, DEVICE_HEADER_LEGACY) : deviceId;
-        String forwarded = http.getHeader("X-Forwarded-For");
-        String ip = forwarded == null || forwarded.isBlank()
-                ? http.getRemoteAddr()
-                : forwarded.split(",")[0].trim();
-        return new AuthService.ClientInfo(resolved, http.getHeader(HttpHeaders.USER_AGENT), ip);
     }
 
     /** The calling device, or null when the client did not identify itself. */

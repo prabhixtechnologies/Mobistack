@@ -27,6 +27,7 @@ export function CompatibilityCategoryPage() {
   const [busy, setBusy] = useState(false);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CompatibilityGroup | null>(null);
+  const [proposing, setProposing] = useState<string | null>(null);
 
   async function load(nextQuery = query) {
     if (!categoryId) {
@@ -116,6 +117,31 @@ export function CompatibilityCategoryPage() {
     }
   }
 
+  async function propose(group: CompatibilityGroup) {
+    setBusy(true);
+    setError(null);
+    setProposing(group.id);
+    try {
+      await api("/api/v1/commons/contributions", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ADD_COMPONENT",
+          payload: {
+            categoryCode: category?.code ?? "UNFILED",
+            name: group.name,
+            description: group.notes ?? "",
+          },
+          reason: `Proposed from private fitment notes. Devices: ${groupLine(group.devices) || group.name}`,
+        }),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not propose that note");
+    } finally {
+      setBusy(false);
+      setProposing(null);
+    }
+  }
+
   async function copyGroup(group: CompatibilityGroup) {
     setBusy(true);
     setError(null);
@@ -149,7 +175,7 @@ export function CompatibilityCategoryPage() {
     }
   }
 
-  const title = category?.name ?? "Compatibility list";
+  const title = category?.name ?? "Private fitment notes";
 
   const subtitle = useMemo(() => {
     if (matchCount != null) {
@@ -162,7 +188,7 @@ export function CompatibilityCategoryPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker={<Link to="/compatibility">All lists</Link>}
+        kicker={<Link to="/compatibility">Private fitment notes</Link>}
         title={title}
         subtitle={subtitle}
         actions={
@@ -202,6 +228,14 @@ export function CompatibilityCategoryPage() {
                 <div className="row universal-row__actions">
                   <button className="btn ghost btn--sm" type="button" onClick={() => openEdit(group)} disabled={busy}>
                     Edit
+                  </button>
+                  <button
+                    className="btn ghost btn--sm"
+                    type="button"
+                    onClick={() => void propose(group)}
+                    disabled={busy || proposing === group.id}
+                  >
+                    {proposing === group.id ? "Proposing…" : "Propose to shared catalog"}
                   </button>
                   <button className="btn ghost btn--sm" type="button" onClick={() => void copyGroup(group)} disabled={busy}>
                     Copy

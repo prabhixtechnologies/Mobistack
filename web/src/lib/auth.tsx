@@ -14,7 +14,8 @@ import {
 } from "./api";
 import { getDeviceId } from "./device";
 import { afterAuthPath } from "./plan";
-import { beginLogout, isOidcEnabled } from "./oidc";
+import { beginLogout, isOidcEnabled } from "@prabhix/oidc-client";
+import "./oidc-config";
 import type { AuthResponse, AuthenticatedUser, MyWorkspacesResponse, WorkspaceCard } from "./types";
 
 interface AuthContextValue {

@@ -19,11 +19,10 @@ interface UserDraft {
   fullName: string;
   email: string;
   phone: string;
-  password: string;
   roles: string[];
 }
 
-const BLANK: UserDraft = { fullName: "", email: "", phone: "", password: "", roles: [] };
+const BLANK: UserDraft = { fullName: "", email: "", phone: "", roles: [] };
 
 function relativeDate(iso: string | undefined): string {
   if (!iso) {
@@ -76,7 +75,6 @@ export function AccessControlPage() {
       fullName: user.fullName,
       email: user.email,
       phone: user.phone ?? "",
-      password: "",
       roles: [...user.roles],
     });
   };
@@ -110,12 +108,10 @@ export function AccessControlPage() {
             fullName: draft.fullName,
             email: draft.email,
             phone: draft.phone || undefined,
-            password: draft.password,
             roles: draft.roles,
-            mustChangePassword: true,
           }),
         });
-        toast.success(`${draft.fullName} can now sign in and will set their own password.`);
+        toast.success(`${draft.fullName} can now sign in with Prabhix Identity.`);
       }
       setDraft(null);
       users.reload();
@@ -268,7 +264,7 @@ export function AccessControlPage() {
         description={
           draft?.id
             ? "Change their name, phone or roles. Email is the sign-in identity and can't be edited here."
-            : "They'll sign in with this email and be asked to choose a new password on first use."
+            : "They'll sign in with this email through Prabhix Identity."
         }
         onClose={() => setDraft(null)}
         footer={
@@ -304,16 +300,6 @@ export function AccessControlPage() {
                   autoComplete="email"
                   hint="Used as the sign-in identity."
                   onChange={(event) => setDraft({ ...draft, email: event.target.value })}
-                />
-                <TextField
-                  label="Temporary password"
-                  type="password"
-                  required
-                  minLength={8}
-                  value={draft.password}
-                  autoComplete="new-password"
-                  hint="At least 8 characters. They'll be forced to replace it at first sign-in."
-                  onChange={(event) => setDraft({ ...draft, password: event.target.value })}
                 />
               </>
             )}

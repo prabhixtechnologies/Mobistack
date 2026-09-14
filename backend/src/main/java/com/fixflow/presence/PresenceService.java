@@ -65,4 +65,18 @@ public class PresenceService {
     public void leave(String deviceId) {
         presenceStore.leave(CurrentUser.userId().toString(), deviceId == null ? "unknown" : deviceId);
     }
+
+    /**
+     * Drops a live session so the floor listing no longer shows them. Does not revoke tokens —
+     * that is Identity's, through the oneOps break-glass path.
+     */
+    public int kick(UUID userId, String deviceId) {
+        if (deviceId != null && !deviceId.isBlank()) {
+            presenceStore.leave(userId.toString(), deviceId.trim());
+            return 1;
+        }
+        int live = (int) liveAll().stream().filter(row -> userId.equals(row.userId())).count();
+        presenceStore.kick(userId.toString());
+        return live;
+    }
 }

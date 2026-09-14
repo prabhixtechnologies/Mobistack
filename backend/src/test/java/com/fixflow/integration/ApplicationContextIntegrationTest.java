@@ -2,7 +2,7 @@ package com.fixflow.integration;
 
 import com.fixflow.imports.ImportService;
 import com.fixflow.presence.RedisPresenceStore;
-import com.fixflow.security.jwt.JwtService;
+import com.fixflow.security.jwt.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,7 +103,7 @@ class ApplicationContextIntegrationTest {
      */
     @Test
     void theBeansThatNeedAJsonMapperAreConstructed() {
-        assertThat(context.getBean(JwtService.class)).isNotNull();
+        assertThat(context.getBean(JwtAuthenticationFilter.class)).isNotNull();
         assertThat(context.getBean(ImportService.class)).isNotNull();
         assertThat(context.getBean(RedisPresenceStore.class)).isNotNull();
     }

@@ -7,6 +7,7 @@ import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
 import { SelectField, TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import { humanLabel } from "../lib/labels";
 
 interface Customer {
   id: string;
@@ -64,7 +65,7 @@ export function CustomersPage() {
       ),
     },
     { key: "phone", header: "Phone", render: (row) => row.phone ?? "—" },
-    { key: "type", header: "Type", render: (row) => row.customerType },
+    { key: "type", header: "Type", render: (row) => humanLabel(row.customerType) },
     { key: "purchases", header: "Purchases", align: "right", render: (row) => money.format(row.totalPurchases) },
     {
       key: "outstanding",
@@ -77,7 +78,7 @@ export function CustomersPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="People"
+        kicker="Shop"
         title="Customers"
         subtitle="Walk-ins stay unnamed. Regulars keep a phone and an outstanding balance."
       />

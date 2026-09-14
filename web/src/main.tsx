@@ -5,6 +5,7 @@ import { App } from "./App";
 import { AuthProvider } from "./lib/auth";
 import { ThemeProvider } from "./lib/theme";
 import { ToastProvider } from "./ui/Toast";
+import "./lib/oidc-config";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(

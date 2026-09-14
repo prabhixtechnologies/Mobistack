@@ -8,7 +8,6 @@ import com.fixflow.notify.NotificationService;
 import com.fixflow.security.CurrentUser;
 import com.fixflow.security.SystemRole;
 import com.fixflow.shop.domain.Shop;
-import com.fixflow.security.jwt.JwtService;
 import com.fixflow.shop.repository.ShopRepository;
 import com.fixflow.user.domain.Role;
 import com.fixflow.user.domain.User;
@@ -23,6 +22,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -39,7 +41,6 @@ public class InvitationService {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final ShopRepository shopRepository;
-    private final JwtService jwtService;
     private final AuditService auditService;
     private final NotificationService notificationService;
     private final com.fixflow.billing.service.BillingService billingService;
@@ -57,7 +58,7 @@ public class InvitationService {
         invitation.setEmail(request.email());
         invitation.setPhone(request.phone());
         invitation.setRole(role);
-        invitation.setTokenHash(jwtService.hashRefreshToken(token));
+        invitation.setTokenHash(hash(token));
         invitation.setRawHint(token.substring(0, 6));
         invitation.setStatus(WorkspaceInvitation.Status.PENDING);
         invitation.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
@@ -80,7 +81,7 @@ public class InvitationService {
 
     @Transactional
     public void accept(String rawToken, UUID userId) {
-        WorkspaceInvitation invitation = invitationRepository.findByTokenHash(jwtService.hashRefreshToken(rawToken))
+        WorkspaceInvitation invitation = invitationRepository.findByTokenHash(hash(rawToken))
                 .orElseThrow(() -> new ApiException(ErrorCode.TOKEN_INVALID, "Invitation is not valid."));
         if (invitation.getStatus() != WorkspaceInvitation.Status.PENDING) {
             throw new ApiException(ErrorCode.INVITE_USED, "This invitation has already been used.");
@@ -133,4 +134,18 @@ public class InvitationService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    /**
+     * Only the digest of an invitation token is stored, so a database read cannot be turned into
+     * a join. Plain SHA-256 is enough: the token is 192 random bits, so there is nothing to guess.
+     * The encoding matches what pending invitations were stored with before sign-in moved to
+     * Identity, so those still redeem.
+     */
+    static String hash(String rawToken) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return Base64.getEncoder().encodeToString(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is required but unavailable", ex);
+        }
+    }
 }

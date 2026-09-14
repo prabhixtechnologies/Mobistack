@@ -60,6 +60,8 @@ class WorkspaceAccessServiceTest {
     private BillingService billingService;
     @Mock
     private com.fixflow.notify.NotificationService notificationService;
+    @Mock
+    private com.fixflow.commons.service.CommonsReviewerService commonsReviewers;
 
     @InjectMocks
     private WorkspaceAccessService service;
@@ -275,12 +277,14 @@ class WorkspaceAccessServiceTest {
     void principalUsesMembershipRoleNotTheUsersGlobalRoles() {
         when(membershipRepository.findActiveForUser(userId, MembershipStatus.ACTIVE))
                 .thenReturn(List.of(membership(workspaceA, MembershipStatus.ACTIVE, staffRole)));
+        when(commonsReviewers.isReviewer(userId)).thenReturn(true);
 
         UserPrincipal principal = service.principalFor(user, workspaceA);
 
         assertThat(principal.getShopId()).isEqualTo(workspaceA);
         assertThat(principal.getRoles()).containsExactly("STAFF");
         assertThat(principal.getRoles()).doesNotContain("OWNER");
+        assertThat(principal.has(com.fixflow.security.Permission.COMMONS_REVIEW)).isTrue();
     }
 
     @Test

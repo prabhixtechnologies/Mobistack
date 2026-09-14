@@ -33,6 +33,19 @@ public final class SearchDtos {
     public record BrandHit(UUID id, String name, long deviceCount) {
     }
 
+    @Schema(name = "CommonsSearchHit")
+    public record CommonsSearchHit(
+            UUID id,
+            String name,
+            String kind,
+            UUID brandId,
+            String brandName,
+            String categoryCode,
+            String variant,
+            String modelCode
+    ) {
+    }
+
     @Schema(name = "GlobalSearchResponse",
             description = "One query, every kind of match. Devices rank first because "
                     + "the usual intent is 'what fits this phone'.")
@@ -44,7 +57,9 @@ public final class SearchDtos {
             /* Set when the query is an exact SKU or barcode, so a scan jumps straight to the part. */
             PartSearchHit exactMatch,
             int totalResults,
-            long tookMillis
+            long tookMillis,
+            List<CommonsSearchHit> commonsDevices,
+            List<CommonsSearchHit> commonsComponents
     ) {
     }
 }

@@ -61,6 +61,17 @@ public class BillingController {
     }
 
     /**
+     * Complimentary FULL_SHOP for local testing. Rejected when the API is on the
+     * production profile — unpaid shops there must pay through Razorpay.
+     */
+    @PostMapping("/dev/activate")
+    @PreAuthorize(Authorize.WORKSPACE_BILLING)
+    public ResponseEntity<Void> activateLocal() {
+        billingService.activateLocalShop(CurrentUser.shopId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Razorpay's own callback. Unauthenticated by necessity — Razorpay has no
      * session — so trust comes entirely from the signature over the raw body.
      */

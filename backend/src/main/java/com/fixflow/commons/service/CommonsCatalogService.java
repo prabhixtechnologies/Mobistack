@@ -17,9 +17,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -61,6 +63,74 @@ public class CommonsCatalogService {
     @Transactional(readOnly = true)
     public Page<CatalogDevice> searchDevices(String term, int page, int size) {
         return devices.search(safeTerm(term), pageable(page, size));
+    }
+
+    /** Browse without a query: most-looked-up models first. */
+    @Transactional(readOnly = true)
+    public Page<CatalogDevice> listDevices(int page, int size) {
+        return devices.findAll(PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+                Sort.by(Sort.Direction.DESC, "lookupCount").and(Sort.by("name"))));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CatalogComponent> listComponents(int page, int size) {
+        return components.findAll(PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+                Sort.by("name")));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CatalogDevice> devicesForBrand(UUID brandId, int page, int size) {
+        if (!brands.existsById(brandId)) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "No such brand");
+        }
+        return devices.findByBrandIdOrderByNameAsc(brandId, pageable(page, size));
+    }
+
+    @Transactional(readOnly = true)
+    public CatalogDevice requireDevice(UUID deviceId) {
+        return devices.findById(deviceId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such device"));
+    }
+
+    @Transactional(readOnly = true)
+    public CatalogComponent requireComponent(UUID componentId) {
+        return components.findById(componentId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such component"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<CatalogDevice> popularDevices(int limit) {
+        return devices.findAll(PageRequest.of(0, Math.min(Math.max(limit, 1), MAX_PAGE_SIZE),
+                Sort.by("lookupCount").descending().and(Sort.by("name")))).getContent();
+    }
+
+    @Transactional(readOnly = true)
+    public long brandCount() {
+        return brands.count();
+    }
+
+    @Transactional(readOnly = true)
+    public long deviceCount() {
+        return devices.count();
+    }
+
+    @Transactional(readOnly = true)
+    public long componentCount() {
+        return components.count();
+    }
+
+    @Transactional(readOnly = true)
+    public long fitmentCount() {
+        return fitments.count();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, String> brandNames(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        return brands.findAllById(ids).stream()
+                .collect(Collectors.toMap(CatalogBrand::getId, CatalogBrand::getName));
     }
 
     @Transactional(readOnly = true)

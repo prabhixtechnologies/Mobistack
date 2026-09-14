@@ -123,6 +123,20 @@ management:
     # SMTP is optional on first boot. A missing mailbox must not fail the process health check.
     mail:
       enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      cloudwatch:
+        enabled: ${CLOUDWATCH_METRICS:false}
+        namespace: Prabhix
+        step: 1m
+  cloudwatch:
+    metrics:
+      export:
+        enabled: ${CLOUDWATCH_METRICS:false}
+        namespace: Prabhix
+        step: 1m
 
 springdoc:
   swagger-ui:
@@ -134,23 +148,20 @@ springdoc:
     path: /v3/api-docs
     enabled: ${SWAGGER_ENABLED:false}
 
+# Prabhix Identity is the only issuer of bearer tokens this API accepts (RS256, verified against its
+# published JWKS through identity-spring-boot-starter). A blank issuer refuses every bearer token, and
+# the prod profile refuses to start. The service token authenticates the two service-to-service hops:
+# mirroring a user this database has never seen, and the oneOps BFF calling /internal/admin.
+prabhix:
+  identity:
+    issuer: ${IDENTITY_ISSUER:}
+    jwks-uri: ${IDENTITY_JWKS_URI:}
+    jwks-cache-ttl: ${IDENTITY_JWKS_CACHE_TTL:PT10M}
+    jwks-min-refresh-interval: ${IDENTITY_JWKS_MIN_REFRESH:PT30S}
+    internal-base-url: ${IDENTITY_INTERNAL_URL:http://identity:8081}
+    service-token: ${IDENTITY_SERVICE_TOKEN:}
+
 fixflow:
-  security:
-    jwt:
-      # Override in every real environment. Startup fails if this is under 64 chars.
-      secret: ${FIXFLOW_SECURITY_JWT_SECRET:}
-      issuer: mobistack
-      access-token-ttl: 30m
-      refresh-token-ttl: 30d
-    identity:
-      issuer: ${IDENTITY_ISSUER:}
-      jwks-uri: ${IDENTITY_JWKS_URI:}
-      jwks-cache-ttl: ${IDENTITY_JWKS_CACHE_TTL:PT10M}
-      jwks-min-refresh-interval: ${IDENTITY_JWKS_MIN_REFRESH:PT30S}
-      internal-base-url: ${IDENTITY_INTERNAL_URL:http://identity:8081}
-      service-token: ${IDENTITY_SERVICE_TOKEN:}
-    max-failed-logins: 8
-    lockout-duration: 15m
   cors:
     allowed-origins:
       - https://mobistack.prabhixtechnologies.com
@@ -170,15 +181,9 @@ fixflow:
     organization-tagline: Building software that simplifies business
     copyright-year: 2026
   auth:
+    # The SPA origin, allowed by CORS and reported by /public/brand. Sign-in itself happens on
+    # Identity's hosted pages; this API never sees a credential.
     web-origin: ${FIXFLOW_WEB_ORIGIN:https://mobistack.prabhixtechnologies.com}
-    magic-link-path: /login?magic=
-    # Off by default and switched on only in application-dev.yml. Enabling a
-    # universal OTP and an SSO bypass in the base profile meant a mis-set
-    # SPRING_PROFILES_ACTIVE handed out accounts to anyone who asked.
-    dev-otp: ""
-    dev-sso-enabled: false
-    google-client-id: ${FIXFLOW_GOOGLE_CLIENT_ID:}
-    google-client-secret: ${FIXFLOW_GOOGLE_CLIENT_SECRET:}
   platform:
     public-origin: ${FIXFLOW_PUBLIC_ORIGIN:https://mobistack.prabhixtechnologies.com}
     api-origin: ${FIXFLOW_API_ORIGIN:https://mobistack.prabhixtechnologies.com}
@@ -189,12 +194,6 @@ fixflow:
     enabled: ${FIXFLOW_REDIS_ENABLED:false}
     presence-ttl: 90s
     dashboard-ttl: 20s
-  devices:
-    # Devices are screens belonging to one person (counter phone + web console).
-    # Paid screen seats are counted per person, not per device.
-    default-max-per-user: 3
-    absolute-max-per-user: 5
-    over-limit: evict
   chat:
     openai-api-key: ${FIXFLOW_OPENAI_API_KEY:}
     openai-model: ${FIXFLOW_OPENAI_MODEL:gpt-4o-mini}
@@ -204,12 +203,6 @@ fixflow:
     ios-download-url: ${FIXFLOW_IOS_DOWNLOAD_URL:https://mobistack.prabhixtechnologies.com/download/ios}
     android-apk-path: ${FIXFLOW_ANDROID_APK_PATH:/var/mobistack/downloads/MobiStack.apk}
     ios-ipa-path: ${FIXFLOW_IOS_IPA_PATH:/var/mobistack/downloads/MobiStack.ipa}
-  twilio:
-    account-sid: ${TWILIO_ACCOUNT_SID:}
-    auth-token: ${TWILIO_AUTH_TOKEN:}
-    sms-from: ${TWILIO_SMS_FROM:}
-    whatsapp-from: ${TWILIO_WHATSAPP_FROM:}
-    default-country-code: ${TWILIO_DEFAULT_COUNTRY_CODE:91}
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
@@ -271,3 +264,22 @@ spring:
       # holds exactly the host:port this URL needs, and it is what the compose files and env examples
       # already set.
       url: rediss://${REDIS_CLUSTER_NODES}
+
+---
+# Micrometer → CloudWatch namespace Prabhix. Same effect as CLOUDWATCH_METRICS=true.
+spring:
+  config:
+    activate:
+      on-profile: cloudwatch
+management:
+  metrics:
+    export:
+      cloudwatch:
+        enabled: true
+        namespace: Prabhix
+  cloudwatch:
+    metrics:
+      export:
+        enabled: true
+        namespace: Prabhix
+        step: 1m

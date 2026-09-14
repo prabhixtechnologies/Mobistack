@@ -9,4 +9,8 @@ public interface PresenceStore {
     List<PresenceSnapshot> listLive();
 
     void leave(String userId, String deviceId);
+
+    /** Every live row for this person, whatever device they are on. */
+    void kick(String userId);
 }
+

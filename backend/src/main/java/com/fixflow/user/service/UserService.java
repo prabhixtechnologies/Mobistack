@@ -23,7 +23,6 @@ import com.fixflow.workspace.service.WorkspaceAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +42,6 @@ public class UserService {
     private final ShopRepository shopRepository;
     private final WorkspaceMembershipRepository membershipRepository;
     private final WorkspaceAccessService workspaceAccessService;
-    private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final com.fixflow.billing.service.BillingService billingService;
 
@@ -85,13 +83,14 @@ public class UserService {
                     "Added \"%s\" to this workspace as %s".formatted(existing.getFullName(), primary.getCode()));
             return toResponse(membership);
         }).orElseGet(() -> {
+            // A placeholder row under a fresh id. When this person first signs in through Identity
+            // the security filter finds no row under their Identity subject, falls back to this
+            // email, and uses this row, so the membership granted here is theirs from day one.
             User user = new User();
             user.setShopId(shopId);
             user.setFullName(request.fullName().trim());
             user.setEmail(request.email().toLowerCase());
             user.setPhone(request.phone());
-            user.setPasswordHash(passwordEncoder.encode(request.password()));
-            user.setMustChangePassword(request.mustChangePassword() == null || request.mustChangePassword());
             user.setRoles(roles);
             userRepository.save(user);
             WorkspaceMembership membership = workspaceAccessService.activate(
@@ -203,7 +202,7 @@ public class UserService {
         roles.add(workspaceRole.getCode());
         return new UserResponse(user.getId(), user.getFullName(), user.getEmail(),
                 user.getPhone(), user.getAvatarUrl(), user.isActive(),
-                user.isMustChangePassword(), user.getLastLoginAt(), roles,
+                user.getLastLoginAt(), roles,
                 workspaceRole.permissionCodes().stream().map(Permission::name)
                         .collect(Collectors.toCollection(LinkedHashSet::new)));
     }
