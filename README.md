@@ -87,7 +87,7 @@ Canonical origin: **https://mobistack.prabhixtechnologies.com**
 Magic links, Google redirects, invoices, CORS, and release-app URLs use that host.
 
 1. Test on the laptop with the command above.
-2. Push `master` and let GitHub Actions publish to ECR — no registry secrets, the workflow assumes an IAM role through OIDC. `.\deploy\publish.ps1` does the same from a laptop when CI is unavailable.
+2. Push `main` and let GitHub Actions publish to ECR — no registry secrets, the workflow assumes an IAM role through OIDC. `.\deploy\publish.ps1` does the same from a laptop when CI is unavailable.
 3. On the EC2 that the subdomain points at: copy `deploy/.env.prod.example` to `.env`, then `./deploy/ec2-up.sh`.
 
 EC2 only pulls images. It does not build Java or Node. Caddy terminates TLS (Let's Encrypt) on ports 80 and 443. Postgres and Redis are not published on the host.

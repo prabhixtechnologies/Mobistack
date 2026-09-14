@@ -25,7 +25,7 @@ name: Build and verify
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
     inputs:
       tag:

@@ -29,7 +29,7 @@ npm run apk
 
 `assembleRelease` needs a keystore. For the first local build, Android Studio can generate one under **Build → Generate Signed Bundle / APK**.
 
-GitHub Actions on `master` uploads:
+GitHub Actions on `main` uploads:
 
 - `mobistack-android-apk` — installable debug APK
 - `mobistack-ios-module` — Xcode project zip, plus a simulator `.app` when the Mac runner can compile

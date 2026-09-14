@@ -70,7 +70,7 @@ jobs:
           REQUESTED: ${{ inputs.build }}
         run: |
           set -euo pipefail
-          runs=$(gh run list --repo "$REPO" --workflow build.yml --branch master \
+          runs=$(gh run list --repo "$REPO" --workflow build.yml --branch main \
             --status success --limit 100 --json databaseId,headSha,createdAt)
 
           if [ "$REQUESTED" = latest ]; then
@@ -150,7 +150,7 @@ jobs:
               git remote add origin https://github.com/prabhixtechnologies/Mobistack.git
               # Plumbing, because `git branch -m` cannot rename a branch that has
               # no commits yet on the git versions Amazon Linux ships.
-              git symbolic-ref HEAD refs/heads/master
+              git symbolic-ref HEAD refs/heads/main
             fi
 
             # Fetch and reset rather than pull. Nothing on the server should ever
@@ -159,11 +159,11 @@ jobs:
             # edit. Reset always lands exactly on origin, with the line endings
             # .gitattributes asks for. .env and downloads/ are untracked, so they
             # survive it.
-            at "syncing the checkout to origin/master"
+            at "syncing the checkout to origin/main"
             git remote set-url origin https://github.com/prabhixtechnologies/Mobistack.git
-            git fetch origin master
+            git fetch origin main
             git reset --hard FETCH_HEAD
-            git branch --set-upstream-to=origin/master master 2>/dev/null || true
+            git branch --set-upstream-to=origin/main main 2>/dev/null || true
             echo "Checkout now at $(git rev-parse --short HEAD)"
 
             at "resolving the requested image tag"

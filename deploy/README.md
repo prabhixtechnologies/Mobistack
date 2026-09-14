@@ -24,7 +24,7 @@ Do not start Caddy on the laptop (`--profile prod`).
 
 ## 2. Publish images
 
-The usual route is to push `master` and let CI do it. **Build and verify** tests the backend, typechecks the web app, then publishes `latest` and the commit SHA to ECR.
+The usual route is to push `main` and let CI do it. **Build and verify** tests the backend, typechecks the web app, then publishes `latest` and the commit SHA to ECR.
 
 Nothing needs configuring per repository: no registry secrets, no namespace variable. The workflow assumes `arn:aws:iam::029096972251:role/prabhix-github-ecr-push` through GitHub's OIDC provider, so no long-lived key exists to leak or rotate.
 
@@ -44,7 +44,7 @@ Building and shipping are deliberately separate. A push proves a commit works; p
 
 | Workflow | Trigger | What it does |
 | --- | --- | --- |
-| **Build and verify** | every push to `master` | Guards, tests, typechecks, pushes images to ECR, builds the signed APK/AAB |
+| **Build and verify** | every push to `main` | Guards, tests, typechecks, pushes images to ECR, builds the signed APK/AAB |
 | **Deploy to EC2** | by hand | Restarts the server on a chosen build and replaces the APK the site offers |
 | **Release to Google Play** | by hand | Uploads a build to a Play track |
 

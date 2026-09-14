@@ -41,10 +41,10 @@ printf '#!/usr/bin/env bash\necho "STUB BACKUP RAN"\n' > "$seed/deploy/db-backup
   git init -q
   git config user.email t@t.t
   git config user.name t
-  git symbolic-ref HEAD refs/heads/master
+  git symbolic-ref HEAD refs/heads/main
   git add -A
   git commit -qm "seed"
-  git push -q "$origin" master
+  git push -q "$origin" main
 ) >/dev/null 2>&1
 seed_sha=$(git -C "$seed" rev-parse HEAD)
 seed_short=$(git -C "$seed" rev-parse --short HEAD)
@@ -161,7 +161,7 @@ printf '#!/usr/bin/env bash\r\necho stale\r\n' > "$app/stale.sh"
 newenv "$app"
 out=$(attempt adopt "$app" latest); rc=$?
 report "adopts the directory and reaches the end" "$rc" "$out" \
-  "Previous config saved to" "syncing the checkout to origin/master" "New build is live" \
+  "Previous config saved to" "syncing the checkout to origin/main" "New build is live" \
   "deploy finished with status 0"
 expect_rc "adopt" zero "$rc"
 if [ -f "$app/.env" ]; then pass ".env survived the hard reset"; else fail ".env was destroyed"; fi
