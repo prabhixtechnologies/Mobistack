@@ -14,7 +14,7 @@ This is the measured state after the move, not a plan.
 | `mobistack-web` | Container on the shared box, 48m limit |
 | Database | RDS `prabhix.crc86cio2bng.ap-south-1.rds.amazonaws.com`, database `mobistack`, role `mobistack` |
 | Cache | `mobistack-fd3oni.serverless.aps1.cache.amazonaws.com:6379`, its own serverless Valkey |
-| TLS and routing | The **platform's** Caddy, from `deploy/conf.d/mobistack.caddyfile` in the Platform repo |
+| TLS and routing | The **platform's** Caddy, from `deploy/conf.d/mobistack.caddyfile` in the Infra repo |
 | MobiStack's own `postgres` | Does not run. Parked behind the `never` profile |
 | MobiStack's own `caddy` | Does not run. The platform's Caddy already holds 80 and 443 |
 
