@@ -346,14 +346,31 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
+
+      - name: Checkout Identity client
+        uses: actions/checkout@v4
+        with:
+          repository: prabhixtechnologies/Identity
+          path: identity-client
+          sparse-checkout: client
+          sparse-checkout-cone-mode: true
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "25"
           cache: maven
+          # GitHub Packages rejects an anonymous read of the Identity starter. Installing it from
+          # source below is what the tests actually use; this entry covers any other resolution.
+          server-id: github
+
+      - name: Install Identity starter
+        run: mvn -B -f identity-client/client/pom.xml -DskipTests install
 
       # Logged as well as printed so the next step can read it without running the suite again.
       # pipefail matters here: without it the step's exit code would be tee's, not Maven's.
@@ -500,6 +517,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend
+          # The Dockerfile installs the Identity starter from this context instead of GitHub Packages.
+          build-contexts: |
+            identity-client=https://github.com/prabhixtechnologies/Identity.git#main:client
           push: true
           tags: ${{ steps.tags.outputs.backend }}
           cache-from: type=gha
