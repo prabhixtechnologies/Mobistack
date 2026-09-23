@@ -439,6 +439,9 @@ jobs:
       - name: Web typecheck and build
         working-directory: web
         run: |
+          # package.json points at ../../web-kit, which is the sibling checkout on a laptop
+          # and is not inside this repository.
+          git clone --depth 1 https://github.com/prabhixtechnologies/web-kit.git "$GITHUB_WORKSPACE/../web-kit"
           npm ci
           npm run build
 
@@ -529,6 +532,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./web
+          build-contexts: |
+            webkit=https://github.com/prabhixtechnologies/web-kit.git#main
           push: true
           tags: ${{ steps.tags.outputs.web }}
           cache-from: type=gha
