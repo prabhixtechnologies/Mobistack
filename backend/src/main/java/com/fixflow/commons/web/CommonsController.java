@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * The shared compatibility catalog, readable by anyone signed in.
+ * The fitment catalog. {@link com.fixflow.security.CatalogPlanFilter} refuses it until the shop has paid the ₹50 plan.
  *
  * <p>Every other business endpoint in this service requires a selected workspace, enforced by
  * {@code WorkspaceGuardFilter}. These do not, and that is the point: someone can look up what fits

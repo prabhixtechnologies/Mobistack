@@ -34,9 +34,8 @@ export interface NavSection {
 /**
  * The single description of primary navigation.
  *
- * Catalog facts are shared and free. Shop and operations are private to this
- * workspace and gated by the plan. Breadcrumbs and route guards read the same
- * `need` codes.
+ * The fitment catalog is the ₹50 plan. Billing stays open so an unpaid shop can
+ * pay. Breadcrumbs and route guards read the same `need` codes.
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -44,7 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
     hint: "shared across shops",
     shared: "commons",
     items: [
-      { to: "/commons", label: "Fitment catalog", icon: "globe", tint: "cyan", end: true, allowUnpaid: true },
+      { to: "/commons", label: "Fitment catalog", icon: "globe", tint: "cyan", end: true, feature: "COMPATIBILITY" },
     ],
   },
   {
@@ -58,15 +57,10 @@ export const NAV_SECTIONS: NavSection[] = [
 const UNPAID_ALLOWED = new Set([
   ...NAV_SECTIONS.flatMap((section) => section.items.filter((item) => item.allowUnpaid).map((item) => item.to)),
   "/profile",
-  "/commons/devices",
-  "/commons/components",
 ]);
 
 export function allowedWhileUnpaid(pathname: string): boolean {
-  if (UNPAID_ALLOWED.has(pathname)) {
-    return true;
-  }
-  return pathname.startsWith("/commons/");
+  return UNPAID_ALLOWED.has(pathname);
 }
 
 const EXTRA_LABELS: Record<string, string> = {
