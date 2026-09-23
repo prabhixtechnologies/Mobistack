@@ -55,6 +55,7 @@ public class SecurityConfig {
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CatalogOnlyFilter catalogOnlyFilter;
     private final WorkspaceGuardFilter workspaceGuardFilter;
     private final ApiRateLimitFilter apiRateLimitFilter;
     private final PlatformAdminAuthFilter platformAdminAuthFilter;
@@ -90,7 +91,8 @@ public class SecurityConfig {
                 .addFilterBefore(apiRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(platformAdminAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(workspaceGuardFilter, JwtAuthenticationFilter.class);
+                .addFilterAfter(workspaceGuardFilter, JwtAuthenticationFilter.class)
+                .addFilterAfter(catalogOnlyFilter, WorkspaceGuardFilter.class);
 
         return http.build();
     }
@@ -107,6 +109,13 @@ public class SecurityConfig {
     public FilterRegistrationBean<PlatformAdminAuthFilter> platformAdminAuthRegistration(
             PlatformAdminAuthFilter filter) {
         FilterRegistrationBean<PlatformAdminAuthFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<CatalogOnlyFilter> catalogOnlyRegistration(CatalogOnlyFilter filter) {
+        FilterRegistrationBean<CatalogOnlyFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

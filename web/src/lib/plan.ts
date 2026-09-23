@@ -35,9 +35,6 @@ export function afterAuthPath(
   if (user.paymentRequired) {
     return "/billing?activate=1";
   }
-  if (user.features?.includes("DASHBOARD")) {
-    return "/";
-  }
   return "/commons";
 }
 

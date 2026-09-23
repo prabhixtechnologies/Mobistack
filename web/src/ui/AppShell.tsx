@@ -9,7 +9,6 @@ import { api } from "../lib/api";
 import { usePresence } from "../lib/presence";
 import { BrandFooter, BrandMark } from "./BrandMark";
 import { ThemeToggle } from "./ThemeToggle";
-import { GlobalSearch, openCommandPalette } from "./GlobalSearch";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { Menu, MenuItem, MenuSeparator } from "./Menu";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -49,10 +48,9 @@ export function AppShell() {
     return localStorage.getItem(SIDEBAR_KEY) === "1";
   });
   const [navOpen, setNavOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
-  usePresence(Boolean(user));
+  usePresence(false);
   const localUnlock = Boolean(user?.localActivationAvailable);
   const canBill = access.has("WORKSPACE_BILLING");
 
@@ -106,27 +104,6 @@ export function AppShell() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [drawer, navOpen]);
-
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-    const pull = () => {
-      if (document.hidden) {
-        return;
-      }
-      void api<{ unread: number }>("/api/v1/inbox")
-        .then((inbox) => setUnread(inbox.unread))
-        .catch(() => undefined);
-    };
-    pull();
-    const timer = window.setInterval(pull, 20000);
-    document.addEventListener("visibilitychange", pull);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", pull);
-    };
-  }, [user]);
 
   /**
    * A nav entry survives when the viewer holds its capability, it clears the
@@ -188,7 +165,6 @@ export function AppShell() {
           </span>
         )}
 
-        <GlobalSearch />
 
         <div className="app-header__actions">
           {activeWorkspaces.length > 1 && (
@@ -213,16 +189,6 @@ export function AppShell() {
 
           <ThemeToggle icon />
 
-          <button
-            className="icon-btn header-icon"
-            type="button"
-            aria-label={unread ? `${unread} unread notifications` : "Notifications"}
-            onClick={() => navigate("/notifications")}
-          >
-            <Icon name="bell" />
-            {unread > 0 && <span className="header-dot">{unread > 9 ? "9+" : unread}</span>}
-          </button>
-
           <Menu
             label="Account menu"
             trigger={({ open }) => (
@@ -244,36 +210,6 @@ export function AppShell() {
                   <span className={`badge role-badge tint-${access.roleTint}`}>{access.roleLabel}</span>
                   {access.isPlatformAdmin && <span className="badge neutral">Platform staff</span>}
                 </div>
-                <MenuSeparator />
-                <MenuItem
-                  icon={<Icon name="user" />}
-                  onClick={() => {
-                    close();
-                    navigate("/profile");
-                  }}
-                >
-                  My profile
-                </MenuItem>
-                {access.has("SETTINGS_READ") && (
-                  <MenuItem
-                    icon={<Icon name="settings" />}
-                    onClick={() => {
-                      close();
-                      navigate("/settings");
-                    }}
-                  >
-                    Workspace settings
-                  </MenuItem>
-                )}
-                <MenuItem
-                  icon={<Icon name="grid" />}
-                  onClick={() => {
-                    close();
-                    navigate("/workspaces");
-                  }}
-                >
-                  Switch workspace
-                </MenuItem>
                 <MenuSeparator />
                 <MenuItem
                   danger
@@ -339,7 +275,6 @@ export function AppShell() {
                       <Icon name={item.icon} />
                     </span>
                     <span className="nav-link__label">{item.label}</span>
-                    {item.to === "/notifications" && unread > 0 && <span className="nav-badge">{unread}</span>}
                   </NavLink>
                 ))}
               </div>
@@ -403,32 +338,16 @@ export function AppShell() {
 
       <BrandFooter />
 
-      <NavLink to="/support" className="support-fab" aria-label="Open support">
-        <Icon name="chat" />
-      </NavLink>
-
       {drawer && (
         <nav className="app-dock" aria-label="Primary shop actions">
-          {access.has("SALES_READ") && (
-            <NavLink to="/sales" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
-              <Icon name="cart" />
-              Sale
-            </NavLink>
-          )}
-          <button className="app-dock__item" type="button" onClick={() => openCommandPalette()}>
-            <Icon name="search" />
-            Search
-          </button>
-          {access.has("REPAIR_READ") && (
-            <NavLink to="/repairs" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
-              <Icon name="wrench" />
-              Repairs
-            </NavLink>
-          )}
-          {access.has("INVENTORY_READ") && (
-            <NavLink to="/inventory" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
-              <Icon name="box" />
-              Stock
+          <NavLink to="/commons" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
+            <Icon name="globe" />
+            Catalog
+          </NavLink>
+          {access.has("WORKSPACE_BILLING") && (
+            <NavLink to="/billing" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
+              <Icon name="card" />
+              Billing
             </NavLink>
           )}
           <button

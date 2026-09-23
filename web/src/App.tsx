@@ -6,7 +6,7 @@ import { AppShell } from "./ui/AppShell";
 import { BrandFooter, BrandMark } from "./ui/BrandMark";
 import { ThemeToggle } from "./ui/ThemeToggle";
 import { SkipLink } from "./ui/SkipLink";
-import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
+import { RequirePermission } from "./ui/PermissionGate";
 import { LoginPage, SessionRestore } from "./pages/LoginPage";
 import { OidcCallbackPage } from "./pages/OidcCallbackPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
@@ -27,36 +27,10 @@ function page<P extends object, K extends string>(
   return lazy(() => loader().then((module) => ({ default: module[name] })));
 }
 
-const DashboardPage = page(() => import("./pages/DashboardPage"), "DashboardPage");
-const SearchPage = page(() => import("./pages/SearchPage"), "SearchPage");
 const CommonsBrowsePage = page(() => import("./pages/CommonsBrowsePage"), "CommonsBrowsePage");
 const CommonsDevicePage = page(() => import("./pages/CommonsDevicePage"), "CommonsDevicePage");
 const CommonsComponentPage = page(() => import("./pages/CommonsComponentPage"), "CommonsComponentPage");
-const CommonsStandingPage = page(() => import("./pages/CommonsStandingPage"), "CommonsStandingPage");
-const CommonsReviewPage = page(() => import("./pages/CommonsReviewPage"), "CommonsReviewPage");
-const CatalogLinksPage = page(() => import("./pages/CatalogLinksPage"), "CatalogLinksPage");
-const CompatibilityPage = page(() => import("./pages/CompatibilityPage"), "CompatibilityPage");
-const CompatibilityCategoryPage = page(() => import("./pages/CompatibilityCategoryPage"), "CompatibilityCategoryPage");
-const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
-const InventoryPage = page(() => import("./pages/InventoryPage"), "InventoryPage");
-const MovementsPage = page(() => import("./pages/MovementsPage"), "MovementsPage");
-const SettingsPage = page(() => import("./pages/SettingsPage"), "SettingsPage");
-const SalesPage = page(() => import("./pages/SalesPage"), "SalesPage");
-const RepairsPage = page(() => import("./pages/RepairsPage"), "RepairsPage");
-const CustomersPage = page(() => import("./pages/CustomersPage"), "CustomersPage");
-const SuppliersPage = page(() => import("./pages/SuppliersPage"), "SuppliersPage");
-const PurchasesPage = page(() => import("./pages/PurchasesPage"), "PurchasesPage");
-const ReportsPage = page(() => import("./pages/ReportsPage"), "ReportsPage");
-const MembersPage = page(() => import("./pages/MembersPage"), "MembersPage");
-const AccessControlPage = page(() => import("./pages/AccessControlPage"), "AccessControlPage");
-const ProfilePage = page(() => import("./pages/ProfilePage"), "ProfilePage");
-const SystemHealthPage = page(() => import("./pages/SystemHealthPage"), "SystemHealthPage");
 const BillingPage = page(() => import("./pages/BillingPage"), "BillingPage");
-const ImportPage = page(() => import("./pages/ImportPage"), "ImportPage");
-const AuditPage = page(() => import("./pages/AuditPage"), "AuditPage");
-const AdminPage = page(() => import("./pages/AdminPage"), "AdminPage");
-const NotificationsPage = page(() => import("./pages/NotificationsPage"), "NotificationsPage");
-const SupportPage = page(() => import("./pages/SupportPage"), "SupportPage");
 const LegalPage = page(() => import("./pages/LegalPage"), "LegalPage");
 const AppDownloadPage = page(() => import("./pages/AppDownloadPage"), "AppDownloadPage");
 const ForcePasswordChangePage = page(
@@ -184,39 +158,12 @@ export function App() {
         <Route element={<AppShell />}>
           {/* Capability comes from ROUTE_PERMISSIONS, keyed on the live pathname. */}
           <Route element={<RequirePermission />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/search" element={<SearchPage />} />
+            <Route path="/" element={<Navigate to="/commons" replace />} />
             <Route path="/commons" element={<CommonsBrowsePage />} />
             <Route path="/commons/devices/:id" element={<CommonsDevicePage />} />
             <Route path="/commons/components/:id" element={<CommonsComponentPage />} />
-            <Route path="/commons/standing" element={<CommonsStandingPage />} />
-            <Route path="/commons/review" element={<CommonsReviewPage />} />
-            <Route path="/devices/:id" element={<DevicePage />} />
-            <Route path="/sales" element={<SalesPage />} />
-            <Route path="/repairs" element={<RepairsPage />} />
-            <Route path="/inventory" element={<InventoryPage />} />
-            <Route path="/inventory/catalog-links" element={<CatalogLinksPage />} />
-            <Route path="/purchases" element={<PurchasesPage />} />
-            <Route path="/customers" element={<CustomersPage />} />
-            <Route path="/suppliers" element={<SuppliersPage />} />
-            <Route path="/compatibility" element={<CompatibilityPage />} />
-            <Route path="/compatibility/:categoryId" element={<CompatibilityCategoryPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/movements" element={<MovementsPage />} />
-            <Route path="/members" element={<MembersPage />} />
-            <Route path="/users" element={<AccessControlPage />} />
-            <Route path="/workspaces" element={<WorkspacesPage />} />
             <Route path="/billing" element={<BillingPage />} />
-            <Route path="/import" element={<ImportPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/support" element={<SupportPage />} />
-            <Route path="/audit" element={<AuditPage />} />
-            <Route path="/health" element={<SystemHealthPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-          </Route>
-          <Route element={<RequirePlatformAdmin />}>
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="*" element={<Navigate to="/commons" replace />} />
           </Route>
         </Route>
         {LegalRoutes()}

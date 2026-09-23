@@ -44,71 +44,14 @@ export const NAV_SECTIONS: NavSection[] = [
     hint: "shared across shops",
     shared: "commons",
     items: [
-      { to: "/commons", label: "Browse catalog", icon: "globe", tint: "cyan", end: true, allowUnpaid: true },
-      { to: "/compatibility", label: "Fitment notes", icon: "lock", tint: "slate", need: "CATALOG_READ" },
-      { to: "/commons/standing", label: "Contributor standing", icon: "pulse", tint: "blue", allowUnpaid: true },
-      {
-        to: "/commons/review",
-        label: "Catalog review",
-        icon: "shield",
-        tint: "amber",
-        commonsReviewer: true,
-        allowUnpaid: true,
-      },
-    ],
-  },
-  {
-    label: "Shop",
-    hint: "this counter",
-    shared: "shop",
-    items: [
-      { to: "/", label: "Dashboard", icon: "home", tint: "rose", end: true, feature: "DASHBOARD" },
-      { to: "/sales", label: "Sales", icon: "cart", tint: "green", need: "SALES_READ", feature: "SALES" },
-      { to: "/repairs", label: "Repairs", icon: "wrench", tint: "amber", need: "REPAIR_READ", feature: "REPAIRS" },
-      { to: "/inventory", label: "Inventory", icon: "box", tint: "blue", need: "INVENTORY_READ", feature: "INVENTORY" },
-      {
-        to: "/inventory/catalog-links",
-        label: "Link a part",
-        icon: "link",
-        tint: "cyan",
-        need: "INVENTORY_READ",
-        feature: "INVENTORY",
-      },
-      { to: "/purchases", label: "Purchases", icon: "truck", tint: "orange", need: "PURCHASE_READ", feature: "PURCHASES" },
-      { to: "/customers", label: "Customers", icon: "users", tint: "blue", need: "CUSTOMER_READ", feature: "CUSTOMERS" },
-      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan", need: "SUPPLIER_READ", feature: "SUPPLIERS" },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
-      { to: "/members", label: "Members", icon: "people", tint: "blue", need: "USER_READ", feature: "MEMBERS" },
-      { to: "/users", label: "Access control", icon: "key", tint: "rose", need: "USER_READ", feature: "MEMBERS" },
-      { to: "/import", label: "Import", icon: "upload", tint: "slate", need: "CATALOG_WRITE", feature: "IMPORT" },
-      { to: "/reports", label: "Reports", icon: "chart", tint: "green", need: "REPORT_READ", feature: "REPORTS" },
-      { to: "/movements", label: "Movements", icon: "move", tint: "amber", need: "INVENTORY_READ", feature: "MOVEMENTS" },
-      { to: "/audit", label: "Audit", icon: "shield", tint: "slate", need: "AUDIT_READ", feature: "AUDIT" },
+      { to: "/commons", label: "Fitment catalog", icon: "globe", tint: "cyan", end: true, allowUnpaid: true },
     ],
   },
   {
     label: "Workspace",
     items: [
-      { to: "/workspaces", label: "Workspaces", icon: "grid", tint: "blue", allowUnpaid: true },
       { to: "/billing", label: "Billing", icon: "card", tint: "green", need: "WORKSPACE_BILLING", allowUnpaid: true },
-      { to: "/settings", label: "Settings", icon: "settings", tint: "slate", need: "SETTINGS_READ", allowUnpaid: true },
-      { to: "/health", label: "System health", icon: "pulse", tint: "cyan", need: "SETTINGS_READ", feature: "AUDIT" },
     ],
-  },
-  {
-    label: "Support",
-    items: [
-      { to: "/notifications", label: "Notifications", icon: "bell", tint: "rose", allowUnpaid: true },
-      { to: "/support", label: "Support", icon: "chat", tint: "blue", allowUnpaid: true },
-    ],
-  },
-  {
-    label: "Platform",
-    items: [{ to: "/admin", label: "Platform console", icon: "crown", tint: "amber", platformAdmin: true }],
   },
 ];
 
