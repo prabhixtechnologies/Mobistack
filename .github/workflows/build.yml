@@ -534,6 +534,9 @@ jobs:
           context: ./web
           build-contexts: |
             webkit=https://github.com/prabhixtechnologies/web-kit.git#main
+          build-args: |
+            VITE_IDENTITY_ISSUER=https://api.prabhixtechnologies.com
+            VITE_STORE_URL=https://store.prabhixtechnologies.com
           push: true
           tags: ${{ steps.tags.outputs.web }}
           cache-from: type=gha
