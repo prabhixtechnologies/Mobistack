@@ -236,6 +236,18 @@ public class CommonsCatalogService {
                 });
     }
 
+    /**
+     * The phone a fitment names, matched the same way a duplicate device is refused.
+     */
+    @Transactional(readOnly = true)
+    public Optional<CatalogDevice> findDeviceByName(String brandName, String name) {
+        if (brandName == null || brandName.isBlank() || name == null || name.isBlank()) {
+            return Optional.empty();
+        }
+        return brands.findByName(brandName.trim())
+                .flatMap(brand -> devices.findByIdentity(brand.getId(), name.trim(), null));
+    }
+
     @Transactional
     public CatalogComponent addComponent(String categoryCode,
                                          String name,

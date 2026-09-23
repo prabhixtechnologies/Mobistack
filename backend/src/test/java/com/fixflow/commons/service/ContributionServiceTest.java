@@ -6,6 +6,7 @@ import com.fixflow.commons.domain.CatalogContribution;
 import com.fixflow.commons.domain.CatalogContribution.Kind;
 import com.fixflow.commons.domain.CatalogContribution.Status;
 import com.fixflow.commons.domain.CatalogContributor;
+import com.fixflow.commons.domain.CatalogEntities.CatalogComponent;
 import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
 import com.fixflow.commons.domain.CatalogEntities.CatalogFitment;
 import com.fixflow.commons.domain.CatalogEntities.FitQuality;
@@ -14,6 +15,7 @@ import com.fixflow.commons.repository.CatalogContributorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -72,6 +74,43 @@ class ContributionServiceTest {
 
         assertThat(result.getStatus()).isEqualTo(Status.APPLIED);
         assertThat(result.getAppliedId()).isEqualTo(device.getId());
+    }
+
+    @Test
+    void aTrustedPartLinksThePhonesNamedOnIt() {
+        CatalogComponent component = new CatalogComponent();
+        component.setId(UUID.randomUUID());
+        CatalogDevice device = new CatalogDevice();
+        device.setId(UUID.randomUUID());
+        when(catalog.addComponent(eq("DISPLAY_FOLDER"), eq("A12 panel"), any(), any(), eq(trusted)))
+                .thenReturn(component);
+        when(catalog.findDeviceByName("Samsung", "Galaxy A12")).thenReturn(Optional.of(device));
+
+        CatalogContribution result = service.submit(trusted, Kind.ADD_COMPONENT, null, Map.of(
+                "categoryCode", "DISPLAY_FOLDER",
+                "name", "A12 panel",
+                "fits", List.of(Map.of("brand", "Samsung", "name", "Galaxy A12", "fit", "EXACT"))),
+                "Fitted on the bench");
+
+        assertThat(result.getStatus()).isEqualTo(Status.APPLIED);
+        verify(catalog).addFitment(component.getId(), device.getId(), FitQuality.EXACT, trusted);
+    }
+
+    @Test
+    void aNamedPhoneThatIsNotInTheCatalogRefusesThePart() {
+        CatalogComponent component = new CatalogComponent();
+        component.setId(UUID.randomUUID());
+        when(catalog.addComponent(any(), any(), any(), any(), eq(trusted))).thenReturn(component);
+        when(catalog.findDeviceByName("Samsung", "Galaxy Missing")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.submit(trusted, Kind.ADD_COMPONENT, null, Map.of(
+                "categoryCode", "DISPLAY_FOLDER",
+                "name", "Missing panel",
+                "fits", List.of(Map.of("brand", "Samsung", "name", "Galaxy Missing"))),
+                null))
+                .isInstanceOf(ApiException.class)
+                .extracting(ex -> ((ApiException) ex).getCode())
+                .isEqualTo(ErrorCode.VALIDATION_FAILED);
     }
 
     @Test

@@ -53,6 +53,7 @@ export function CommonsReviewPage() {
           <div className="category-row" key={item.id}>
             <div>
               <div style={{ fontWeight: 650 }}>{item.kind.replaceAll("_", " ")}</div>
+              {item.summary && <div>{item.summary}</div>}
               <div className="faint">{item.reason ?? "No reason"}</div>
             </div>
             <div className="row">

@@ -423,6 +423,7 @@ export interface CommonsContribution {
   appliedId?: string | null;
   reason?: string | null;
   reviewNote?: string | null;
+  summary?: string | null;
   createdAt: string;
   reviewedAt?: string | null;
 }

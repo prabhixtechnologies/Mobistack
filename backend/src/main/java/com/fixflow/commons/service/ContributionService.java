@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -204,6 +205,7 @@ public class ContributionService {
                         optional(contribution, "description"),
                         attributes(contribution),
                         authorId);
+                attachFits(contribution, component.getId(), authorId);
                 yield component.getId();
             }
             case ADD_FITMENT -> {
@@ -290,6 +292,39 @@ public class ContributionService {
         } catch (IllegalArgumentException ex) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, key + " must be an id.");
         }
+    }
+
+    /**
+     * Phones named on a new part. One contribution so review accepts the part and its links together.
+     */
+    private void attachFits(CatalogContribution contribution, UUID componentId, UUID authorId) {
+        Object raw = contribution.getPayload().get("fits");
+        if (raw == null) {
+            return;
+        }
+        if (!(raw instanceof List<?> fits)) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "fits must be a list of phones.");
+        }
+        for (Object item : fits) {
+            if (!(item instanceof Map<?, ?> map)) {
+                throw new ApiException(ErrorCode.VALIDATION_FAILED, "Each fit needs a brand and a name.");
+            }
+            String brand = requiredText(map.get("brand"), "brand");
+            String name = requiredText(map.get("name"), "name");
+            Object fit = map.get("fit");
+            CatalogDevice device = catalog.findDeviceByName(brand, name)
+                    .orElseThrow(() -> new ApiException(ErrorCode.VALIDATION_FAILED,
+                            "No phone named " + brand + " " + name + " in the catalog."));
+            catalog.addFitment(componentId, device.getId(),
+                    CommonsCatalogService.parseFit(fit == null ? null : fit.toString()), authorId);
+        }
+    }
+
+    private static String requiredText(Object value, String key) {
+        if (value == null || value.toString().isBlank()) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Each fit needs a " + key + ".");
+        }
+        return value.toString().trim();
     }
 
     @SuppressWarnings("unchecked")

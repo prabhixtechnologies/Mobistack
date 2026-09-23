@@ -276,6 +276,7 @@ public class CommonsController {
     public record FitView(UUID fitmentId,
                           UUID componentId,
                           String componentName,
+                          String categoryCode,
                           UUID deviceId,
                           String deviceName,
                           String fit,
@@ -289,6 +290,7 @@ public class CommonsController {
                     view.fitment().getId(),
                     view.fitment().getComponentId(),
                     view.component() == null ? null : view.component().getName(),
+                    view.component() == null ? null : view.component().getCategoryCode(),
                     view.fitment().getDeviceId(),
                     view.device() == null ? null : view.device().getName(),
                     view.fitment().getFitQuality().name(),
@@ -306,13 +308,45 @@ public class CommonsController {
                                    UUID appliedId,
                                    String reason,
                                    String reviewNote,
+                                   String summary,
                                    Instant createdAt,
                                    Instant reviewedAt) {
         static ContributionView of(CatalogContribution contribution) {
             return new ContributionView(contribution.getId(), contribution.getKind(),
                     contribution.getStatus(), contribution.getTargetId(), contribution.getAppliedId(),
-                    contribution.getReason(), contribution.getReviewNote(),
+                    contribution.getReason(), contribution.getReviewNote(), summarize(contribution),
                     contribution.getCreatedAt(), contribution.getReviewedAt());
+        }
+
+        static String summarize(CatalogContribution contribution) {
+            Map<String, Object> payload = contribution.getPayload();
+            if (payload == null || payload.isEmpty()) {
+                return null;
+            }
+            Object fits = payload.get("fits");
+            if (fits instanceof List<?> list && !list.isEmpty()) {
+                StringBuilder phones = new StringBuilder();
+                int shown = 0;
+                for (Object item : list) {
+                    if (!(item instanceof Map<?, ?> map) || shown >= 6) {
+                        continue;
+                    }
+                    if (shown > 0) {
+                        phones.append(", ");
+                    }
+                    phones.append(map.get("brand")).append(' ').append(map.get("name"));
+                    shown++;
+                }
+                int extra = list.size() - shown;
+                String part = payload.get("name") == null ? "Part" : payload.get("name").toString();
+                return extra > 0 ? part + " · " + phones + " +" + extra : part + " · " + phones;
+            }
+            Object brand = payload.get("brand");
+            Object name = payload.get("name");
+            if (brand != null && name != null) {
+                return brand + " " + name;
+            }
+            return name == null ? null : name.toString();
         }
     }
 
