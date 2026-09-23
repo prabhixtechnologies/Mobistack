@@ -174,7 +174,8 @@ jobs:
           check tables \
             "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'" 55
           # Without these two the schema loads and every user silently has no permissions at all.
-          check permissions "SELECT count(*) FROM permissions" 29
+          # 28 after COMMONS_REVIEW moved from a permission into commons_reviewers.
+          check permissions "SELECT count(*) FROM permissions" 28
           check role_permissions "SELECT count(*) FROM role_permissions" 106
           check billing_plans "SELECT count(*) FROM billing_plans" 4
           # The compatibility graph and inventory rely on triggers, which a hand-edited baseline
