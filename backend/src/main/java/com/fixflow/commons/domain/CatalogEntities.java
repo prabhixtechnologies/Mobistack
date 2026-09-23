@@ -147,6 +147,9 @@ public final class CatalogEntities {
     @Table(name = "catalog_fitments")
     public static class CatalogFitment extends AuditableEntity {
 
+        @Column(name = "group_id", nullable = false)
+        private UUID groupId;
+
         @Column(name = "component_id", nullable = false)
         private UUID componentId;
 

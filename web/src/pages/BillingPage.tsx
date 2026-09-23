@@ -90,36 +90,6 @@ export function BillingPage() {
     || data?.razorpayKeyId
     || "";
 
-  async function payScreens(priceCode: "EXTRA_SCREEN" | "EXTRA_SCREEN_RENEW") {
-    setError(null);
-    setNotice(null);
-    setPaying(priceCode);
-    try {
-      const order = await api<CheckoutOrder>("/api/v1/billing/orders", {
-        method: "POST",
-        body: JSON.stringify({ priceCode }),
-      });
-      await captureCheckoutOrder(
-        order,
-        user ?? undefined,
-        priceCode === "EXTRA_SCREEN_RENEW" ? "Extra screens this month" : "Extra screen",
-        publishableKey,
-      );
-      await load();
-      await refreshUser();
-      setNotice(
-        priceCode === "EXTRA_SCREEN_RENEW"
-          ? "This month's extra screens are on."
-          : "Extra screen added for this month. Pay again next month to keep it.",
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Payment failed");
-    } finally {
-      document.body.classList.remove("rzp-checkout-open");
-      setPaying(null);
-    }
-  }
-
   async function activateLocal() {
     setError(null);
     setNotice(null);
@@ -206,49 +176,8 @@ export function BillingPage() {
       {notice && <div className="muted">{notice}</div>}
       {data && (
         <>
-          {data.screens && (
-            <article className="card stack">
-              <strong>Screens</strong>
-              <div className="metric-value">
-                {data.screens.inUse} / {data.screens.seats}
-              </div>
-              <div className="faint">
-                One login, one screen. Each extra screen is {money.format(data.screens.amount)} every month.
-                This shop includes {data.screens.included} screen
-                {data.screens.subscribed > 0
-                  ? data.screens.live
-                    ? ` plus ${data.screens.subscribed} extra paid until ${when(data.screens.periodEnd)}.`
-                    : `. ${data.screens.subscribed} extra ${data.screens.subscribed === 1 ? "screen is" : "screens are"} off until this month is paid.`
-                  : "."}
-              </div>
-              {data.screens.subscribed > 0 && (
-                <button
-                  className="btn"
-                  type="button"
-                  disabled={paying !== null}
-                  onClick={() => void payScreens("EXTRA_SCREEN_RENEW")}
-                >
-                  {paying === "EXTRA_SCREEN_RENEW"
-                    ? "Opening checkout…"
-                    : `Pay ${money.format(data.screens.renewAmount)} this month for ${data.screens.subscribed} extra screen${data.screens.subscribed === 1 ? "" : "s"}`}
-                </button>
-              )}
-              {(data.screens.live || data.screens.subscribed === 0) && (
-                <button
-                  className={data.screens.subscribed > 0 ? "btn ghost" : "btn"}
-                  type="button"
-                  disabled={paying !== null}
-                  onClick={() => void payScreens("EXTRA_SCREEN")}
-                >
-                  {paying === "EXTRA_SCREEN"
-                    ? "Opening checkout…"
-                    : `Add a screen for ${money.format(data.screens.amount)} / month`}
-                </button>
-              )}
-            </article>
-          )}
           <div className="grid-2">
-            {data.plans.map((plan) => (
+            {data.plans.filter((plan) => plan.code !== "FULL_SHOP").map((plan) => (
               <article className="card stack" key={plan.id}>
                 <strong>{plan.name}</strong>
                 <div className="metric-value">{money.format(plan.amount)}</div>

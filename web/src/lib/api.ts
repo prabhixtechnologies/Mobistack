@@ -138,8 +138,23 @@ async function parseError(response: Response): Promise<never> {
   throw Object.assign(new Error(payload.message), payload);
 }
 
+const FITMENT_GROUP_KEY = "fitment.group";
+
+export function getFitmentGroup(): string | null {
+  const value = storeGet(FITMENT_GROUP_KEY);
+  return value && value.length > 0 ? value : null;
+}
+
+export function setFitmentGroup(id: string): void {
+  storeSet(FITMENT_GROUP_KEY, id);
+}
+
 function withDevice(headers: Headers): Headers {
   headers.set("X-MobiStack-Device", getDeviceId());
+  const group = getFitmentGroup();
+  if (group) {
+    headers.set("X-Fitment-Group", group);
+  }
   return headers;
 }
 

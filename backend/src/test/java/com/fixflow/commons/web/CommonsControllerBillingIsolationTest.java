@@ -4,6 +4,7 @@ import com.fixflow.billing.service.BillingService;
 import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
+import com.fixflow.group.service.SharingGroupService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -31,13 +32,15 @@ class CommonsControllerBillingIsolationTest {
     @Mock
     private com.fixflow.shop.repository.ShopRepository shops;
     @Mock
+    private SharingGroupService groups;
+    @Mock
     private BillingService billingService;
 
     @Test
     void listingBrandsDoesNotConsultTheCompatibilityPlan() {
         when(catalog.listBrands()).thenReturn(List.of(new CatalogBrand()));
 
-        CommonsController controller = new CommonsController(catalog, contributions, shops);
+        CommonsController controller = new CommonsController(catalog, contributions, shops, groups);
         assertThat(controller.brands()).hasSize(1);
 
         verify(catalog).listBrands();

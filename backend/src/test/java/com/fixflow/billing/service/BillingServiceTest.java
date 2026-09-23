@@ -76,6 +76,20 @@ class BillingServiceTest {
     }
 
     @Test
+    void withheldPlansCannotBePurchased() {
+        UUID workspaceId = UUID.randomUUID();
+        assertThatThrownBy(() -> billingService.createOrder(workspaceId, "FULL_SHOP"))
+                .isInstanceOf(ApiException.class)
+                .extracting(ex -> ((ApiException) ex).getCode())
+                .isEqualTo(ErrorCode.FORBIDDEN);
+        assertThatThrownBy(() -> billingService.createOrder(workspaceId, "WORKSPACE_MONTHLY"))
+                .isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> billingService.createOrder(workspaceId, "EXTRA_SCREEN"))
+                .isInstanceOf(ApiException.class);
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
     void verifyRejectsMissingFields() {
         UUID workspaceId = UUID.randomUUID();
         assertThatThrownBy(() -> billingService.verifyPayment(workspaceId,

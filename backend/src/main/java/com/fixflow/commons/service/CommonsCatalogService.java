@@ -32,9 +32,8 @@ import java.util.stream.Collectors;
 /**
  * Reading and writing the shared compatibility catalog.
  *
- * <p>Every method here is deliberately shop-blind. Not one takes a workspace id, and adding one would
- * be the mistake this whole phase exists to undo: whether a screen fits a phone is either true for
- * everyone or true for nobody. Stock levels are the opposite, and they stay where they are.
+ * <p>Phone and part names are a shared reference. Fitment rows belong to one sharing group: the same
+ * part can fit a phone for one group and not for another. Stock levels stay on the shop.
  *
  * <p>Writes arrive through {@link ContributionService} rather than here, so that the rules about who
  * may change the commons live in one place. This class is what does the changing once that has been
@@ -125,6 +124,14 @@ public class CommonsCatalogService {
     }
 
     @Transactional(readOnly = true)
+    public long fitmentCount(UUID groupId) {
+        if (groupId == null) {
+            return 0;
+        }
+        return fitments.countByGroupId(groupId);
+    }
+
+    @Transactional(readOnly = true)
     public Map<UUID, String> brandNames(Collection<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return Map.of();
@@ -146,11 +153,14 @@ public class CommonsCatalogService {
      * repeated for the component-side lookup below with the sides swapped.
      */
     @Transactional(readOnly = true)
-    public List<FitmentView> fitmentsForDevice(UUID deviceId) {
+    public List<FitmentView> fitmentsForDevice(UUID deviceId, UUID groupId) {
+        if (groupId == null) {
+            return List.of();
+        }
         CatalogDevice device = devices.findById(deviceId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such device"));
 
-        List<CatalogFitment> edges = fitments.findForDevice(device.getId());
+        List<CatalogFitment> edges = fitments.findForDevice(groupId, device.getId());
         Map<UUID, CatalogComponent> byId = components
                 .findAllById(edges.stream().map(CatalogFitment::getComponentId).toList())
                 .stream()
@@ -162,11 +172,14 @@ public class CommonsCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public List<CatalogDevice> devicesForComponent(UUID componentId) {
+    public List<CatalogDevice> devicesForComponent(UUID componentId, UUID groupId) {
+        if (groupId == null) {
+            return List.of();
+        }
         if (!components.existsById(componentId)) {
             throw new ApiException(ErrorCode.NOT_FOUND, "No such component");
         }
-        List<UUID> deviceIds = fitments.findForComponent(componentId).stream()
+        List<UUID> deviceIds = fitments.findForComponent(groupId, componentId).stream()
                 .map(CatalogFitment::getDeviceId)
                 .toList();
         return devices.findAllById(deviceIds);
@@ -272,7 +285,11 @@ public class CommonsCatalogService {
     public CatalogFitment addFitment(UUID componentId,
                                      UUID deviceId,
                                      FitQuality quality,
-                                     UUID actorId) {
+                                     UUID actorId,
+                                     UUID groupId) {
+        if (groupId == null) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Choose a fitment group.");
+        }
         if (!components.existsById(componentId)) {
             throw new ApiException(ErrorCode.NOT_FOUND, "No such component");
         }
@@ -280,7 +297,7 @@ public class CommonsCatalogService {
             throw new ApiException(ErrorCode.NOT_FOUND, "No such device");
         }
 
-        return fitments.findByComponentIdAndDeviceId(componentId, deviceId)
+        return fitments.findByGroupIdAndComponentIdAndDeviceId(groupId, componentId, deviceId)
                 .map(existing -> {
                     // Re-adding an edge somebody disputed is itself a confirmation, not a duplicate:
                     // two people now disagree, and the counts should say so rather than one silently
@@ -290,6 +307,7 @@ public class CommonsCatalogService {
                 })
                 .orElseGet(() -> {
                     CatalogFitment fitment = new CatalogFitment();
+                    fitment.setGroupId(groupId);
                     fitment.setComponentId(componentId);
                     fitment.setDeviceId(deviceId);
                     fitment.setFitQuality(quality == null ? FitQuality.EXACT : quality);
@@ -330,7 +348,7 @@ public class CommonsCatalogService {
         return fitments.save(fitment);
     }
 
-    private CatalogFitment requireFitment(UUID fitmentId) {
+    public CatalogFitment requireFitment(UUID fitmentId) {
         return fitments.findById(fitmentId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such fitment"));
     }

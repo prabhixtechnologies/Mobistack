@@ -368,6 +368,8 @@ export interface CommonsStats {
   deviceCount: number;
   componentCount: number;
   fitmentCount: number;
+  groupId?: string | null;
+  groupName?: string | null;
 }
 
 export interface CommonsBrand {

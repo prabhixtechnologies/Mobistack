@@ -56,6 +56,16 @@ public class ContributionService {
                                       UUID targetId,
                                       Map<String, Object> payload,
                                       String reason) {
+        return submit(authorId, kind, targetId, payload, reason, null);
+    }
+
+    @Transactional
+    public CatalogContribution submit(UUID authorId,
+                                      Kind kind,
+                                      UUID targetId,
+                                      Map<String, Object> payload,
+                                      String reason,
+                                      UUID groupId) {
         CatalogContributor author = standingOf(authorId);
         if (author.isBanned()) {
             // Named as a refusal rather than accepted and dropped. Silently discarding a banned
@@ -71,6 +81,7 @@ public class ContributionService {
         contribution.setReason(reason);
         contribution.setSubmittedBy(authorId);
         contribution.setCreatedBy(authorId);
+        contribution.setGroupId(groupId);
 
         if (appliesImmediately(kind, author)) {
             apply(contribution, authorId);
@@ -213,11 +224,18 @@ public class ContributionService {
                         uuid(contribution, "componentId"),
                         uuid(contribution, "deviceId"),
                         CommonsCatalogService.parseFit(optional(contribution, "fit")),
-                        authorId);
+                        authorId,
+                        contribution.getGroupId());
                 yield fitment.getId();
             }
-            case CONFIRM_FITMENT -> catalog.confirmFitment(requireTarget(contribution)).getId();
-            case DISPUTE_FITMENT -> catalog.disputeFitment(requireTarget(contribution)).getId();
+            case CONFIRM_FITMENT -> {
+                assertSameGroup(contribution);
+                yield catalog.confirmFitment(requireTarget(contribution)).getId();
+            }
+            case DISPUTE_FITMENT -> {
+                assertSameGroup(contribution);
+                yield catalog.disputeFitment(requireTarget(contribution)).getId();
+            }
         };
 
         contribution.setStatus(Status.APPLIED);
@@ -297,6 +315,16 @@ public class ContributionService {
     /**
      * Phones named on a new part. One contribution so review accepts the part and its links together.
      */
+    private void assertSameGroup(CatalogContribution contribution) {
+        if (contribution.getGroupId() == null || contribution.getTargetId() == null) {
+            return;
+        }
+        CatalogFitment fitment = catalog.requireFitment(contribution.getTargetId());
+        if (fitment.getGroupId() != null && !fitment.getGroupId().equals(contribution.getGroupId())) {
+            throw ApiException.forbidden("That fitment belongs to another group.");
+        }
+    }
+
     private void attachFits(CatalogContribution contribution, UUID componentId, UUID authorId) {
         Object raw = contribution.getPayload().get("fits");
         if (raw == null) {
@@ -316,7 +344,8 @@ public class ContributionService {
                     .orElseThrow(() -> new ApiException(ErrorCode.VALIDATION_FAILED,
                             "No phone named " + brand + " " + name + " in the catalog."));
             catalog.addFitment(componentId, device.getId(),
-                    CommonsCatalogService.parseFit(fit == null ? null : fit.toString()), authorId);
+                    CommonsCatalogService.parseFit(fit == null ? null : fit.toString()), authorId,
+                    contribution.getGroupId());
         }
     }
 

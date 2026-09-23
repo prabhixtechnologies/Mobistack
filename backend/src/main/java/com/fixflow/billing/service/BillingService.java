@@ -106,6 +106,10 @@ public class BillingService {
     public static final List<String> OPERATIONAL = List.of(
             "WORKSPACE_CREATE", "MEMBER_ADD", "INVENTORY", SALES, "REPAIRS", "MULTI_USER", CATALOG);
 
+    /** Checkout codes that stay off the billing page while the shop category is closed. */
+    private static final java.util.Set<String> WITHHELD_CHECKOUT = java.util.Set.of(
+            "FULL_SHOP", "WORKSPACE_MONTHLY", "EXTRA_SCREEN", "EXTRA_SCREEN_RENEW");
+
     @Transactional(readOnly = true)
     public BillingOverview overview(UUID workspaceId) {
         boolean enabled = razorpayGateway.configured();
@@ -115,11 +119,6 @@ public class BillingService {
                 : new SubscriptionCard(current.code(), current.name(),
                 row == null ? WorkspaceSubscription.NONE : row.getStatus(),
                 row == null ? null : row.getPeriodEnd(), current.features());
-        var capacity = screenSeatService.capacity(workspaceId);
-        var screenPrice = priceRepository.findByCodeAndActiveTrue(ScreenSeatService.EXTRA_SCREEN_PRICE)
-                .orElse(null);
-        java.math.BigDecimal unit = screenPrice == null ? java.math.BigDecimal.valueOf(50) : screenPrice.getAmount();
-        int subscribed = capacity.subscribed();
         return new BillingOverview(
                 planService.listSellable(),
                 subscription,
@@ -128,11 +127,8 @@ public class BillingService {
                         .stream()
                         .map(this::toReceipt)
                         .toList(),
-                new ScreenCard(capacity.included(), capacity.extra(), subscribed, capacity.seats(), capacity.inUse(),
-                        capacity.live(), capacity.periodEnd(), unit,
-                        unit.multiply(java.math.BigDecimal.valueOf(Math.max(subscribed, 1))),
-                        screenPrice == null ? "INR" : screenPrice.getCurrency(),
-                        ScreenSeatService.EXTRA_SCREEN_PRICE, "MONTHLY"),
+                // Extra screens belong to the counter. They stay off the page while Full shop is hidden.
+                null,
                 enabled ? razorpayGateway.keyId() : null,
                 enabled,
                 paymentRequired(workspaceId),
@@ -144,6 +140,9 @@ public class BillingService {
         if ("WORKSPACE_JOIN".equals(priceCode)) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED,
                     "Pay the join fee from My workspaces. Each shop join is a separate payment.");
+        }
+        if (priceCode != null && WITHHELD_CHECKOUT.contains(priceCode.trim().toUpperCase(java.util.Locale.ROOT))) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "That plan is not available.");
         }
         boolean renewScreens = ScreenSeatService.EXTRA_SCREEN_RENEW.equals(priceCode);
         BillingPrice price = resolvePrice(renewScreens

@@ -65,10 +65,14 @@ public class PlanService {
                 .toList();
     }
 
+    /** The counter plan stays in the catalog. It is not offered for sale while the shop is closed. */
+    public static final String WITHHELD_PLAN = "FULL_SHOP";
+
     @Transactional(readOnly = true)
     public List<PlanCard> listSellable() {
         return planRepository.findByActiveTrueOrderBySortOrderAscNameAsc().stream()
                 .filter(plan -> !plan.getFeatures().isEmpty())
+                .filter(plan -> !WITHHELD_PLAN.equals(plan.getCode()))
                 .map(this::toCard)
                 .toList();
     }

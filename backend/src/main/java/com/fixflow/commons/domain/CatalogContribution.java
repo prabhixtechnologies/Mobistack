@@ -78,6 +78,10 @@ public class CatalogContribution extends AuditableEntity {
     @Column(name = "submitted_by", nullable = false)
     private UUID submittedBy;
 
+    /** The fitment group this proposal writes into. Null on rows filed before groups existed. */
+    @Column(name = "group_id")
+    private UUID groupId;
+
     @Column(name = "reviewed_by")
     private UUID reviewedBy;
 

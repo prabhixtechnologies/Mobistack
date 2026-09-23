@@ -7,6 +7,8 @@ import { useResource } from "../lib/useResource";
 import { EmptyState } from "../ui/EmptyState";
 import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import { FitmentGroupBar } from "../ui/FitmentGroupBar";
+import { useFitmentGroups } from "../lib/groups";
 import { Icon } from "../ui/navIcons";
 import { brandMark, brandTone } from "../lib/brandTone";
 import type { CommonsBrand, CommonsComponent, CommonsDevice, CommonsStats } from "../lib/types";
@@ -22,7 +24,10 @@ export function CommonsBrowsePage() {
   const [query, setQuery] = useState("");
   const [brandId, setBrandId] = useState("");
   const settled = useDebounced(query);
-  const stats = useResource<CommonsStats>("/api/v1/commons/stats");
+  const fitment = useFitmentGroups();
+  const stats = useResource<CommonsStats>(
+    fitment.ready ? `/api/v1/commons/stats?groupId=${fitment.selected ?? ""}` : null,
+  );
   const brands = useResource<CommonsBrand[]>("/api/v1/commons/brands");
 
   const devicePath = useMemo(() => {
@@ -53,7 +58,11 @@ export function CommonsBrowsePage() {
       <PageHeader
         kicker="Fitment Catalog"
         title="Browse catalog"
-        subtitle="Shared across every shop. Look up a phone, then open the parts that fit it."
+        subtitle={
+          stats.data?.groupName
+            ? `Shared inside ${stats.data.groupName}. Look up a phone, then open the parts that fit it.`
+            : "Look up a phone, then open the parts that fit it."
+        }
         actions={
           <Link className="btn ghost" to="/commons/standing">
             Your standing
@@ -74,6 +83,14 @@ export function CommonsBrowsePage() {
             </>
           ) : null
         }
+      />
+
+      <FitmentGroupBar
+        groups={fitment.groups}
+        selected={fitment.selected}
+        choose={fitment.choose}
+        create={fitment.create}
+        current={fitment.current}
       />
 
       <div className="method-tabs" role="tablist" aria-label="Catalog sections">

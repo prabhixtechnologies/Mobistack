@@ -6,6 +6,8 @@ import { useResource } from "../lib/useResource";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
+import { FitmentGroupBar } from "../ui/FitmentGroupBar";
+import { useFitmentGroups } from "../lib/groups";
 import { TextField } from "../ui/Field";
 import { brandMark, brandTone } from "../lib/brandTone";
 import type { CatalogStockRow, CommonsDevice, CommonsFit } from "../lib/types";
@@ -13,8 +15,11 @@ import type { CatalogStockRow, CommonsDevice, CommonsFit } from "../lib/types";
 export function CommonsDevicePage() {
   const { id } = useParams();
   const access = useAccess();
+  const fitment = useFitmentGroups();
   const device = useResource<CommonsDevice>(id ? `/api/v1/commons/devices/${id}` : null);
-  const fits = useResource<CommonsFit[]>(id ? `/api/v1/commons/devices/${id}/fits` : null);
+  const fits = useResource<CommonsFit[]>(
+    id && fitment.ready ? `/api/v1/commons/devices/${id}/fits?groupId=${fitment.selected ?? ""}` : null,
+  );
   const stock = useResource<CatalogStockRow[]>(
     id && access.has("INVENTORY_READ") ? `/api/v1/inventory/catalog-links/devices/${id}/stock` : null,
   );
@@ -65,6 +70,13 @@ export function CommonsDevicePage() {
 
   return (
     <div className="page">
+      <FitmentGroupBar
+        groups={fitment.groups}
+        selected={fitment.selected}
+        choose={fitment.choose}
+        create={fitment.create}
+        current={fitment.current}
+      />
       <div className="device-hero">
         <span className="device-hero__mark" style={{ background: tone.bg, color: tone.fg }}>
           {brandMark(device.data.brandName)}

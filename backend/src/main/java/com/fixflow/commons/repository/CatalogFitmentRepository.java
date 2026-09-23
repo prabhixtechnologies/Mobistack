@@ -12,28 +12,30 @@ import java.util.UUID;
 
 public interface CatalogFitmentRepository extends JpaRepository<CatalogFitment, UUID> {
 
-    Optional<CatalogFitment> findByComponentIdAndDeviceId(UUID componentId, UUID deviceId);
+    Optional<CatalogFitment> findByGroupIdAndComponentIdAndDeviceId(UUID groupId, UUID componentId, UUID deviceId);
+
+    long countByGroupId(UUID groupId);
 
     /**
-     * What fits this phone.
+     * What fits this phone inside one group.
      *
      * <p>Disputed edges come last rather than being hidden. Somebody looking at a part they already
      * own needs to know it is contested; removing the row from the answer just means they order it.
      */
     @Query("""
             select f from CatalogFitment f
-            where f.deviceId = :deviceId
+            where f.groupId = :groupId and f.deviceId = :deviceId
             order by f.disputed asc, f.confirmations desc
             """)
-    List<CatalogFitment> findForDevice(@Param("deviceId") UUID deviceId);
+    List<CatalogFitment> findForDevice(@Param("groupId") UUID groupId, @Param("deviceId") UUID deviceId);
 
-    /** What this part fits — the other half of "I have twelve of these, what do they go in". */
+    /** What this part fits inside one group. */
     @Query("""
             select f from CatalogFitment f
-            where f.componentId = :componentId
+            where f.groupId = :groupId and f.componentId = :componentId
             order by f.disputed asc, f.confirmations desc
             """)
-    List<CatalogFitment> findForComponent(@Param("componentId") UUID componentId);
+    List<CatalogFitment> findForComponent(@Param("groupId") UUID groupId, @Param("componentId") UUID componentId);
 
     List<CatalogFitment> findByComponentIdIn(Collection<UUID> componentIds);
 }

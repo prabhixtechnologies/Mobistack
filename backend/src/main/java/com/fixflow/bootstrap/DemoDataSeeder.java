@@ -21,6 +21,7 @@ import com.fixflow.commons.repository.CatalogComponentRepository;
 import com.fixflow.commons.repository.CatalogDeviceRepository;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.CommonsReviewerService;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.config.FixFlowProperties;
 import com.fixflow.billing.service.BillingService;
 import com.fixflow.party.domain.Customer;
@@ -94,6 +95,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final PriceRuleRepository priceRuleRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final CommonsCatalogService commonsCatalog;
+    private final SharingGroupService sharingGroups;
     private final CatalogDeviceRepository catalogDevices;
     private final CatalogComponentRepository catalogComponents;
     private final CommonsReviewerService commonsReviewers;
@@ -207,6 +209,10 @@ public class DemoDataSeeder implements ApplicationRunner {
      * product's catalog; those are seeded separately as a single example.
      */
     private void seedCommons(UUID actorId) {
+        if (actorId == null) {
+            return;
+        }
+        UUID groupId = sharingGroups.ensureDefault(actorId);
         if (catalogDevices.count() > 0) {
             log.info("Shared catalog already has devices; skipping commons seed.");
             return;
@@ -242,7 +248,7 @@ public class DemoDataSeeder implements ApplicationRunner {
             for (Kind kind : kinds) {
                 var component = commonsCatalog.addComponent(kind.code(),
                         model.name() + " " + kind.suffix(), kind.description(), Map.of(), actorId);
-                commonsCatalog.addFitment(component.getId(), device.getId(), FitQuality.EXACT, actorId);
+                commonsCatalog.addFitment(component.getId(), device.getId(), FitQuality.EXACT, actorId, groupId);
             }
         }
         record Cross(String component, String category, String device) {
@@ -262,7 +268,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                     .findFirst()
                     .orElse(null);
             if (component != null && device != null) {
-                commonsCatalog.addFitment(component.getId(), device.getId(), FitQuality.COMPATIBLE, actorId);
+                commonsCatalog.addFitment(component.getId(), device.getId(), FitQuality.COMPATIBLE, actorId, groupId);
             }
         }
     }

@@ -46,6 +46,7 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
             "/api/v1/workspaces",
             "/api/v1/shop",
             "/api/v1/notifications",
+            "/api/v1/groups",
     };
 
     private final WorkspaceAccessService workspaceAccessService;

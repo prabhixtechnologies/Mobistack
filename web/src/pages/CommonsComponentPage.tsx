@@ -2,6 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import { useResource } from "../lib/useResource";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
+import { FitmentGroupBar } from "../ui/FitmentGroupBar";
+import { useFitmentGroups } from "../lib/groups";
 import type { CommonsComponent, CommonsDevice } from "../lib/types";
 
 function deviceLabel(device: CommonsDevice): string {
@@ -10,8 +12,11 @@ function deviceLabel(device: CommonsDevice): string {
 
 export function CommonsComponentPage() {
   const { id } = useParams();
+  const fitment = useFitmentGroups();
   const component = useResource<CommonsComponent>(id ? `/api/v1/commons/components/${id}` : null);
-  const devices = useResource<CommonsDevice[]>(id ? `/api/v1/commons/components/${id}/devices` : null);
+  const devices = useResource<CommonsDevice[]>(
+    id && fitment.ready ? `/api/v1/commons/components/${id}/devices?groupId=${fitment.selected ?? ""}` : null,
+  );
 
   if (component.error) {
     return (
@@ -31,6 +36,13 @@ export function CommonsComponentPage() {
 
   return (
     <div className="page">
+      <FitmentGroupBar
+        groups={fitment.groups}
+        selected={fitment.selected}
+        choose={fitment.choose}
+        create={fitment.create}
+        current={fitment.current}
+      />
       <PageHeader
         kicker={<Link to="/commons">Fitment Catalog</Link>}
         title={component.data.name}

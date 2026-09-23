@@ -56,10 +56,14 @@ public class CatalogOnlyFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/v1/auth")
                 || path.startsWith("/api/v1/billing")
                 || path.startsWith("/api/v1/public")
-                || path.startsWith("/api/v1/admin")) {
+                || path.startsWith("/api/v1/admin")
+                || path.startsWith("/api/v1/groups")) {
             return true;
         }
         if ("GET".equals(method) && path.startsWith("/api/v1/commons")) {
+            return true;
+        }
+        if ("POST".equals(method) && "/api/v1/commons/contributions".equals(path)) {
             return true;
         }
         if ("GET".equals(method) && (path.equals("/api/v1/workspaces") || path.startsWith("/api/v1/workspaces/"))) {

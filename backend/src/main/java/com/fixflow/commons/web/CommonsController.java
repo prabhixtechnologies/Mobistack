@@ -8,6 +8,7 @@ import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
 import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
 import com.fixflow.shop.repository.ShopRepository;
@@ -50,6 +51,7 @@ public class CommonsController {
     private final CommonsCatalogService catalog;
     private final ContributionService contributions;
     private final ShopRepository shops;
+    private final SharingGroupService groups;
 
     // --- Reading -----------------------------------------------------------------------------------
 
@@ -62,8 +64,15 @@ public class CommonsController {
     @GetMapping("/stats")
     @PreAuthorize("isAuthenticated()")
     public StatsView stats() {
-        return new StatsView(shops.count(), catalog.brandCount(), catalog.deviceCount(),
-                catalog.componentCount(), catalog.fitmentCount());
+        UUID groupId = groups.resolveSelected();
+        return new StatsView(
+                groupId == null ? shops.count() : groups.shopCount(groupId),
+                catalog.brandCount(),
+                catalog.deviceCount(),
+                catalog.componentCount(),
+                catalog.fitmentCount(groupId),
+                groupId,
+                groups.nameOf(groupId));
     }
 
     @GetMapping("/brands")
@@ -118,7 +127,7 @@ public class CommonsController {
     @GetMapping("/devices/{deviceId}/fits")
     @PreAuthorize("isAuthenticated()")
     public List<FitView> fits(@PathVariable UUID deviceId) {
-        List<FitView> answer = catalog.fitmentsForDevice(deviceId).stream()
+        List<FitView> answer = catalog.fitmentsForDevice(deviceId, groups.resolveSelected()).stream()
                 .map(FitView::of)
                 .toList();
         catalog.recordLookup(deviceId);
@@ -129,7 +138,7 @@ public class CommonsController {
     @GetMapping("/components/{componentId}/devices")
     @PreAuthorize("isAuthenticated()")
     public List<DeviceView> devicesFor(@PathVariable UUID componentId) {
-        List<CatalogDevice> found = catalog.devicesForComponent(componentId);
+        List<CatalogDevice> found = catalog.devicesForComponent(componentId, groups.resolveSelected());
         var names = catalog.brandNames(found.stream().map(CatalogDevice::getBrandId).distinct().toList());
         return found.stream().map(device -> DeviceView.of(device, names.get(device.getBrandId()))).toList();
     }
@@ -144,7 +153,8 @@ public class CommonsController {
                 request.kind(),
                 request.targetId(),
                 request.payload(),
-                request.reason());
+                request.reason(),
+                groups.requireSelected());
         return ContributionView.of(saved);
     }
 
@@ -233,7 +243,7 @@ public class CommonsController {
     }
 
     public record StatsView(long shopCount, long brandCount, long deviceCount, long componentCount,
-                            long fitmentCount) {
+                            long fitmentCount, UUID groupId, String groupName) {
     }
 
     public record BrandView(UUID id, String name, String logoUrl) {
