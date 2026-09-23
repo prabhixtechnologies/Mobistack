@@ -72,6 +72,15 @@ public class FixFlowProperties {
     public static class Auth {
         /** Public web origin of the SPA, allowed by CORS and reported by /public/brand. */
         private String webOrigin = "https://mobistack.prabhixtechnologies.com";
+
+        /**
+         * A fixed development OTP. Blank in every real profile: a value here would accept that code
+         * for every number. Sign-in is Identity's, so this stays empty.
+         */
+        private String devOtp = "";
+
+        /** A development SSO bypass. Off. This API never signs someone in by itself. */
+        private boolean devSsoEnabled = false;
     }
 
     @Getter

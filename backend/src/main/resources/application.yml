@@ -184,6 +184,10 @@ fixflow:
     # The SPA origin, allowed by CORS and reported by /public/brand. Sign-in itself happens on
     # Identity's hosted pages; this API never sees a credential.
     web-origin: ${FIXFLOW_WEB_ORIGIN:https://mobistack.prabhixtechnologies.com}
+    # Kept blank and false on purpose. A value here would be a sign-in bypass, and CI refuses a
+    # build where either of these lines is anything else.
+    dev-otp: ""
+    dev-sso-enabled: false
   platform:
     public-origin: ${FIXFLOW_PUBLIC_ORIGIN:https://mobistack.prabhixtechnologies.com}
     api-origin: ${FIXFLOW_API_ORIGIN:https://mobistack.prabhixtechnologies.com}

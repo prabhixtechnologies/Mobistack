@@ -109,16 +109,19 @@ class ApplicationContextIntegrationTest {
     }
 
     /**
-     * The baseline ran, and ran as one migration. A second row here would mean the squashed baseline
-     * had been split again, or an old migration reintroduced beside it.
+     * The squashed baseline is still version 1, and every migration after it applied. A failed row
+     * here is a database this process would refuse to serve.
      */
     @Test
-    void theSchemaCameFromASingleBaselineMigration() {
+    void theSchemaCameFromTheBaselineAndLaterMigrations() {
         assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class))
-                .isEqualTo(1);
+                "SELECT count(*) FROM flyway_schema_history WHERE NOT success", Integer.class))
+                .isZero();
         assertThat(jdbc.queryForObject(
                 "SELECT version FROM flyway_schema_history WHERE installed_rank = 1", String.class))
                 .isEqualTo("1");
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history WHERE success", Integer.class))
+                .isGreaterThanOrEqualTo(1);
     }
 }

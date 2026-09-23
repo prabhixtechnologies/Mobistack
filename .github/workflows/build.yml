@@ -152,6 +152,9 @@ jobs:
             -connectRetries=10 \
             migrate
 
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
       - name: Schema and seed data arrived
         env:
           PGPASSWORD: ci

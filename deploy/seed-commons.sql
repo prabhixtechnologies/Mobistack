@@ -35,6 +35,27 @@
 
 BEGIN;
 
+-- Fitment rows belong to one group. On a database that was migrated before anyone existed, the
+-- default group is created here, owned by the account seed.sql just wrote.
+INSERT INTO sharing_groups (id, name, owner_user_id)
+SELECT '11111111-1111-4111-8111-111111111111', 'Fitment catalog', u.id
+FROM users u
+ORDER BY u.created_at ASC NULLS LAST
+LIMIT 1
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO sharing_group_members (group_id, workspace_id, role)
+SELECT '11111111-1111-4111-8111-111111111111', s.id, 'MEMBER'
+FROM shops s
+WHERE EXISTS (
+  SELECT 1 FROM sharing_groups g WHERE g.id = '11111111-1111-4111-8111-111111111111'
+)
+AND NOT EXISTS (
+  SELECT 1 FROM sharing_group_members m
+  WHERE m.group_id = '11111111-1111-4111-8111-111111111111'
+    AND m.workspace_id = s.id
+);
+
 -- ---------------------------------------------------------------------------------------------
 -- Brands
 -- ---------------------------------------------------------------------------------------------
@@ -185,15 +206,17 @@ WHERE NOT EXISTS (
 
 -- Each part to the one model it is named for. EXACT because the part is defined by the model, not
 -- claimed to fit it.
-INSERT INTO catalog_fitments (component_id, device_id, fit_quality)
-SELECT c.id, d.id, 'EXACT'
+INSERT INTO catalog_fitments (group_id, component_id, device_id, fit_quality)
+SELECT '11111111-1111-4111-8111-111111111111', c.id, d.id, 'EXACT'
 FROM catalog_devices d
 CROSS JOIN seed_part_kinds p
 JOIN catalog_components c
   ON c.category_code = p.category_code
  AND lower(c.name) = lower(d.name || ' ' || p.suffix)
 WHERE NOT EXISTS (
-  SELECT 1 FROM catalog_fitments f WHERE f.component_id = c.id AND f.device_id = d.id
+  SELECT 1 FROM catalog_fitments f
+  WHERE f.group_id = '11111111-1111-4111-8111-111111111111'
+    AND f.component_id = c.id AND f.device_id = d.id
 );
 
 -- ---------------------------------------------------------------------------------------------
@@ -223,14 +246,16 @@ INSERT INTO seed_cross VALUES
   ('Redmi Note 10 Display Folder', 'DISPLAY_FOLDER', 'Redmi Note 10S'),
   ('Redmi Note 10 Tempered Glass', 'TEMPERED_GLASS', 'Redmi Note 10S');
 
-INSERT INTO catalog_fitments (component_id, device_id, fit_quality)
-SELECT c.id, d.id, 'COMPATIBLE'
+INSERT INTO catalog_fitments (group_id, component_id, device_id, fit_quality)
+SELECT '11111111-1111-4111-8111-111111111111', c.id, d.id, 'COMPATIBLE'
 FROM seed_cross s
 JOIN catalog_components c
   ON c.category_code = s.category_code AND lower(c.name) = lower(s.component_name)
 JOIN catalog_devices d ON lower(d.name) = lower(s.device_name)
 WHERE NOT EXISTS (
-  SELECT 1 FROM catalog_fitments f WHERE f.component_id = c.id AND f.device_id = d.id
+  SELECT 1 FROM catalog_fitments f
+  WHERE f.group_id = '11111111-1111-4111-8111-111111111111'
+    AND f.component_id = c.id AND f.device_id = d.id
 );
 
 COMMIT;
