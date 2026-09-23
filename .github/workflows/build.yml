@@ -366,7 +366,21 @@ jobs:
         working-directory: backend
         run: |
           set -euo pipefail
+          set +e
           mvn -B test -Pintegration 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" -ne 0 ]; then
+            {
+              echo "### Backend test failure"
+              echo '```'
+              grep -E 'FAILURE|ERROR|Tests run:|Caused by:|Application run failed|Migration' build.log | tail -n 40
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            msg=$(grep -E 'FAILURE|ERROR|Tests run:' build.log | tail -n 12 | tr '\n' ' ' | cut -c1-700)
+            echo "::error::$msg"
+            exit "$code"
+          fi
 
       # The pom hands Mockito's agent to the JVM at startup rather than letting it attach to a
       # running one, which the JDK warns about now and will refuse. Checked rather than assumed
