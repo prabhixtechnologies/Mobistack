@@ -44,7 +44,7 @@ ORDER BY u.created_at ASC NULLS LAST
 LIMIT 1
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO sharing_group_members (group_id, workspace_id, role)
+INSERT INTO sharing_group_members (group_id, shop_id, role)
 SELECT '11111111-1111-4111-8111-111111111111', s.id, 'MEMBER'
 FROM shops s
 WHERE EXISTS (
@@ -53,7 +53,7 @@ WHERE EXISTS (
 AND NOT EXISTS (
   SELECT 1 FROM sharing_group_members m
   WHERE m.group_id = '11111111-1111-4111-8111-111111111111'
-    AND m.workspace_id = s.id
+    AND m.shop_id = s.id
 );
 
 -- ---------------------------------------------------------------------------------------------

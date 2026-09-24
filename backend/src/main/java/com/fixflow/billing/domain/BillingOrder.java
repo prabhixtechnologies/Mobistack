@@ -23,7 +23,7 @@ public class BillingOrder {
     @Id
     private UUID id = UUID.randomUUID();
 
-    @Column(name = "workspace_id", nullable = false)
+    @Column(name = "shop_id", nullable = false)
     private UUID workspaceId;
 
     @Column(name = "user_id", nullable = false)

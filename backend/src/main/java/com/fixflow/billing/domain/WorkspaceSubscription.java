@@ -13,7 +13,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "workspace_subscriptions")
+@Table(name = "shop_subscriptions")
 public class WorkspaceSubscription {
 
     public static final String NONE = "NONE";
@@ -21,7 +21,7 @@ public class WorkspaceSubscription {
     public static final String PAST_DUE = "PAST_DUE";
 
     @Id
-    @Column(name = "workspace_id")
+    @Column(name = "shop_id")
     private UUID workspaceId;
 
     @Column(name = "plan_id")

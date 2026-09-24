@@ -37,7 +37,7 @@ public class User extends AuditableEntity {
     @Column(name = "full_name", nullable = false, length = 160)
     private String fullName;
 
-    @Column(name = "email", nullable = false, length = 255)
+    @Column(name = "email", nullable = false, columnDefinition = "citext")
     private String email;
 
     @Column(name = "phone", length = 32)

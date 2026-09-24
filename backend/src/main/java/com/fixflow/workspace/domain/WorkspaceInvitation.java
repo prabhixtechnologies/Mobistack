@@ -19,14 +19,14 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "workspace_invitations")
+@Table(name = "shop_invitations")
 public class WorkspaceInvitation extends AuditableEntity {
 
     public enum Status {
         PENDING, ACCEPTED, CANCELLED, EXPIRED
     }
 
-    @Column(name = "workspace_id", nullable = false)
+    @Column(name = "shop_id", nullable = false)
     private UUID workspaceId;
 
     @Column(name = "email", length = 255)

@@ -243,43 +243,35 @@ jobs:
             printf '%-40s %s\n' "$1" "$actual"
           }
 
-          # crypt() against the stored hash is the comparison BCryptPasswordEncoder makes, and the
-          # cost matters: a weaker hash still verifies, so nothing else would notice the drift.
-          expect "password verifies" \
-            "SELECT crypt('ci-seed-password', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
-          expect "a wrong password does not" \
-            "SELECT crypt('wrong', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" f
-          expect "bcrypt cost is 12" \
-            "SELECT left(password_hash, 7) FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" '$2a$12$'
-          expect "admin, active and unlocked" \
-            "SELECT system_admin AND active AND email_verified AND locked_until IS NULL FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
+          # Identity holds the password. This database keeps the mirror and the admin flag.
+          expect "no local password column" \
+            "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'password_hash'" 0
+          expect "email matches regardless of case" \
+            "SELECT count(*) FROM users WHERE email = 'CI@prabhixtechnologies.com'" 1
+          expect "admin and active" \
+            "SELECT system_admin AND active AND email_verified FROM users WHERE email = 'ci@prabhixtechnologies.com'" t
           # No shop on purpose: real shops provision themselves, and principalFor falls through to an
           # unscoped principal, which the admin console does not need a workspace for.
           expect "no placeholder workspace was created" \
             "SELECT count(*) FROM shops" 0
 
-      # The seed's other job, and the one that gets used in anger: rerunning it is how a locked-out
-      # operator gets back in, because there is no other way to reset the only admin account. If the
-      # UPDATE ever stopped running on a second pass the script would still report success, still be
-      # idempotent, and quietly no longer do the one thing it is reached for.
-      - name: Re-running the seed recovers a locked-out admin
+      # The seed's other job: rerunning it is how a disabled admin is restored, because there is
+      # no other script that flips system_admin back on. The password, if it needs rotating, is
+      # Identity's seed. If the UPDATE ever stopped running on a second pass this script would
+      # still report success, still be idempotent, and quietly no longer do that.
+      - name: Re-running the seed restores a disabled admin
         env:
           PGPASSWORD: ci
         run: |
           set -euo pipefail
           psql() { command psql -h localhost -U postgres -d schemacheck "$@"; }
 
-          # Every way the account can be shut out at once.
-          psql -q -c "UPDATE users SET failed_logins = 9,
-                                       locked_until = now() + interval '1 day',
-                                       active = false,
-                                       must_change_pw = true,
+          psql -q -c "UPDATE users SET active = false,
                                        system_admin = false
-                      WHERE lower(email) = 'ci@prabhixtechnologies.com'"
+                      WHERE email = 'ci@prabhixtechnologies.com'"
 
           psql -q -v ON_ERROR_STOP=1 \
             -v admin_email=ci@prabhixtechnologies.com \
-            -v admin_password=rotated-password \
             -v admin_name='CI Seed' \
             -f deploy/seed.sql > /dev/null
 
@@ -292,12 +284,8 @@ jobs:
             printf '%-40s %s\n' "$1" "$actual"
           }
 
-          expect "the new password works" \
-            "SELECT crypt('rotated-password', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
-          expect "the old password no longer does" \
-            "SELECT crypt('ci-seed-password', password_hash) = password_hash FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" f
-          expect "lockout and admin flag restored" \
-            "SELECT locked_until IS NULL AND failed_logins = 0 AND active AND NOT must_change_pw AND system_admin FROM users WHERE lower(email) = 'ci@prabhixtechnologies.com'" t
+          expect "admin flag restored" \
+            "SELECT active AND system_admin FROM users WHERE email = 'ci@prabhixtechnologies.com'" t
           expect "no second account was created" \
             "SELECT count(*) FROM users" 1
 

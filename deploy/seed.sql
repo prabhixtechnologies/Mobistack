@@ -21,20 +21,20 @@
 --   psql "host=$RDS user=mobistack dbname=mobistack sslmode=require" \
 --     -v ON_ERROR_STOP=1 \
 --     -v admin_email=admin@prabhixtechnologies.com \
---     -v admin_password='<something long>' \
 --     -v admin_name='Your Name' \
 --     -f deploy/seed.sql
 --
 -- Locally:
 --
 --   docker compose exec -T postgres psql -U mobistack -d mobistack -v ON_ERROR_STOP=1 \
---     -v admin_password='dev-password' -f - < deploy/seed.sql
+--     -f - < deploy/seed.sql
 --
--- The password is hashed here by pgcrypto at bcrypt cost 12, matching PasswordConfig's
--- BCryptPasswordEncoder(12), so the application accepts it unchanged.
+-- No password is stored here. Identity checks the sign-in secret; this row is the mirror the
+-- shop tables' foreign keys point at, plus system_admin so the admin console has someone to
+-- admit. Create the same address in Identity before expecting a login to succeed.
 --
 -- Safe to run twice: the insert is guarded on the address and the promotion is an idempotent
--- UPDATE, so a second run with a different password rotates it rather than failing.
+-- UPDATE, so a second run restores active and system_admin rather than inserting another row.
 
 \set ON_ERROR_STOP on
 
@@ -53,42 +53,26 @@
   \set admin_phone NULL
 \endif
 
--- RAISE rather than \quit, which takes no status and would exit 0 — a seed that silently did
--- nothing is worse than one that failed.
-\if :{?admin_password}
-\else
-  DO $$ BEGIN
-    RAISE EXCEPTION 'admin_password is required: psql -v admin_password=<value> -f deploy/seed.sql';
-  END $$;
-\endif
-
 BEGIN;
 
--- users.email is varchar, not citext, and the unique index is on lower(email). So every comparison
--- has to lower() both sides itself; there is no case-insensitive operator doing it here.
-INSERT INTO users (shop_id, full_name, email, phone, password_hash, active, must_change_pw,
+-- email is citext, so the comparison is case-insensitive without lower().
+INSERT INTO users (shop_id, full_name, email, phone, active,
                    email_verified, phone_verified, system_admin)
 SELECT NULL, :'admin_name', :'admin_email', :admin_phone,
-       crypt(:'admin_password', gen_salt('bf', 12)),
-       true, false, true, false, true
+       true, true, false, true
 WHERE NOT EXISTS (
-  SELECT 1 FROM users WHERE lower(email) = lower(:'admin_email')
+  SELECT 1 FROM users WHERE email = :'admin_email'
 );
 
--- Runs whether or not the insert above did, which is what makes a second run useful: it rotates the
--- password, clears a lockout from too many failed sign-ins, and re-grants the admin flag if someone
--- removed it. Everything a locked-out operator needs, without a second script.
+-- Runs whether or not the insert above did. A second run re-grants the admin flag and clears a
+-- disabled account. The password, if one is needed, is reset in Identity.
 UPDATE users
 SET full_name      = :'admin_name',
-    password_hash  = crypt(:'admin_password', gen_salt('bf', 12)),
     active         = true,
-    must_change_pw = false,
     email_verified = true,
     system_admin   = true,
-    failed_logins  = 0,
-    locked_until   = NULL,
     updated_at     = now()
-WHERE lower(email) = lower(:'admin_email');
+WHERE email = :'admin_email';
 
 COMMIT;
 
@@ -97,12 +81,12 @@ COMMIT;
 SELECT full_name, email, system_admin, active,
        CASE WHEN shop_id IS NULL THEN 'none' ELSE shop_id::text END AS workspace
 FROM users
-WHERE lower(email) = lower(:'admin_email');
+WHERE email = :'admin_email';
 
 \echo ''
-\echo 'Sign in at /login with the admin_email and admin_password given above. The admin console is'
-\echo 'at /admin. Shops create themselves through registration; if this account needs a workspace of'
-\echo 'its own, make one from the workspace switcher.'
+\echo 'This account can be signed in only after the same address exists in Identity. The admin'
+\echo 'console is at /admin. Shops create themselves through registration; if this account needs a'
+\echo 'workspace of its own, make one from the workspace switcher.'
 \echo ''
 \echo 'The compatibility catalog is empty on a fresh database. deploy/seed-commons.sql puts a small'
 \echo 'starter set in it so the lookup screens are not blank.'

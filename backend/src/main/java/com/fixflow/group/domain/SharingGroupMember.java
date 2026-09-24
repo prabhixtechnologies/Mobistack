@@ -38,7 +38,7 @@ public class SharingGroupMember {
     @Column(name = "group_id", nullable = false)
     private UUID groupId;
 
-    @Column(name = "workspace_id")
+    @Column(name = "shop_id")
     private UUID workspaceId;
 
     @Column(name = "user_id")

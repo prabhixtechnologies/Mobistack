@@ -13,13 +13,13 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "workspace_entitlements")
+@Table(name = "shop_entitlements")
 public class WorkspaceEntitlement {
 
     @Id
     private UUID id = UUID.randomUUID();
 
-    @Column(name = "workspace_id", nullable = false)
+    @Column(name = "shop_id", nullable = false)
     private UUID workspaceId;
 
     @Column(nullable = false, length = 40)

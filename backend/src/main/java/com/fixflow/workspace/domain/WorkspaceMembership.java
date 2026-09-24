@@ -23,10 +23,10 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "workspace_memberships")
+@Table(name = "shop_memberships")
 public class WorkspaceMembership extends AuditableEntity {
 
-    @Column(name = "workspace_id", nullable = false)
+    @Column(name = "shop_id", nullable = false)
     private UUID workspaceId;
 
     @Column(name = "user_id", nullable = false)
