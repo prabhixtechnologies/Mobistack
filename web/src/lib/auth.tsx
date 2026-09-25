@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const me = await api<AuthenticatedUser>("/api/v1/auth/me");
+        const me = await api<AuthenticatedUser>("/api/v1/mobistack/auth/me");
         if (cancelled) {
           return;
         }
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+        const mine = await api<MyWorkspacesResponse>("/api/v1/mobistack/workspaces");
         if (cancelled) {
           return;
         }
@@ -146,11 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginWithTokens = useCallback(async (accessToken: string) => {
     persistAccessToken(accessToken);
-    const me = await api<AuthenticatedUser>("/api/v1/auth/me");
+    const me = await api<AuthenticatedUser>("/api/v1/mobistack/auth/me");
     persistUser(me);
     setUser(me);
     try {
-      const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+      const mine = await api<MyWorkspacesResponse>("/api/v1/mobistack/workspaces");
       persistWorkspaces(mine.workspaces);
       setWorkspaces(mine.workspaces);
     } catch {
@@ -168,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearSession();
         setUser(null);
         setWorkspaces([]);
-        const auth = await api<AuthResponse>("/api/v1/auth/login", {
+        const auth = await api<AuthResponse>("/api/v1/mobistack/auth/login", {
           method: "POST",
           body: JSON.stringify({
             email: email.trim(),
@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const refreshToken = getRefreshToken();
         try {
           if (refreshToken) {
-            await api("/api/v1/auth/logout", {
+            await api("/api/v1/mobistack/auth/logout", {
               method: "POST",
               body: JSON.stringify({ refreshToken }),
             });
@@ -204,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
       async switchWorkspace(workspaceId) {
-        const auth = await api<AuthResponse>(`/api/v1/workspaces/${workspaceId}/select`, {
+        const auth = await api<AuthResponse>(`/api/v1/mobistack/workspaces/select?id=${workspaceId}`, {
           method: "POST",
         });
         // Under Identity the access token carries who you are, not which shop. The select call
@@ -214,30 +214,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         window.location.assign(afterAuthPath(auth.user));
       },
       async createWorkspace(name, city) {
-        const auth = await api<AuthResponse>("/api/v1/workspaces", {
+        const auth = await api<AuthResponse>("/api/v1/mobistack/workspaces", {
           method: "POST",
           body: JSON.stringify({ name, city }),
         });
         applyWorkspaceChange(auth, setUser, setWorkspaces);
       },
       async joinWorkspace(joinCode) {
-        const card = await api<WorkspaceCard>("/api/v1/workspaces/join", {
+        const card = await api<WorkspaceCard>("/api/v1/mobistack/workspaces/join", {
           method: "POST",
           body: JSON.stringify({ joinCode }),
         });
-        const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+        const mine = await api<MyWorkspacesResponse>("/api/v1/mobistack/workspaces");
         persistWorkspaces(mine.workspaces);
         setWorkspaces(mine.workspaces);
         return card;
       },
       async refreshWorkspaces() {
-        const mine = await api<MyWorkspacesResponse>("/api/v1/workspaces");
+        const mine = await api<MyWorkspacesResponse>("/api/v1/mobistack/workspaces");
         persistWorkspaces(mine.workspaces);
         setWorkspaces(mine.workspaces);
         return mine;
       },
       async refreshUser() {
-        const me = await api<AuthenticatedUser>("/api/v1/auth/me");
+        const me = await api<AuthenticatedUser>("/api/v1/mobistack/auth/me");
         persistUser(me);
         setUser(me);
         return me;

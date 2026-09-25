@@ -23,8 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,7 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/workspaces")
+@RequestMapping("/api/v1/mobistack/workspaces")
 @RequiredArgsConstructor
 @Tag(name = "Workspaces")
 public class WorkspaceController {
@@ -78,81 +78,81 @@ public class WorkspaceController {
         return workspaceAccessService.requestJoin(CurrentUser.userId(), request.joinCode());
     }
 
-    @PostMapping("/{id}/select")
+    @PostMapping("/select")
     @Operation(summary = "Switch the selected workspace; the bearer token stays the same")
-    public WorkspaceSession select(@PathVariable UUID id) {
+    public WorkspaceSession select(@RequestParam UUID id) {
         return authService.switchWorkspace(CurrentUser.userId(), id);
     }
 
-    @PostMapping("/{id}/join/cancel")
+    @PostMapping("/join/cancel")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Withdraw your own pending join request. The ₹50 stays on this shop.")
-    public void cancelJoin(@PathVariable UUID id) {
+    public void cancelJoin(@RequestParam UUID id) {
         workspaceAccessService.cancelJoinRequest(CurrentUser.userId(), id);
     }
 
-    @GetMapping("/{id}/members")
+    @GetMapping("/members")
     @PreAuthorize(Authorize.USER_READ)
     @Operation(summary = "Members of a workspace, including pending join requests")
-    public PageResponse<WorkspaceMember> members(@PathVariable UUID id,
+    public PageResponse<WorkspaceMember> members(@RequestParam UUID id,
                                                  @PageableDefault(size = 25) Pageable pageable) {
         return PageResponse.of(workspaceAccessService.listMembers(id, pageable));
     }
 
-    @PostMapping("/{id}/members/{membershipId}/approve")
+    @PostMapping("/members/approve")
     @PreAuthorize(Authorize.USER_WRITE)
-    public WorkspaceMember approve(@PathVariable UUID id, @PathVariable UUID membershipId,
+    public WorkspaceMember approve(@RequestParam UUID id, @RequestParam UUID membershipId,
                                    @RequestBody(required = false) DecideMembershipRequest request) {
         return workspaceAccessService.approve(id, membershipId, request == null ? null : request.role());
     }
 
-    @PostMapping("/{id}/members/{membershipId}/reject")
+    @PostMapping("/members/reject")
     @PreAuthorize(Authorize.USER_WRITE)
-    public WorkspaceMember reject(@PathVariable UUID id, @PathVariable UUID membershipId) {
+    public WorkspaceMember reject(@RequestParam UUID id, @RequestParam UUID membershipId) {
         return workspaceAccessService.reject(id, membershipId);
     }
 
-    @PostMapping("/{id}/members/{membershipId}/suspend")
+    @PostMapping("/members/suspend")
     @PreAuthorize(Authorize.USER_WRITE)
-    public WorkspaceMember suspend(@PathVariable UUID id, @PathVariable UUID membershipId) {
+    public WorkspaceMember suspend(@RequestParam UUID id, @RequestParam UUID membershipId) {
         return workspaceAccessService.suspend(id, membershipId);
     }
 
-    @PostMapping("/{id}/members/{membershipId}/remove")
+    @PostMapping("/members/remove")
     @PreAuthorize(Authorize.USER_WRITE)
-    public WorkspaceMember remove(@PathVariable UUID id, @PathVariable UUID membershipId) {
+    public WorkspaceMember remove(@RequestParam UUID id, @RequestParam UUID membershipId) {
         return workspaceAccessService.remove(id, membershipId);
     }
 
-    @PostMapping("/{id}/members/{membershipId}/purge")
+    @PostMapping("/members/purge")
     @PreAuthorize(Authorize.USER_WRITE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete a removed or rejected membership from this shop. Does not delete their account.")
-    public void purge(@PathVariable UUID id, @PathVariable UUID membershipId) {
+    public void purge(@RequestParam UUID id, @RequestParam UUID membershipId) {
         workspaceAccessService.purge(id, membershipId);
     }
 
-    @GetMapping("/{id}/invitations")
+    @GetMapping("/invitations")
     @PreAuthorize(Authorize.USER_INVITE)
-    public java.util.List<InvitationResponse> invitations(@PathVariable UUID id) {
+    public java.util.List<InvitationResponse> invitations(@RequestParam UUID id) {
         return invitationService.list(id);
     }
 
-    @PostMapping("/{id}/invitations")
+    @PostMapping("/invitations")
     @PreAuthorize(Authorize.USER_INVITE)
     @ResponseStatus(HttpStatus.CREATED)
-    public InvitationResponse invite(@PathVariable UUID id, @Valid @RequestBody InviteMemberRequest request) {
+    public InvitationResponse invite(@RequestParam UUID id, @Valid @RequestBody InviteMemberRequest request) {
         return invitationService.invite(id, request);
     }
 
-    @PostMapping("/{id}/invitations/{invitationId}/cancel")
+    @PostMapping("/invitations/cancel")
     @PreAuthorize(Authorize.USER_INVITE)
-    public void cancelInvite(@PathVariable UUID id, @PathVariable UUID invitationId) {
+    public void cancelInvite(@RequestParam UUID id, @RequestParam UUID invitationId) {
         invitationService.cancel(id, invitationId);
     }
 
-    @GetMapping("/{id}/join-qr")
-    public java.util.Map<String, String> joinQr(@PathVariable UUID id) {
+    @GetMapping("/join-qr")
+    public java.util.Map<String, String> joinQr(@RequestParam UUID id) {
         workspaceAccessService.requireActive(CurrentUser.userId(), id);
         var mine = workspaceAccessService.listMine(CurrentUser.userId(), id);
         var card = mine.workspaces().stream().filter(w -> w.id().equals(id)).findFirst()

@@ -13,9 +13,9 @@ function deviceLabel(device: CommonsDevice): string {
 export function CommonsComponentPage() {
   const { id } = useParams();
   const fitment = useFitmentGroups();
-  const component = useResource<CommonsComponent>(id ? `/api/v1/commons/components/${id}` : null);
+  const component = useResource<CommonsComponent>(id ? `/api/v1/mobistack/commons/components?componentId=${id}` : null);
   const devices = useResource<CommonsDevice[]>(
-    id && fitment.ready ? `/api/v1/commons/components/${id}/devices?groupId=${fitment.selected ?? ""}` : null,
+    id && fitment.ready ? `/api/v1/mobistack/commons/components/devices?componentId=${id}&groupId=${fitment.selected ?? ""}` : null,
   );
 
   if (component.error) {

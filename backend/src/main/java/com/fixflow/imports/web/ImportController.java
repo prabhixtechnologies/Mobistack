@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/imports")
+@RequestMapping("/api/v1/mobistack/imports")
 @RequiredArgsConstructor
 @Tag(name = "Imports")
 public class ImportController {

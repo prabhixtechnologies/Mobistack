@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * people to its hosted pages and come back holding a bearer token.
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/api/v1/mobistack/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication")
 public class AuthController {

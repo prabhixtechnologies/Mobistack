@@ -11,7 +11,7 @@ interface AuditRow {
 }
 
 export function AuditPage() {
-  const trail = usePagedList<AuditRow>("/api/v1/audit", { size: 40 });
+  const trail = usePagedList<AuditRow>("/api/v1/mobistack/audit", { size: 40 });
 
   const columns: Column<AuditRow>[] = [
     {

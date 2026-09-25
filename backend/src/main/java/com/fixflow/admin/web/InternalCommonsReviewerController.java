@@ -9,8 +9,8 @@ import com.prabhix.identity.client.ServiceTokenGuard;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,7 +26,7 @@ import java.util.UUID;
  * staff member. Same contract as Identity's {@code /internal/admin}.
  */
 @RestController
-@RequestMapping("/internal/admin/commons-reviewers")
+@RequestMapping("/internal/mobistack/admin/commons-reviewers")
 @RequiredArgsConstructor
 @Tag(name = "Internal commons reviewers")
 public class InternalCommonsReviewerController {
@@ -47,16 +47,16 @@ public class InternalCommonsReviewerController {
                 body == null ? null : body.reason());
     }
 
-    @PostMapping("/{userId}/grant")
+    @PostMapping("/grant")
     public ReviewerView grantPath(HttpServletRequest request,
-                                  @PathVariable UUID userId,
+                                  @RequestParam UUID userId,
                                   @RequestBody(required = false) GrantRequest body) {
         UUID actor = requireActor(request);
         return reviewers.grant(actor, userId, body == null ? null : body.reason());
     }
 
-    @PostMapping("/{userId}/revoke")
-    public void revoke(HttpServletRequest request, @PathVariable UUID userId) {
+    @PostMapping("/revoke")
+    public void revoke(HttpServletRequest request, @RequestParam UUID userId) {
         requireActor(request);
         reviewers.revoke(userId);
     }

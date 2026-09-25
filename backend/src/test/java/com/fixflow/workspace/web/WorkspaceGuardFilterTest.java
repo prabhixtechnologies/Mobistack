@@ -58,7 +58,7 @@ class WorkspaceGuardFilterTest {
     void businessApiWithoutASelectedWorkspaceIsRejected() throws Exception {
         authenticate(UserPrincipal.unscoped(user()));
 
-        MockHttpServletResponse response = run("GET", "/api/v1/inventory", null);
+        MockHttpServletResponse response = run("GET", "/api/v1/mobistack/inventory", null);
 
         assertThat(response.getStatus()).isEqualTo(403);
         assertThat(response.getContentAsString()).contains("WORKSPACE_REQUIRED");
@@ -70,7 +70,7 @@ class WorkspaceGuardFilterTest {
         authenticate(new UserPrincipal(userId, workspaceId, "owner@prabhixtechnologies.com", "Rohan", true,
                 java.util.Set.of("OWNER"), java.util.Set.of()));
 
-        MockHttpServletResponse response = run("GET", "/api/v1/inventory", UUID.randomUUID().toString());
+        MockHttpServletResponse response = run("GET", "/api/v1/mobistack/inventory", UUID.randomUUID().toString());
 
         assertThat(response.getStatus()).isEqualTo(403);
         assertThat(response.getContentAsString()).contains("FORBIDDEN");
@@ -84,7 +84,7 @@ class WorkspaceGuardFilterTest {
                 java.util.Set.of("OWNER"), java.util.Set.of()));
         when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
 
-        MockHttpServletResponse response = run("GET", "/api/v1/inventory", workspaceId.toString());
+        MockHttpServletResponse response = run("GET", "/api/v1/mobistack/inventory", workspaceId.toString());
 
         assertThat(response.getStatus()).isEqualTo(200);
         verify(workspaceAccessService).requireActive(userId, workspaceId);
@@ -95,7 +95,7 @@ class WorkspaceGuardFilterTest {
     void workspaceDirectoryIsAllowedWithoutASelection() throws Exception {
         authenticate(UserPrincipal.unscoped(user()));
 
-        MockHttpServletResponse response = run("GET", "/api/v1/workspaces", null);
+        MockHttpServletResponse response = run("GET", "/api/v1/mobistack/workspaces", null);
 
         assertThat(response.getStatus()).isEqualTo(200);
         verify(workspaceAccessService, never()).requireActive(any(), any());
@@ -106,9 +106,9 @@ class WorkspaceGuardFilterTest {
     void paidJoinAndCancelAreAllowedWithoutASelectedWorkspace() throws Exception {
         authenticate(UserPrincipal.unscoped(user()));
 
-        MockHttpServletResponse checkout = run("POST", "/api/v1/workspaces/join/checkout", null);
-        MockHttpServletResponse complete = run("POST", "/api/v1/workspaces/join/complete", null);
-        MockHttpServletResponse cancel = run("POST", "/api/v1/workspaces/" + workspaceId + "/join/cancel", null);
+        MockHttpServletResponse checkout = run("POST", "/api/v1/mobistack/workspaces/join/checkout", null);
+        MockHttpServletResponse complete = run("POST", "/api/v1/mobistack/workspaces/join/complete", null);
+        MockHttpServletResponse cancel = run("POST", "/api/v1/mobistack/workspaces/join/cancel", null);
 
         assertThat(checkout.getStatus()).isEqualTo(200);
         assertThat(complete.getStatus()).isEqualTo(200);
@@ -121,8 +121,8 @@ class WorkspaceGuardFilterTest {
         authenticate(UserPrincipal.unscoped(user()));
 
         MockHttpServletRequest request = new MockHttpServletRequest("POST",
-                "/api/v1/workspaces/" + workspaceId + "/select");
-        request.setServletPath("/api/v1/workspaces/" + workspaceId + "/select");
+                "/api/v1/mobistack/workspaces/select");
+        request.setServletPath("/api/v1/mobistack/workspaces/select");
         request.addHeader(WorkspaceGuardFilter.WORKSPACE_HEADER, workspaceId.toString());
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, chain);
@@ -134,8 +134,8 @@ class WorkspaceGuardFilterTest {
     @Test
     void supportAndPresenceBypassTheGuard() throws Exception {
         authenticate(UserPrincipal.unscoped(user()));
-        MockHttpServletResponse support = run("POST", "/api/v1/support/chat", null);
-        MockHttpServletResponse presence = run("POST", "/api/v1/presence/heartbeat", null);
+        MockHttpServletResponse support = run("POST", "/api/v1/mobistack/support/chat", null);
+        MockHttpServletResponse presence = run("POST", "/api/v1/mobistack/presence/heartbeat", null);
 
         assertThat(support.getStatus()).isEqualTo(200);
         assertThat(presence.getStatus()).isEqualTo(200);
@@ -148,8 +148,8 @@ class WorkspaceGuardFilterTest {
         when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
         when(billingService.paymentRequired(workspaceId)).thenReturn(true);
 
-        MockHttpServletResponse read = run("GET", "/api/v1/inventory", null);
-        MockHttpServletResponse write = run("POST", "/api/v1/sales", null);
+        MockHttpServletResponse read = run("GET", "/api/v1/mobistack/inventory", null);
+        MockHttpServletResponse write = run("POST", "/api/v1/mobistack/sales", null);
 
         assertThat(read.getStatus()).isEqualTo(200);
         assertThat(write.getStatus()).isEqualTo(ErrorCode.ENTITLEMENT_DENIED.status().value());
@@ -161,8 +161,8 @@ class WorkspaceGuardFilterTest {
         authenticate(scopedPrincipal());
         when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
 
-        MockHttpServletResponse order = run("POST", "/api/v1/billing/orders", null);
-        MockHttpServletResponse shop = run("PUT", "/api/v1/shop", null);
+        MockHttpServletResponse order = run("POST", "/api/v1/mobistack/billing/orders", null);
+        MockHttpServletResponse shop = run("PUT", "/api/v1/mobistack/shop", null);
 
         assertThat(order.getStatus()).isEqualTo(200);
         assertThat(shop.getStatus()).isEqualTo(200);
@@ -176,7 +176,7 @@ class WorkspaceGuardFilterTest {
         when(workspaceAccessService.requireActive(userId, workspaceId)).thenReturn(new WorkspaceMembership());
         when(billingService.paymentRequired(workspaceId)).thenReturn(false);
 
-        MockHttpServletResponse response = run("POST", "/api/v1/sales", null);
+        MockHttpServletResponse response = run("POST", "/api/v1/mobistack/sales", null);
 
         assertThat(response.getStatus()).isEqualTo(200);
         verify(chain).doFilter(any(), any());
@@ -185,8 +185,8 @@ class WorkspaceGuardFilterTest {
     @Test
     void authEndpointsBypassTheGuard() throws Exception {
         authenticate(UserPrincipal.unscoped(user()));
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/auth/me");
-        request.setServletPath("/api/v1/auth/me");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/auth/me");
+        request.setServletPath("/api/v1/mobistack/auth/me");
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, chain);
 

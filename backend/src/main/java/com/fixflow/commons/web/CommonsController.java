@@ -18,7 +18,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,7 +42,7 @@ import java.util.UUID;
  * it changes what every other shop reads.
  */
 @RestController
-@RequestMapping("/api/v1/commons")
+@RequestMapping("/api/v1/mobistack/commons")
 @RequiredArgsConstructor
 @Tag(name = "Compatibility commons")
 public class CommonsController {
@@ -98,9 +97,9 @@ public class CommonsController {
         return PageResponse.of(result, device -> DeviceView.of(device, names.get(device.getBrandId())));
     }
 
-    @GetMapping("/devices/{deviceId}")
+    @GetMapping(value = "/devices", params = "deviceId")
     @PreAuthorize("isAuthenticated()")
-    public DeviceView device(@PathVariable UUID deviceId) {
+    public DeviceView device(@RequestParam UUID deviceId) {
         CatalogDevice device = catalog.requireDevice(deviceId);
         var names = catalog.brandNames(List.of(device.getBrandId()));
         return DeviceView.of(device, names.get(device.getBrandId()));
@@ -117,16 +116,16 @@ public class CommonsController {
         return PageResponse.of(result, ComponentView::of);
     }
 
-    @GetMapping("/components/{componentId}")
+    @GetMapping(value = "/components", params = "componentId")
     @PreAuthorize("isAuthenticated()")
-    public ComponentView component(@PathVariable UUID componentId) {
+    public ComponentView component(@RequestParam UUID componentId) {
         return ComponentView.of(catalog.requireComponent(componentId));
     }
 
     /** What fits this phone. The question the commons exists to answer. */
-    @GetMapping("/devices/{deviceId}/fits")
+    @GetMapping("/devices/fits")
     @PreAuthorize("isAuthenticated()")
-    public List<FitView> fits(@PathVariable UUID deviceId) {
+    public List<FitView> fits(@RequestParam UUID deviceId) {
         List<FitView> answer = catalog.fitmentsForDevice(deviceId, groups.resolveSelected()).stream()
                 .map(FitView::of)
                 .toList();
@@ -135,9 +134,9 @@ public class CommonsController {
     }
 
     /** What this part fits — the other direction, for someone holding stock. */
-    @GetMapping("/components/{componentId}/devices")
+    @GetMapping("/components/devices")
     @PreAuthorize("isAuthenticated()")
-    public List<DeviceView> devicesFor(@PathVariable UUID componentId) {
+    public List<DeviceView> devicesFor(@RequestParam UUID componentId) {
         List<CatalogDevice> found = catalog.devicesForComponent(componentId, groups.resolveSelected());
         var names = catalog.brandNames(found.stream().map(CatalogDevice::getBrandId).distinct().toList());
         return found.stream().map(device -> DeviceView.of(device, names.get(device.getBrandId()))).toList();
@@ -180,16 +179,16 @@ public class CommonsController {
         return PageResponse.of(contributions.queue(page, size), ContributionView::of);
     }
 
-    @PostMapping("/review/{id}/accept")
+    @PostMapping("/review/accept")
     @PreAuthorize(Authorize.COMMONS_REVIEW)
-    public ContributionView accept(@PathVariable UUID id, @RequestBody(required = false) ReviewNote note) {
+    public ContributionView accept(@RequestParam UUID id, @RequestBody(required = false) ReviewNote note) {
         return ContributionView.of(
                 contributions.accept(CurrentUser.userId(), id, note == null ? null : note.note()));
     }
 
-    @PostMapping("/review/{id}/reject")
+    @PostMapping("/review/reject")
     @PreAuthorize(Authorize.COMMONS_REVIEW)
-    public ContributionView reject(@PathVariable UUID id, @RequestBody(required = false) ReviewNote note) {
+    public ContributionView reject(@RequestParam UUID id, @RequestBody(required = false) ReviewNote note) {
         return ContributionView.of(
                 contributions.reject(CurrentUser.userId(), id, note == null ? null : note.note()));
     }
@@ -200,24 +199,24 @@ public class CommonsController {
      * <p>Distinct from a confirmation: confirmations are a crowd count, and this is somebody with the
      * authority to say the argument is over.
      */
-    @PostMapping("/review/fitments/{fitmentId}/verify")
+    @PostMapping("/review/fitments/verify")
     @PreAuthorize(Authorize.COMMONS_REVIEW)
-    public VerifiedView verify(@PathVariable UUID fitmentId) {
+    public VerifiedView verify(@RequestParam UUID fitmentId) {
         var fitment = catalog.markVerified(fitmentId, CurrentUser.userId());
         return new VerifiedView(fitment.getId(), fitment.getComponentId(), fitment.getDeviceId(),
                 fitment.getVerifiedAt());
     }
 
-    @PostMapping("/review/contributors/{userId}/trust")
+    @PostMapping("/review/contributors/trust")
     @PreAuthorize(Authorize.COMMONS_REVIEW)
-    public StandingView trust(@PathVariable UUID userId, @RequestBody TrustRequest request) {
+    public StandingView trust(@RequestParam UUID userId, @RequestBody TrustRequest request) {
         return StandingView.of(
                 contributions.setTrusted(CurrentUser.userId(), userId, request.trusted()));
     }
 
-    @PostMapping("/review/contributors/{userId}/ban")
+    @PostMapping("/review/contributors/ban")
     @PreAuthorize(Authorize.COMMONS_REVIEW)
-    public StandingView ban(@PathVariable UUID userId, @RequestBody BanRequest request) {
+    public StandingView ban(@RequestParam UUID userId, @RequestBody BanRequest request) {
         return StandingView.of(contributions.setBanned(
                 CurrentUser.userId(), userId, request.banned(), request.reason()));
     }

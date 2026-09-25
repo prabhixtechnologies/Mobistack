@@ -37,7 +37,7 @@ export function CompatibilityPage() {
   const [proposing, setProposing] = useState<string | null>(null);
 
   useEffect(() => {
-    api<CompatibilityOverview>("/api/v1/compatibility-groups/overview")
+    api<CompatibilityOverview>("/api/v1/mobistack/compatibility-groups/overview")
       .then(setOverview)
       .catch((err: Error) => setError(err.message));
   }, []);
@@ -46,7 +46,7 @@ export function CompatibilityPage() {
     if (!canApprove) {
       return;
     }
-    api<ChangeRequest[]>("/api/v1/compatibility-requests")
+    api<ChangeRequest[]>("/api/v1/mobistack/compatibility-requests")
       .then(setRequests)
       .catch(() => undefined);
   }, [canApprove]);
@@ -64,9 +64,9 @@ export function CompatibilityPage() {
       setSearching(true);
       try {
         const [search, page] = await Promise.all([
-          api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(query)}`),
+          api<GlobalSearchResponse>(`/api/v1/mobistack/search?q=${encodeURIComponent(query)}`),
           api<PageResponse<CompatibilityGroup>>(
-            `/api/v1/compatibility-groups?q=${encodeURIComponent(query)}&size=40`,
+            `/api/v1/mobistack/compatibility-groups?q=${encodeURIComponent(query)}&size=40`,
           ),
         ]);
         if (!live) {
@@ -95,7 +95,7 @@ export function CompatibilityPage() {
 
   async function decide(id: string, action: "approve" | "reject") {
     try {
-      await api(`/api/v1/compatibility-requests/${id}/${action}`, { method: "POST" });
+      await api(`/api/v1/mobistack/compatibility-requests/${action}?id=${id}`, { method: "POST" });
       setRequests((current) => current.filter((row) => row.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update request");
@@ -108,7 +108,7 @@ export function CompatibilityPage() {
     setProposing(group.id);
     setError(null);
     try {
-      await api("/api/v1/commons/contributions", {
+      await api("/api/v1/mobistack/commons/contributions", {
         method: "POST",
         body: JSON.stringify({
           kind: "ADD_COMPONENT",

@@ -52,7 +52,7 @@ export function AppDownloadPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Catalog>("/api/v1/public/downloads")
+    api<Catalog>("/api/v1/mobistack/public/downloads")
       .then(setCatalog)
       .catch((err: Error) => setError(err.message));
   }, []);

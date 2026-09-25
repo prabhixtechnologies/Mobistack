@@ -18,7 +18,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/repairs")
+@RequestMapping("/api/v1/mobistack/repairs")
 @RequiredArgsConstructor
 @Tag(name = "Repairs")
 public class RepairController {
@@ -44,9 +43,9 @@ public class RepairController {
         return PageResponse.of(repairService.list(CurrentUser.shopId(), status, pageable));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(params = "id")
     @PreAuthorize(Authorize.REPAIR_READ)
-    public RepairResponse get(@PathVariable UUID id) {
+    public RepairResponse get(@RequestParam UUID id) {
         return repairService.get(CurrentUser.shopId(), id);
     }
 
@@ -57,22 +56,22 @@ public class RepairController {
         return repairService.create(CurrentUser.shopId(), request);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping
     @PreAuthorize(Authorize.REPAIR_WRITE)
-    public RepairResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateRepairRequest request) {
+    public RepairResponse update(@RequestParam UUID id, @Valid @RequestBody UpdateRepairRequest request) {
         return repairService.update(CurrentUser.shopId(), id, request);
     }
 
-    @PostMapping("/{id}/parts")
+    @PostMapping("/parts")
     @PreAuthorize(Authorize.REPAIR_WRITE)
     @ResponseStatus(HttpStatus.CREATED)
-    public RepairResponse addPart(@PathVariable UUID id, @Valid @RequestBody AddRepairPartRequest request) {
+    public RepairResponse addPart(@RequestParam UUID id, @Valid @RequestBody AddRepairPartRequest request) {
         return repairService.addPart(CurrentUser.shopId(), id, request);
     }
 
-    @PostMapping("/{id}/payments")
+    @PostMapping("/payments")
     @PreAuthorize(Authorize.REPAIR_WRITE)
-    public RepairResponse collect(@PathVariable UUID id, @Valid @RequestBody CollectRepairPaymentRequest request) {
+    public RepairResponse collect(@RequestParam UUID id, @Valid @RequestBody CollectRepairPaymentRequest request) {
         return repairService.collect(CurrentUser.shopId(), id, request);
     }
 }

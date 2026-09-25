@@ -11,9 +11,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +25,7 @@ import java.util.UUID;
 /**
  * The seam between the commons and a shop's own stock.
  *
- * <p>Under {@code /api/v1/inventory} rather than {@code /api/v1/commons}, and deliberately: these
+ * <p>Under {@code /api/v1/mobistack/inventory} rather than {@code /api/v1/mobistack/commons}, and deliberately: these
  * endpoints read and write one shop's rows, so they are tenant data and go through the workspace guard
  * and the shop's own permissions like everything else. Only the thing being pointed at is shared.
  *
@@ -33,7 +33,7 @@ import java.util.UUID;
  * catalog is free and needs no shop; knowing what you have in stock that fits is the paid half.
  */
 @RestController
-@RequestMapping("/api/v1/inventory/catalog-links")
+@RequestMapping("/api/v1/mobistack/inventory/catalog-links")
 @RequiredArgsConstructor
 @Tag(name = "Inventory catalog links")
 public class ShopCatalogLinkController {
@@ -47,10 +47,10 @@ public class ShopCatalogLinkController {
      * <p>Idempotent, and re-pointable: a shop that linked the wrong component fixes it by linking the
      * right one, with no unlink step in between.
      */
-    @PutMapping("/{variantId}")
+    @PutMapping
     @PreAuthorize(Authorize.INVENTORY_WRITE)
     @Transactional
-    public LinkView link(@PathVariable UUID variantId, @RequestBody LinkRequest request) {
+    public LinkView link(@RequestParam UUID variantId, @RequestBody LinkRequest request) {
         if (request == null || request.componentId() == null) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "Name the catalog component to link.");
         }
@@ -64,10 +64,10 @@ public class ShopCatalogLinkController {
         return LinkView.of(variant);
     }
 
-    @DeleteMapping("/{variantId}")
+    @DeleteMapping
     @PreAuthorize(Authorize.INVENTORY_WRITE)
     @Transactional
-    public void unlink(@PathVariable UUID variantId) {
+    public void unlink(@RequestParam UUID variantId) {
         ProductVariant variant = requireOwnVariant(variantId);
         variant.setCatalogComponentId(null);
         variants.save(variant);
@@ -80,10 +80,10 @@ public class ShopCatalogLinkController {
      * shop itself recorded, so a shop that never built its private graph gets an empty answer even
      * while holding the part on a shelf.
      */
-    @GetMapping("/devices/{catalogDeviceId}/stock")
+    @GetMapping("/devices/stock")
     @PreAuthorize(Authorize.INVENTORY_READ)
     @Transactional(readOnly = true)
-    public List<StockView> stockFor(@PathVariable UUID catalogDeviceId) {
+    public List<StockView> stockFor(@RequestParam UUID catalogDeviceId) {
         return variants.findStockForCatalogDevice(CurrentUser.shopId(), catalogDeviceId).stream()
                 .map(StockView::of)
                 .toList();

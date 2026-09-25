@@ -58,7 +58,7 @@ export function AppShell() {
     setUnlocking(true);
     setUnlockError(null);
     try {
-      await api("/api/v1/billing/dev/activate", { method: "POST" });
+      await api("/api/v1/mobistack/billing/dev/activate", { method: "POST" });
       await refreshUser();
     } catch (cause) {
       setUnlockError(cause instanceof Error ? cause.message : "Could not activate the local shop.");

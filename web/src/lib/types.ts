@@ -304,7 +304,7 @@ export interface InventoryTransaction {
   createdByName?: string;
 }
 
-/** `GET /api/v1/users` — mirrors `UserDtos.UserResponse`. */
+/** `GET /api/v1/mobistack/users` — mirrors `UserDtos.UserResponse`. */
 export interface WorkspaceUser {
   id: string;
   fullName: string;
@@ -317,7 +317,7 @@ export interface WorkspaceUser {
   permissions: string[];
 }
 
-/** `GET /api/v1/roles` — mirrors `UserDtos.RoleResponse`. */
+/** `GET /api/v1/mobistack/roles` — mirrors `UserDtos.RoleResponse`. */
 export interface WorkspaceRole {
   id: string;
   code: string;
@@ -328,7 +328,7 @@ export interface WorkspaceRole {
   permissions: string[];
 }
 
-/** `GET /api/v1/auth/sessions` — mirrors `DeviceSessionService.SessionCard`. */
+/** `GET /api/v1/mobistack/auth/sessions` — mirrors `DeviceSessionService.SessionCard`. */
 export interface DeviceSession {
   id: string;
   deviceId: string;
@@ -339,7 +339,7 @@ export interface DeviceSession {
   current: boolean;
 }
 
-/** `GET /api/v1/system/health` — mirrors `SystemHealthController.SystemStatus`. */
+/** `GET /api/v1/mobistack/system/health` — mirrors `SystemHealthController.SystemStatus`. */
 export interface SystemStatus {
   status: string;
   components: { name: string; status: string; detail?: string }[];

@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -38,7 +37,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/admin")
+@RequestMapping("/api/v1/mobistack/admin")
 @RequiredArgsConstructor
 @Tag(name = "Platform admin")
 public class PlatformAdminController {
@@ -60,14 +59,14 @@ public class PlatformAdminController {
         return platformAdminService.listWorkspaces();
     }
 
-    @PostMapping("/workspaces/{id}/suspend")
-    public Shop suspend(@PathVariable UUID id) {
+    @PostMapping("/workspaces/suspend")
+    public Shop suspend(@RequestParam UUID id) {
         platformAdminService.requireAdmin();
         return platformAdminService.setActive(id, false);
     }
 
-    @PostMapping("/workspaces/{id}/activate")
-    public Shop activate(@PathVariable UUID id) {
+    @PostMapping("/workspaces/activate")
+    public Shop activate(@RequestParam UUID id) {
         platformAdminService.requireAdmin();
         return platformAdminService.setActive(id, true);
     }
@@ -169,14 +168,14 @@ public class PlatformAdminController {
         return planService.create(body);
     }
 
-    @PutMapping("/plans/{id}")
-    public PlanService.PlanCard updatePlan(@PathVariable UUID id, @RequestBody PlanService.PlanWrite body) {
+    @PutMapping("/plans")
+    public PlanService.PlanCard updatePlan(@RequestParam UUID id, @RequestBody PlanService.PlanWrite body) {
         platformAdminService.requireAdmin();
         return planService.update(id, body);
     }
 
-    @PostMapping("/workspaces/{id}/plan")
-    public Map<String, Object> assignPlan(@PathVariable UUID id, @RequestBody Map<String, Object> body) {
+    @PostMapping("/workspaces/plan")
+    public Map<String, Object> assignPlan(@RequestParam UUID id, @RequestBody Map<String, Object> body) {
         platformAdminService.requireAdmin();
         UUID planId = UUID.fromString(String.valueOf(body.get("planId")));
         boolean complimentary = Boolean.parseBoolean(String.valueOf(body.getOrDefault("complimentary", false)));
@@ -190,8 +189,8 @@ public class PlatformAdminController {
         return presenceService.liveAll();
     }
 
-    @PostMapping("/live/{userId}/kick")
-    public Map<String, Object> kick(@PathVariable UUID userId,
+    @PostMapping("/live/kick")
+    public Map<String, Object> kick(@RequestParam UUID userId,
                                     @RequestBody(required = false) Map<String, String> body) {
         UUID actor = platformAdminService.requireAdmin();
         String deviceId = body == null ? null : body.get("deviceId");
@@ -199,8 +198,8 @@ public class PlatformAdminController {
         return Map.of("kicked", kicked, "userId", userId, "actor", actor);
     }
 
-    @PostMapping({"/workspaces/{id}/screens", "/workspaces/{id}/device-limit"})
-    public Shop deviceLimit(@PathVariable UUID id, @RequestBody Map<String, Integer> body) {
+    @PostMapping({"/workspaces/screens", "/workspaces/device-limit"})
+    public Shop deviceLimit(@RequestParam UUID id, @RequestBody Map<String, Integer> body) {
         platformAdminService.requireAdmin();
         Integer extra = body.get("extraScreens");
         if (extra == null && body.get("maxDevicesPerUser") != null) {
@@ -216,14 +215,14 @@ public class PlatformAdminController {
         return supportService.adminList(status);
     }
 
-    @PostMapping("/support/{id}/messages")
-    public SupportService.ConversationCard supportReply(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+    @PostMapping("/support/messages")
+    public SupportService.ConversationCard supportReply(@RequestParam UUID id, @RequestBody Map<String, String> body) {
         platformAdminService.requireAdmin();
         return supportService.adminReply(id, body.get("message"));
     }
 
-    @PostMapping("/support/{id}/resolve")
-    public SupportService.ConversationCard supportResolve(@PathVariable UUID id) {
+    @PostMapping("/support/resolve")
+    public SupportService.ConversationCard supportResolve(@RequestParam UUID id) {
         platformAdminService.requireAdmin();
         return supportService.resolve(id);
     }
@@ -234,8 +233,8 @@ public class PlatformAdminController {
         return appReleaseService.all();
     }
 
-    @PutMapping("/app-releases/{platform}")
-    public AppReleaseService.ReleasePolicy updateRelease(@PathVariable String platform,
+    @PutMapping("/app-releases")
+    public AppReleaseService.ReleasePolicy updateRelease(@RequestParam String platform,
                                                          @RequestBody AppReleaseService.ReleaseUpdate body) {
         platformAdminService.requireAdmin();
         return appReleaseService.update(platform, body);
@@ -248,16 +247,16 @@ public class PlatformAdminController {
         return contributionService.queue(page, size).map(ContributionCard::of);
     }
 
-    @PostMapping("/commons/{id}/accept")
-    public ContributionCard commonsAccept(@PathVariable UUID id,
+    @PostMapping("/commons/accept")
+    public ContributionCard commonsAccept(@RequestParam UUID id,
                                           @RequestBody(required = false) Map<String, String> body) {
         UUID actor = platformAdminService.requireAdmin();
         String note = body == null ? null : body.get("note");
         return ContributionCard.of(contributionService.accept(actor, id, note));
     }
 
-    @PostMapping("/commons/{id}/reject")
-    public ContributionCard commonsReject(@PathVariable UUID id,
+    @PostMapping("/commons/reject")
+    public ContributionCard commonsReject(@RequestParam UUID id,
                                           @RequestBody(required = false) Map<String, String> body) {
         UUID actor = platformAdminService.requireAdmin();
         String note = body == null ? null : body.get("note");

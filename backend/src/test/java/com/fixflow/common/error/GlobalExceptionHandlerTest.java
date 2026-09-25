@@ -24,7 +24,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void wrongMethodIsRejectedAsNotAllowed() {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/auth/login");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/auth/login");
 
         ResponseEntity<ApiError> response = handler.handleMethodNotAllowed(
                 new HttpRequestMethodNotSupportedException("GET", List.of("POST")), request);
@@ -32,7 +32,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().code()).isEqualTo(ErrorCode.METHOD_NOT_ALLOWED.name());
-        assertThat(response.getBody().path()).isEqualTo("/api/v1/auth/login");
+        assertThat(response.getBody().path()).isEqualTo("/api/v1/mobistack/auth/login");
     }
 
     /**
@@ -42,7 +42,7 @@ class GlobalExceptionHandlerTest {
     void notAllowedNamesTheMethodsThatAre() {
         ResponseEntity<ApiError> response = handler.handleMethodNotAllowed(
                 new HttpRequestMethodNotSupportedException("GET", List.of("POST", "PUT")),
-                new MockHttpServletRequest("GET", "/api/v1/products"));
+                new MockHttpServletRequest("GET", "/api/v1/mobistack/products"));
 
         assertThat(response.getHeaders().getAllow()).containsExactlyInAnyOrder(HttpMethod.POST, HttpMethod.PUT);
     }
@@ -51,7 +51,7 @@ class GlobalExceptionHandlerTest {
     void aMethodWithNoAlternativeStillAnswersCleanly() {
         ResponseEntity<ApiError> response = handler.handleMethodNotAllowed(
                 new HttpRequestMethodNotSupportedException("TRACE"),
-                new MockHttpServletRequest("TRACE", "/api/v1/products"));
+                new MockHttpServletRequest("TRACE", "/api/v1/mobistack/products"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
         assertThat(response.getHeaders().getAllow()).isEmpty();
@@ -62,7 +62,7 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ApiError> response = handler.handleUnsupportedMediaType(
                 new HttpMediaTypeNotSupportedException(MediaType.TEXT_PLAIN,
                         List.of(MediaType.APPLICATION_JSON)),
-                new MockHttpServletRequest("POST", "/api/v1/auth/login"));
+                new MockHttpServletRequest("POST", "/api/v1/mobistack/auth/login"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
         assertThat(response.getBody()).isNotNull();

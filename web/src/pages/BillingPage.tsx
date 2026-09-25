@@ -78,7 +78,7 @@ export function BillingPage() {
   const [unlocking, setUnlocking] = useState(false);
 
   async function load() {
-    setData(await api<Overview>("/api/v1/billing"));
+    setData(await api<Overview>("/api/v1/mobistack/billing"));
   }
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export function BillingPage() {
     setNotice(null);
     setUnlocking(true);
     try {
-      await api("/api/v1/billing/dev/activate", { method: "POST" });
+      await api("/api/v1/mobistack/billing/dev/activate", { method: "POST" });
       await load();
       await refreshUser();
       setNotice("Local shop is on. Dashboard, stock, sales, and private fitment notes are unlocked.");
@@ -111,7 +111,7 @@ export function BillingPage() {
     setNotice(null);
     setPaying(plan.code);
     try {
-      const order = await api<CheckoutOrder>("/api/v1/billing/orders", {
+      const order = await api<CheckoutOrder>("/api/v1/mobistack/billing/orders", {
         method: "POST",
         body: JSON.stringify({ planCode: plan.priceCode || plan.code }),
       });

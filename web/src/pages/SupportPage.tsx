@@ -26,7 +26,7 @@ export function SupportPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api<Conversation[]>("/api/v1/support/conversations")
+    api<Conversation[]>("/api/v1/mobistack/support/conversations")
       .then((rows) => setConversation(rows[0] ?? null))
       .catch((err: Error) => setError(err.message));
   }, []);
@@ -40,11 +40,11 @@ export function SupportPage() {
     setError(null);
     try {
       const next = conversation
-        ? await api<Conversation>(`/api/v1/support/conversations/${conversation.id}/messages`, {
+        ? await api<Conversation>(`/api/v1/mobistack/support/conversations/messages?id=${conversation.id}`, {
             method: "POST",
             body: JSON.stringify({ message, channel: "WEB" }),
           })
-        : await api<Conversation>("/api/v1/support/chat", {
+        : await api<Conversation>("/api/v1/mobistack/support/chat", {
             method: "POST",
             body: JSON.stringify({ message, channel: "WEB" }),
           });
@@ -61,7 +61,7 @@ export function SupportPage() {
     setBusy(true);
     try {
       setConversation(
-        await api<Conversation>("/api/v1/support/conversations", {
+        await api<Conversation>("/api/v1/mobistack/support/conversations", {
           method: "POST",
           body: JSON.stringify({
             subject: "Help from the console",

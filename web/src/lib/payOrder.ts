@@ -25,7 +25,7 @@ export async function captureCheckoutOrder(
 ): Promise<void> {
   const remoteOrderId = razorpayOrderId(order);
   if (order.gateway === "DEV") {
-    await api(`/api/v1/billing/orders/${order.id}/confirm`, { method: "POST" });
+    await api(`/api/v1/mobistack/billing/orders/confirm?id=${order.id}`, { method: "POST" });
     return;
   }
   if (order.gateway === "PAID") {
@@ -62,7 +62,7 @@ export async function captureCheckoutOrder(
         : undefined,
       theme: { color: "#0e7490" },
       handler: (response) => {
-        void api("/api/v1/billing/verify", {
+        void api("/api/v1/mobistack/billing/verify", {
           method: "POST",
           body: JSON.stringify({
             razorpay_order_id: response.razorpay_order_id,

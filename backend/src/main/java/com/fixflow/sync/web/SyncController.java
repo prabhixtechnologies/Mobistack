@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/sync")
+@RequestMapping("/api/v1/mobistack/sync")
 @RequiredArgsConstructor
 @Tag(name = "Sync")
 public class SyncController {

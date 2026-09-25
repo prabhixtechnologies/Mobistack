@@ -40,7 +40,7 @@ public final class Authorize {
      * Settling a dispute in the shared catalog, and promoting contributors.
      *
      * <p>Not a shop role. Granted from the {@code commons_reviewers} table (Prabhix via the BFF
-     * or {@code /api/v1/admin/commons-reviewers}), then attached to the principal at
+     * or {@code /api/v1/mobistack/admin/commons-reviewers}), then attached to the principal at
      * authentication. Deliberately not {@link #COMPATIBILITY_APPROVE}, which is about a shop's
      * own private fitment notes.
      */

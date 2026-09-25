@@ -79,7 +79,7 @@ export function GlobalSearch() {
     const controller = new AbortController();
     const handle = window.setTimeout(async () => {
       try {
-        const data = await api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(query)}`, {
+        const data = await api<GlobalSearchResponse>(`/api/v1/mobistack/search?q=${encodeURIComponent(query)}`, {
           signal: controller.signal,
         });
         setResult(data);

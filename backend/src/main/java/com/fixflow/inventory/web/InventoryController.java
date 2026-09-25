@@ -26,7 +26,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/inventory")
+@RequestMapping("/api/v1/mobistack/inventory")
 @RequiredArgsConstructor
 @Tag(name = "Inventory")
 public class InventoryController {
@@ -112,10 +111,10 @@ public class InventoryController {
                         .build()));
     }
 
-    @PostMapping("/variants/{id}/reconcile")
+    @PostMapping("/variants/reconcile")
     @PreAuthorize(Authorize.INVENTORY_ADJUST)
     @Operation(summary = "Rebuild cached stock from the ledger and report any drift")
-    public InventoryService.StockReconciliation reconcile(@PathVariable UUID id) {
+    public InventoryService.StockReconciliation reconcile(@RequestParam UUID id) {
         return inventoryService.reconcile(CurrentUser.shopId(), id);
     }
 }

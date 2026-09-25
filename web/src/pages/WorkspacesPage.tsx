@@ -87,7 +87,7 @@ export function WorkspacesPage() {
     setBusy(true);
     setError(null);
     try {
-      const checkout = await api<JoinCheckout>("/api/v1/workspaces/join/checkout", {
+      const checkout = await api<JoinCheckout>("/api/v1/mobistack/workspaces/join/checkout", {
         method: "POST",
         body: JSON.stringify({ joinCode: joinCode.trim() }),
       });
@@ -98,7 +98,7 @@ export function WorkspacesPage() {
         checkout.shopName,
         checkout.keyId,
       );
-      const card = await api<WorkspaceCard>("/api/v1/workspaces/join/complete", {
+      const card = await api<WorkspaceCard>("/api/v1/mobistack/workspaces/join/complete", {
         method: "POST",
         body: JSON.stringify({
           joinCode: joinCode.trim(),
@@ -127,7 +127,7 @@ export function WorkspacesPage() {
     setBusy(true);
     setError(null);
     try {
-      await api("/api/v1/invitations/accept", { method: "POST", body: JSON.stringify({ token: inviteToken }) });
+      await api("/api/v1/mobistack/invitations/accept", { method: "POST", body: JSON.stringify({ token: inviteToken }) });
       setInviteToken("");
       await refreshWorkspaces();
       toast.success("Invitation accepted. Open the workspace from the list.");
@@ -143,7 +143,7 @@ export function WorkspacesPage() {
     setCancelBusy(true);
     setCancelError(null);
     try {
-      await api(`/api/v1/workspaces/${cancelTarget.id}/join/cancel`, { method: "POST" });
+      await api(`/api/v1/mobistack/workspaces/join/cancel?id=${cancelTarget.id}`, { method: "POST" });
       await refreshWorkspaces();
       toast.success(`Cancelled the request to join ${cancelTarget.name}.`);
       setCancelTarget(null);

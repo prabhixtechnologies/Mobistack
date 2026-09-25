@@ -45,8 +45,8 @@ export function MembersPage() {
   async function load() {
     if (!workspaceId) return;
     const [memberPage, invitationRows] = await Promise.all([
-      api<PageResponse<Member>>(`/api/v1/workspaces/${workspaceId}/members?size=50`),
-      api<Invitation[]>(`/api/v1/workspaces/${workspaceId}/invitations`).catch(() => []),
+      api<PageResponse<Member>>(`/api/v1/mobistack/workspaces/members?id=${workspaceId}&size=50`),
+      api<Invitation[]>(`/api/v1/mobistack/workspaces/invitations?id=${workspaceId}`).catch(() => []),
     ]);
     setMembers(memberPage.content);
     setInvites(invitationRows);
@@ -60,7 +60,7 @@ export function MembersPage() {
   async function decide(membershipId: string, action: "approve" | "reject" | "suspend" | "remove") {
     if (!workspaceId) return;
     try {
-      await api(`/api/v1/workspaces/${workspaceId}/members/${membershipId}/${action}`, {
+      await api(`/api/v1/mobistack/workspaces/members/${action}?id=${workspaceId}&membershipId=${membershipId}`, {
         method: "POST",
         body: action === "approve" ? JSON.stringify({ role: "STAFF" }) : undefined,
       });
@@ -75,7 +75,7 @@ export function MembersPage() {
     setPurgeBusy(true);
     setPurgeError(null);
     try {
-      await api(`/api/v1/workspaces/${workspaceId}/members/${purgeTarget.membershipId}/purge`, {
+      await api(`/api/v1/mobistack/workspaces/members/purge?id=${workspaceId}&membershipId=${purgeTarget.membershipId}`, {
         method: "POST",
       });
       setPurgeTarget(null);
@@ -91,7 +91,7 @@ export function MembersPage() {
     event.preventDefault();
     if (!workspaceId) return;
     try {
-      const created = await api<Invitation>(`/api/v1/workspaces/${workspaceId}/invitations`, {
+      const created = await api<Invitation>(`/api/v1/mobistack/workspaces/invitations?id=${workspaceId}`, {
         method: "POST",
         body: JSON.stringify({ email, role }),
       });

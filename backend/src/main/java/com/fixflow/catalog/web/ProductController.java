@@ -19,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,7 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/mobistack")
 @RequiredArgsConstructor
 @Tag(name = "Products")
 public class ProductController {
@@ -50,9 +49,9 @@ public class ProductController {
                 activeOnly, pageable));
     }
 
-    @GetMapping("/products/{id}")
+    @GetMapping(value = "/products", params = "id")
     @PreAuthorize(Authorize.INVENTORY_READ)
-    public ProductResponse get(@PathVariable UUID id) {
+    public ProductResponse get(@RequestParam UUID id) {
         return productService.get(CurrentUser.shopId(), id);
     }
 
@@ -63,30 +62,30 @@ public class ProductController {
         return productService.create(CurrentUser.shopId(), request);
     }
 
-    @PutMapping("/products/{id}")
+    @PutMapping("/products")
     @PreAuthorize(Authorize.INVENTORY_WRITE)
-    public ProductResponse update(@PathVariable UUID id, @Valid @RequestBody ProductRequest request) {
+    public ProductResponse update(@RequestParam UUID id, @Valid @RequestBody ProductRequest request) {
         return productService.update(CurrentUser.shopId(), id, request);
     }
 
-    @PostMapping("/products/{id}/variants")
+    @PostMapping("/products/variants")
     @PreAuthorize(Authorize.INVENTORY_WRITE)
     @ResponseStatus(HttpStatus.CREATED)
-    public ProductVariantResponse addVariant(@PathVariable UUID id,
+    public ProductVariantResponse addVariant(@RequestParam UUID id,
                                              @Valid @RequestBody ProductVariantRequest request) {
         return productService.addVariant(CurrentUser.shopId(), id, request);
     }
 
-    @PutMapping("/variants/{id}")
+    @PutMapping("/variants")
     @PreAuthorize(Authorize.INVENTORY_WRITE)
-    public ProductVariantResponse updateVariant(@PathVariable UUID id,
+    public ProductVariantResponse updateVariant(@RequestParam UUID id,
                                                 @Valid @RequestBody ProductVariantRequest request) {
         return productService.updateVariant(CurrentUser.shopId(), id, request);
     }
 
-    @GetMapping("/variants/{id}")
+    @GetMapping(value = "/variants", params = "id")
     @PreAuthorize(Authorize.INVENTORY_READ)
-    public ProductVariantResponse getVariant(@PathVariable UUID id) {
+    public ProductVariantResponse getVariant(@RequestParam UUID id) {
         return productService.getVariant(CurrentUser.shopId(), id);
     }
 
@@ -104,18 +103,18 @@ public class ProductController {
                 brandId, supplierId, lowStockOnly, inStockOnly, pageable));
     }
 
-    @PostMapping("/products/{id}/compatibility")
+    @PostMapping("/products/compatibility")
     @PreAuthorize(Authorize.CATALOG_WRITE)
     @ResponseStatus(HttpStatus.CREATED)
-    public List<CompatibilityLinkResponse> addCompatibility(@PathVariable UUID id,
+    public List<CompatibilityLinkResponse> addCompatibility(@RequestParam UUID id,
                                                             @Valid @RequestBody CompatibilityLinkRequest request) {
         return productService.addCompatibility(CurrentUser.shopId(), id, request);
     }
 
-    @DeleteMapping("/products/compatibility/{linkId}")
+    @DeleteMapping("/products/compatibility")
     @PreAuthorize(Authorize.CATALOG_WRITE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeCompatibility(@PathVariable UUID linkId) {
+    public void removeCompatibility(@RequestParam UUID linkId) {
         productService.removeCompatibility(CurrentUser.shopId(), linkId);
     }
 }

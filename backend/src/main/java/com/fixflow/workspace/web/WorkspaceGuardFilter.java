@@ -42,11 +42,11 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
      * them. Blocking these would leave a shop unable to buy its way out.
      */
     private static final String[] WRITABLE_WHILE_UNPAID = {
-            "/api/v1/billing",
-            "/api/v1/workspaces",
-            "/api/v1/shop",
-            "/api/v1/notifications",
-            "/api/v1/groups",
+            "/api/v1/mobistack/billing",
+            "/api/v1/mobistack/workspaces",
+            "/api/v1/mobistack/shop",
+            "/api/v1/mobistack/notifications",
+            "/api/v1/mobistack/groups",
     };
 
     private final WorkspaceAccessService workspaceAccessService;
@@ -59,20 +59,20 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
         if (!path.startsWith("/api/")) {
             return true;
         }
-        return path.startsWith("/api/v1/auth")
-                || path.startsWith("/api/v1/public")
-                || path.startsWith("/api/v1/invitations")
-                || path.startsWith("/api/v1/billing/webhooks")
-                || path.startsWith("/api/v1/admin")
-                || path.startsWith("/api/v1/support")
-                || path.startsWith("/api/v1/presence")
-                || path.startsWith("/api/v1/inbox")
+        return path.startsWith("/api/v1/mobistack/auth")
+                || path.startsWith("/api/v1/mobistack/public")
+                || path.startsWith("/api/v1/mobistack/invitations")
+                || path.startsWith("/api/v1/mobistack/billing/webhooks")
+                || path.startsWith("/api/v1/mobistack/admin")
+                || path.startsWith("/api/v1/mobistack/support")
+                || path.startsWith("/api/v1/mobistack/presence")
+                || path.startsWith("/api/v1/mobistack/inbox")
                 // The shared compatibility catalog belongs to no shop, so requiring a selected
                 // workspace would be asking which tenant owns a fact that is true for everyone. It is
                 // also the free half of the product: somebody looks up what fits before they have a
                 // shop at all, and an unpaid shop can still contribute — which is why this exemption
                 // covers writes too, and is the only one here that does so deliberately.
-                || path.startsWith("/api/v1/commons");
+                || path.startsWith("/api/v1/mobistack/commons");
     }
 
     @Override
@@ -135,16 +135,16 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
      * Member listing does — it is a business call on a specific workspace.
      */
     private boolean isWorkspaceDirectory(String path, String method) {
-        if ("/api/v1/workspaces".equals(path) && ("GET".equals(method) || "POST".equals(method))) {
+        if ("/api/v1/mobistack/workspaces".equals(path) && ("GET".equals(method) || "POST".equals(method))) {
             return true;
         }
-        if (path.startsWith("/api/v1/workspaces/join") && "POST".equals(method)) {
+        if (path.startsWith("/api/v1/mobistack/workspaces/join") && "POST".equals(method)) {
             return true;
         }
-        if (path.matches("/api/v1/workspaces/[0-9a-fA-F-]{36}/select") && "POST".equals(method)) {
+        if ("/api/v1/mobistack/workspaces/select".equals(path) && "POST".equals(method)) {
             return true;
         }
-        return path.matches("/api/v1/workspaces/[0-9a-fA-F-]{36}/join/cancel") && "POST".equals(method);
+        return "/api/v1/mobistack/workspaces/join/cancel".equals(path) && "POST".equals(method);
     }
 
     private static String pathOf(HttpServletRequest request) {
@@ -171,7 +171,7 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
         }
         if (principal.getShopId() == null || !requested.equals(principal.getShopId())) {
             throw new ApiException(ErrorCode.FORBIDDEN,
-                    "Workspace switch requires POST /api/v1/workspaces/{id}/select.");
+                    "Workspace switch requires POST /api/v1/mobistack/workspaces/select?id=.");
         }
     }
 

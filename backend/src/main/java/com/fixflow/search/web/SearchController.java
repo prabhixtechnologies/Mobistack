@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/search")
+@RequestMapping("/api/v1/mobistack/search")
 @RequiredArgsConstructor
 @Tag(name = "Search")
 public class SearchController {

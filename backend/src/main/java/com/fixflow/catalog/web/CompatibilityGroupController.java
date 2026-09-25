@@ -19,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/compatibility-groups")
+@RequestMapping("/api/v1/mobistack/compatibility-groups")
 @RequiredArgsConstructor
 @Tag(name = "Compatibility groups")
 public class CompatibilityGroupController {
@@ -52,9 +51,9 @@ public class CompatibilityGroupController {
         return PageResponse.of(compatibilityGroupService.list(CurrentUser.shopId(), categoryId, q, pageable));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(params = "id")
     @PreAuthorize(Authorize.CATALOG_READ)
-    public CompatibilityGroupResponse get(@PathVariable UUID id) {
+    public CompatibilityGroupResponse get(@RequestParam UUID id) {
         return compatibilityGroupService.get(CurrentUser.shopId(), id);
     }
 
@@ -65,51 +64,51 @@ public class CompatibilityGroupController {
         return compatibilityGroupService.create(CurrentUser.shopId(), request);
     }
 
-    @PostMapping("/{id}/copy")
+    @PostMapping("/copy")
     @PreAuthorize(Authorize.CATALOG_WRITE)
     @ResponseStatus(HttpStatus.CREATED)
-    public CompatibilityGroupResponse copy(@PathVariable UUID id,
+    public CompatibilityGroupResponse copy(@RequestParam UUID id,
                                            @RequestBody(required = false) CopyGroupRequest request) {
         return compatibilityGroupService.copy(CurrentUser.shopId(), id, request);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping
     @PreAuthorize(Authorize.CATALOG_WRITE)
-    public CompatibilityGroupResponse update(@PathVariable UUID id,
+    public CompatibilityGroupResponse update(@RequestParam UUID id,
                                              @Valid @RequestBody CompatibilityGroupRequest request) {
         return compatibilityGroupService.update(CurrentUser.shopId(), id, request);
     }
 
-    @PutMapping("/{id}/membership")
+    @PutMapping("/membership")
     @PreAuthorize(Authorize.CATALOG_WRITE)
-    public CompatibilityGroupResponse replaceMembership(@PathVariable UUID id,
+    public CompatibilityGroupResponse replaceMembership(@RequestParam UUID id,
                                                         @RequestBody GroupMembershipRequest request) {
         return compatibilityGroupService.replaceMembership(CurrentUser.shopId(), id, request);
     }
 
-    @PostMapping("/{id}/devices")
+    @PostMapping("/devices")
     @PreAuthorize(Authorize.CATALOG_WRITE)
-    public CompatibilityGroupResponse addDevice(@PathVariable UUID id,
+    public CompatibilityGroupResponse addDevice(@RequestParam UUID id,
                                                 @Valid @RequestBody GroupDeviceRequest request) {
         return compatibilityGroupService.addDevice(CurrentUser.shopId(), id, request);
     }
 
-    @DeleteMapping("/{id}/devices/{deviceId}")
+    @DeleteMapping("/devices")
     @PreAuthorize(Authorize.CATALOG_WRITE)
-    public CompatibilityGroupResponse removeDevice(@PathVariable UUID id, @PathVariable UUID deviceId) {
+    public CompatibilityGroupResponse removeDevice(@RequestParam UUID id, @RequestParam UUID deviceId) {
         return compatibilityGroupService.removeDevice(CurrentUser.shopId(), id, deviceId);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping
     @PreAuthorize(Authorize.CATALOG_WRITE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable UUID id) {
+    public void delete(@RequestParam UUID id) {
         compatibilityGroupService.delete(CurrentUser.shopId(), id);
     }
 
-    @GetMapping("/{id}/history")
+    @GetMapping("/history")
     @PreAuthorize(Authorize.CATALOG_READ)
-    public java.util.List<com.fixflow.catalog.domain.CompatibilityHistory> history(@PathVariable UUID id) {
+    public java.util.List<com.fixflow.catalog.domain.CompatibilityHistory> history(@RequestParam UUID id) {
         return compatibilityGroupService.history(CurrentUser.shopId(), id);
     }
 }

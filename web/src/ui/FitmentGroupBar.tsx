@@ -120,7 +120,7 @@ function MembersDialog({
       return;
     }
     let cancelled = false;
-    api<FitmentGroupDetail>(`/api/v1/groups/${groupId}`)
+    api<FitmentGroupDetail>(`/api/v1/mobistack/groups?id=${groupId}`)
       .then((loaded) => {
         if (!cancelled) {
           setDetail(loaded);
@@ -131,7 +131,7 @@ function MembersDialog({
           setError(err.message);
         }
       });
-    api<{ id: string; shopName: string; askedBy: string }[]>(`/api/v1/groups/${groupId}/requests`)
+    api<{ id: string; shopName: string; askedBy: string }[]>(`/api/v1/mobistack/groups/requests?id=${groupId}`)
       .then((loaded) => {
         if (!cancelled) setRequests(loaded);
       })
@@ -146,8 +146,8 @@ function MembersDialog({
     setError(null);
     try {
       await task();
-      setDetail(await api<FitmentGroupDetail>(`/api/v1/groups/${groupId}`));
-      setRequests(await api(`/api/v1/groups/${groupId}/requests`));
+      setDetail(await api<FitmentGroupDetail>(`/api/v1/mobistack/groups?id=${groupId}`));
+      setRequests(await api(`/api/v1/mobistack/groups/requests?id=${groupId}`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update the group");
     } finally {
@@ -158,7 +158,7 @@ function MembersDialog({
   async function onPerson(event: FormEvent, role: "MEMBER" | "ADMIN") {
     event.preventDefault();
     await run(async () => {
-      await api(`/api/v1/groups/${groupId}/people`, {
+      await api(`/api/v1/mobistack/groups/people?id=${groupId}`, {
         method: "POST",
         body: JSON.stringify({ email, role }),
       });
@@ -169,7 +169,7 @@ function MembersDialog({
   async function onShop(event: FormEvent) {
     event.preventDefault();
     await run(async () => {
-      await api(`/api/v1/groups/${groupId}/shops`, {
+      await api(`/api/v1/mobistack/groups/shops?id=${groupId}`, {
         method: "POST",
         body: JSON.stringify({ joinCode }),
       });
@@ -196,7 +196,7 @@ function MembersDialog({
               disabled={busy}
               onClick={() =>
                 void run(async () => {
-                  await api(`/api/v1/groups/${groupId}/requests/${request.id}/approve`, { method: "POST" });
+                  await api(`/api/v1/mobistack/groups/requests/approve?id=${groupId}&requestId=${request.id}`, { method: "POST" });
                 })
               }
             >
@@ -208,7 +208,7 @@ function MembersDialog({
               disabled={busy}
               onClick={() =>
                 void run(async () => {
-                  await api(`/api/v1/groups/${groupId}/requests/${request.id}/reject`, { method: "POST" });
+                  await api(`/api/v1/mobistack/groups/requests/reject?id=${groupId}&requestId=${request.id}`, { method: "POST" });
                 })
               }
             >
@@ -226,14 +226,14 @@ function MembersDialog({
               void run(async () => {
                 const path =
                   member.kind === "SHOP"
-                    ? `/api/v1/groups/${groupId}/shops/${member.subjectId}`
-                    : `/api/v1/groups/${groupId}/people/${member.subjectId}`;
+                    ? `/api/v1/mobistack/groups/shops?id=${groupId}&workspaceId=${member.subjectId}`
+                    : `/api/v1/mobistack/groups/people?id=${groupId}&userId=${member.subjectId}`;
                 await api(path, { method: "DELETE" });
               })
             }
             onDismiss={() =>
               void run(() =>
-                api(`/api/v1/groups/${groupId}/people/${member.subjectId}`, {
+                api(`/api/v1/mobistack/groups/people?id=${groupId}&userId=${member.subjectId}`, {
                   method: "PUT",
                   body: JSON.stringify({ role: "MEMBER" }),
                 }),

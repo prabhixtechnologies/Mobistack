@@ -24,7 +24,7 @@ export function ReportsPage() {
   useEffect(() => {
     let live = true;
     setLoading(true);
-    api<ReportBundle>(`/api/v1/reports?range=${range}`)
+    api<ReportBundle>(`/api/v1/mobistack/reports?range=${range}`)
       .then((bundle) => {
         if (live) {
           setData(bundle);
@@ -49,7 +49,7 @@ export function ReportsPage() {
   const exportCsv = useAction(
     async () => {
       const token = getAccessToken();
-      const response = await fetch(`/api/v1/reports/export?range=${range}`, {
+      const response = await fetch(`/api/v1/mobistack/reports/export?range=${range}`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           "X-MobiStack-Device": getDeviceId(),

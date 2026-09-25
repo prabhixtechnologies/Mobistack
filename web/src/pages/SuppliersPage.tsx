@@ -27,13 +27,13 @@ export function SuppliersPage() {
 
   const path = useMemo(() => {
     const term = settled.trim();
-    return term ? `/api/v1/suppliers?q=${encodeURIComponent(term)}` : "/api/v1/suppliers";
+    return term ? `/api/v1/mobistack/suppliers?q=${encodeURIComponent(term)}` : "/api/v1/mobistack/suppliers";
   }, [settled]);
   const suppliers = usePagedList<Supplier>(path, { size: 50 });
 
   const create = useAction(
     async () => {
-      await api("/api/v1/suppliers", { method: "POST", body: JSON.stringify({ name, phone }) });
+      await api("/api/v1/mobistack/suppliers", { method: "POST", body: JSON.stringify({ name, phone }) });
       setName("");
       setPhone("");
       suppliers.reload();

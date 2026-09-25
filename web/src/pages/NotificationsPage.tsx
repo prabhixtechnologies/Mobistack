@@ -113,9 +113,9 @@ export function NotificationsPage() {
 
   async function load() {
     const [nextPrefs, nextInbox, nextRows] = await Promise.all([
-      api<Pref[]>("/api/v1/notifications/preferences"),
-      api<InboxSummary>("/api/v1/inbox"),
-      api<Outbox[]>("/api/v1/notifications"),
+      api<Pref[]>("/api/v1/mobistack/notifications/preferences"),
+      api<InboxSummary>("/api/v1/mobistack/inbox"),
+      api<Outbox[]>("/api/v1/mobistack/notifications"),
     ]);
     setPrefs(nextPrefs);
     setInbox(nextInbox);
@@ -146,7 +146,7 @@ export function NotificationsPage() {
     setSaving(true);
     setError(null);
     try {
-      setPrefs(await api<Pref[]>("/api/v1/notifications/preferences", { method: "PUT", body: JSON.stringify(prefs) }));
+      setPrefs(await api<Pref[]>("/api/v1/mobistack/notifications/preferences", { method: "PUT", body: JSON.stringify(prefs) }));
       setDirty(false);
       setNotice("Channel preferences saved.");
     } catch (err) {
@@ -158,7 +158,7 @@ export function NotificationsPage() {
 
   async function markAll() {
     try {
-      setInbox(await api<InboxSummary>("/api/v1/inbox/read-all", { method: "POST" }));
+      setInbox(await api<InboxSummary>("/api/v1/mobistack/inbox/read-all", { method: "POST" }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not mark read");
     }
@@ -169,7 +169,7 @@ export function NotificationsPage() {
       return;
     }
     try {
-      const updated = await api<InboxItem>(`/api/v1/inbox/${id}/read`, { method: "POST" });
+      const updated = await api<InboxItem>(`/api/v1/mobistack/inbox/read?id=${id}`, { method: "POST" });
       setInbox((current) => ({
         unread: Math.max(0, current.unread - 1),
         items: current.items.map((item) => (item.id === id ? { ...item, readAt: updated.readAt } : item)),

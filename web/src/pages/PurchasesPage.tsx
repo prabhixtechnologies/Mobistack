@@ -26,7 +26,7 @@ interface Purchase {
 export function PurchasesPage() {
   const access = useAccess();
   const canWrite = access.has("PURCHASE_WRITE");
-  const purchases = usePagedList<Purchase>("/api/v1/purchases", { size: 25 });
+  const purchases = usePagedList<Purchase>("/api/v1/mobistack/purchases", { size: 25 });
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [supplierId, setSupplierId] = useState("");
@@ -40,8 +40,8 @@ export function PurchasesPage() {
       return;
     }
     Promise.all([
-      api<PageResponse<Supplier>>("/api/v1/suppliers?size=100"),
-      api<PageResponse<ProductVariant>>("/api/v1/variants?size=100"),
+      api<PageResponse<Supplier>>("/api/v1/mobistack/suppliers?size=100"),
+      api<PageResponse<ProductVariant>>("/api/v1/mobistack/variants?size=100"),
     ])
       .then(([supplierPage, variantPage]) => {
         setSuppliers(supplierPage.content);
@@ -57,7 +57,7 @@ export function PurchasesPage() {
 
   const receive = useAction(
     async () => {
-      await api("/api/v1/purchases", {
+      await api("/api/v1/mobistack/purchases", {
         method: "POST",
         body: JSON.stringify({
           supplierId,

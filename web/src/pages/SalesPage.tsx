@@ -36,7 +36,7 @@ export function SalesPage() {
   const access = useAccess();
   const canSell = access.has("SALES_WRITE");
   const canVoid = access.has("SALES_VOID");
-  const sales = usePagedList<Sale>("/api/v1/sales", { size: 25 });
+  const sales = usePagedList<Sale>("/api/v1/mobistack/sales", { size: 25 });
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
   const settled = useDebounced(query);
@@ -60,7 +60,7 @@ export function SalesPage() {
       return;
     }
     let live = true;
-    api<GlobalSearchResponse>(`/api/v1/search?q=${encodeURIComponent(term)}`)
+    api<GlobalSearchResponse>(`/api/v1/mobistack/search?q=${encodeURIComponent(term)}`)
       .then((result) => {
         if (!live) {
           return;
@@ -83,13 +83,13 @@ export function SalesPage() {
   const total = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
 
   const openInvoice = useCallback(async (id: string) => {
-    const html = await apiText(`/api/v1/sales/${id}/invoice`);
+    const html = await apiText(`/api/v1/mobistack/sales/invoice?id=${id}`);
     openHtmlDocument(html);
   }, []);
 
   const checkout = useAction(
     async () => {
-      const sale = await api<Sale>("/api/v1/sales", {
+      const sale = await api<Sale>("/api/v1/mobistack/sales", {
         method: "POST",
         body: JSON.stringify({
           pricingFlag: "NORMAL",
@@ -112,7 +112,7 @@ export function SalesPage() {
 
   const voidSale = useAction(
     async (id: string) => {
-      await api(`/api/v1/sales/${id}/void`, { method: "POST", body: JSON.stringify({ reason: "Counter void" }) });
+      await api(`/api/v1/mobistack/sales/void?id=${id}`, { method: "POST", body: JSON.stringify({ reason: "Counter void" }) });
       sales.reload();
     },
     { fallbackError: "Could not void that invoice.", onDone: () => setVoidTarget(null) },

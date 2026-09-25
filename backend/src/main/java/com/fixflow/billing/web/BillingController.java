@@ -13,8 +13,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/billing")
+@RequestMapping("/api/v1/mobistack/billing")
 @RequiredArgsConstructor
 @Tag(name = "Billing")
 public class BillingController {
@@ -54,9 +54,9 @@ public class BillingController {
         return billingService.verifyPayment(CurrentUser.shopId(), body);
     }
 
-    @PostMapping("/orders/{id}/confirm")
+    @PostMapping("/orders/confirm")
     @PreAuthorize(Authorize.WORKSPACE_BILLING)
-    public BillingOrder confirm(@PathVariable UUID id) {
+    public BillingOrder confirm(@RequestParam UUID id) {
         return billingService.confirm(CurrentUser.shopId(), id);
     }
 

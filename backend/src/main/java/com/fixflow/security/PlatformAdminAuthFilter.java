@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Turns a BFF call into a principal for {@code /api/v1/admin/**}.
+ * Turns a BFF call into a principal for {@code /api/v1/mobistack/admin/**}.
  *
  * <p>The shared service token authenticates the product; {@code X-Prabhix-Acting-User} names the
  * staff member. A shop JWT is ignored on this prefix — {@link com.fixflow.security.jwt.JwtAuthenticationFilter}
@@ -26,7 +26,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PlatformAdminAuthFilter extends OncePerRequestFilter {
 
-    private static final String ADMIN_PREFIX = "/api/v1/admin";
+    private static final String ADMIN_PREFIX = "/api/v1/mobistack/admin";
 
     private final ServiceTokenGuard serviceToken;
 

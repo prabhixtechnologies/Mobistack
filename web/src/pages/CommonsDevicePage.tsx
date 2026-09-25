@@ -16,12 +16,12 @@ export function CommonsDevicePage() {
   const { id } = useParams();
   const access = useAccess();
   const fitment = useFitmentGroups();
-  const device = useResource<CommonsDevice>(id ? `/api/v1/commons/devices/${id}` : null);
+  const device = useResource<CommonsDevice>(id ? `/api/v1/mobistack/commons/devices?deviceId=${id}` : null);
   const fits = useResource<CommonsFit[]>(
-    id && fitment.ready ? `/api/v1/commons/devices/${id}/fits?groupId=${fitment.selected ?? ""}` : null,
+    id && fitment.ready ? `/api/v1/mobistack/commons/devices/fits?deviceId=${id}&groupId=${fitment.selected ?? ""}` : null,
   );
   const stock = useResource<CatalogStockRow[]>(
-    id && access.has("INVENTORY_READ") ? `/api/v1/inventory/catalog-links/devices/${id}/stock` : null,
+    id && access.has("INVENTORY_READ") ? `/api/v1/mobistack/inventory/catalog-links/devices/stock?catalogDeviceId=${id}` : null,
   );
   const [disputeFor, setDisputeFor] = useState<CommonsFit | null>(null);
   const [reason, setReason] = useState("");
@@ -32,7 +32,7 @@ export function CommonsDevicePage() {
     setBusy(true);
     setError(null);
     try {
-      await api("/api/v1/commons/contributions", {
+      await api("/api/v1/mobistack/commons/contributions", {
         method: "POST",
         body: JSON.stringify({ kind, targetId: fitmentId, reason: note || undefined }),
       });

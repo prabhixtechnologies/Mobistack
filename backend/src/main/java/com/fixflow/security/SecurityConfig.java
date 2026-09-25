@@ -41,16 +41,16 @@ public class SecurityConfig {
      * credentials, OTPs and sessions are Identity's, and the SPA arrives with a token already.
      */
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/public/**",
+            "/api/v1/mobistack/public/**",
             "/download/**",
             "/actuator/health/**",
             // Razorpay cannot present a token. Its authenticity is proved by the
             // HMAC signature over the raw body, checked inside the handler.
-            "/api/v1/billing/webhooks/razorpay",
+            "/api/v1/mobistack/billing/webhooks/razorpay",
             // Service-to-service. The JWT filter skips this prefix; PlatformAdminAuthFilter
             // accepts the shared token and names the acting staff member. A shop JWT is not
             // a credential here — requireAdmin refuses anything that is not the BFF.
-            "/api/v1/admin/**",
+            "/api/v1/mobistack/admin/**",
             "/internal/**"
     };
 

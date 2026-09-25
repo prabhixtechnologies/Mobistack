@@ -31,7 +31,7 @@ export function useFitmentGroups() {
 
   useEffect(() => {
     let cancelled = false;
-    api<FitmentGroup[]>("/api/v1/groups")
+    api<FitmentGroup[]>("/api/v1/mobistack/groups")
       .then((list) => {
         if (cancelled) {
           return;
@@ -61,7 +61,7 @@ export function useFitmentGroups() {
   }
 
   async function create(name: string): Promise<void> {
-    const created = await api<FitmentGroup>("/api/v1/groups", {
+    const created = await api<FitmentGroup>("/api/v1/mobistack/groups", {
       method: "POST",
       body: JSON.stringify({ name }),
     });

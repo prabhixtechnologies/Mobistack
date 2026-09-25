@@ -26,15 +26,15 @@ export function CatalogLinksPage() {
       params.set("q", settled.trim());
     }
     const suffix = params.toString();
-    return suffix ? `/api/v1/variants?${suffix}` : "/api/v1/variants";
+    return suffix ? `/api/v1/mobistack/variants?${suffix}` : "/api/v1/mobistack/variants";
   }, [settled]);
 
   const variants = usePagedList<ProductVariant>(variantPath, { size: 25 });
   const components = usePagedList<CommonsComponent>(
     linking && settledPart.trim().length >= 2
-      ? `/api/v1/commons/components?q=${encodeURIComponent(settledPart.trim())}`
+      ? `/api/v1/mobistack/commons/components?q=${encodeURIComponent(settledPart.trim())}`
       : linking
-        ? "/api/v1/commons/components"
+        ? "/api/v1/mobistack/commons/components"
         : null,
     { size: 20 },
   );
@@ -43,7 +43,7 @@ export function CatalogLinksPage() {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/v1/inventory/catalog-links/${variantId}`, {
+      await api(`/api/v1/mobistack/inventory/catalog-links?variantId=${variantId}`, {
         method: "PUT",
         body: JSON.stringify({ componentId }),
       });
@@ -61,7 +61,7 @@ export function CatalogLinksPage() {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/v1/inventory/catalog-links/${variantId}`, { method: "DELETE" });
+      await api(`/api/v1/mobistack/inventory/catalog-links?variantId=${variantId}`, { method: "DELETE" });
       variants.reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not unlink that part.");

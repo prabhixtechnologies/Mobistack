@@ -10,9 +10,9 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/groups")
+@RequestMapping("/api/v1/mobistack/groups")
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class SharingGroupController {
@@ -36,8 +36,8 @@ public class SharingGroupController {
         return groups.listVisible();
     }
 
-    @GetMapping("/{id}")
-    public GroupDetail get(@PathVariable UUID id) {
+    @GetMapping(params = "id")
+    public GroupDetail get(@RequestParam UUID id) {
         return groups.detail(id);
     }
 
@@ -47,32 +47,32 @@ public class SharingGroupController {
         return groups.create(body.name());
     }
 
-    @PostMapping("/{id}/shops")
+    @PostMapping("/shops")
     @ResponseStatus(HttpStatus.CREATED)
-    public MemberCard addShop(@PathVariable UUID id, @RequestBody AddShop body) {
+    public MemberCard addShop(@RequestParam UUID id, @RequestBody AddShop body) {
         return groups.addShop(id, body.workspaceId(), body.joinCode());
     }
 
-    @DeleteMapping("/{id}/shops/{workspaceId}")
+    @DeleteMapping("/shops")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeShop(@PathVariable UUID id, @PathVariable UUID workspaceId) {
+    public void removeShop(@RequestParam UUID id, @RequestParam UUID workspaceId) {
         groups.removeShop(id, workspaceId);
     }
 
-    @PostMapping("/{id}/people")
+    @PostMapping("/people")
     @ResponseStatus(HttpStatus.CREATED)
-    public MemberCard addPerson(@PathVariable UUID id, @Valid @RequestBody AddPerson body) {
+    public MemberCard addPerson(@RequestParam UUID id, @Valid @RequestBody AddPerson body) {
         return groups.addPerson(id, body.email(), body.role());
     }
 
-    @PutMapping("/{id}/people/{userId}")
-    public MemberCard setRole(@PathVariable UUID id, @PathVariable UUID userId, @RequestBody SetRole body) {
+    @PutMapping("/people")
+    public MemberCard setRole(@RequestParam UUID id, @RequestParam UUID userId, @RequestBody SetRole body) {
         return groups.setPersonRole(id, userId, body.role() == null ? GroupRole.MEMBER : body.role());
     }
 
-    @DeleteMapping("/{id}/people/{userId}")
+    @DeleteMapping("/people")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removePerson(@PathVariable UUID id, @PathVariable UUID userId) {
+    public void removePerson(@RequestParam UUID id, @RequestParam UUID userId) {
         groups.removePerson(id, userId);
     }
 

@@ -11,7 +11,7 @@ export function usePresence(enabled: boolean): void {
       if (document.hidden) {
         return;
       }
-      void api("/api/v1/presence/heartbeat", {
+      void api("/api/v1/mobistack/presence/heartbeat", {
         method: "POST",
         body: JSON.stringify({ deviceId: getDeviceId(), platform: "WEB", appVersion: "1.0.0" }),
       }).catch(() => {
@@ -29,7 +29,7 @@ export function usePresence(enabled: boolean): void {
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVis);
-      void api("/api/v1/presence/leave", {
+      void api("/api/v1/mobistack/presence/leave", {
         method: "POST",
         body: JSON.stringify({ deviceId: getDeviceId(), platform: "WEB" }),
       }).catch(() => undefined);

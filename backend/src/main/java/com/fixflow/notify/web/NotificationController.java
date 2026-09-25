@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/notifications")
+@RequestMapping("/api/v1/mobistack/notifications")
 @RequiredArgsConstructor
 @Tag(name = "Notifications")
 public class NotificationController {

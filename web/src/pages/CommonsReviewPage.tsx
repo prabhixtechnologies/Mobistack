@@ -10,7 +10,7 @@ import type { CommonsContribution } from "../lib/types";
 
 export function CommonsReviewPage() {
   const { user } = useAuth();
-  const queue = usePagedList<CommonsContribution>("/api/v1/commons/review/queue", {
+  const queue = usePagedList<CommonsContribution>("/api/v1/mobistack/commons/review/queue", {
     size: 25,
     enabled: Boolean(user?.commonsReviewer),
   });
@@ -26,7 +26,7 @@ export function CommonsReviewPage() {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/v1/commons/review/${id}/${action}`, {
+      await api(`/api/v1/mobistack/commons/review/${action}?id=${id}`, {
         method: "POST",
         body: JSON.stringify({ note: note.trim() || undefined }),
       });

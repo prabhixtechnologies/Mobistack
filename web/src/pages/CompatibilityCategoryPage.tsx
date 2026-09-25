@@ -38,8 +38,8 @@ export function CompatibilityCategoryPage() {
       params.set("q", nextQuery.trim());
     }
     const [overview, page] = await Promise.all([
-      api<CompatibilityOverview>("/api/v1/compatibility-groups/overview"),
-      api<PageResponse<CompatibilityGroup>>(`/api/v1/compatibility-groups?${params}`),
+      api<CompatibilityOverview>("/api/v1/mobistack/compatibility-groups/overview"),
+      api<PageResponse<CompatibilityGroup>>(`/api/v1/mobistack/compatibility-groups?${params}`),
     ]);
     setCategory(overview.categories.find((row) => row.id === categoryId) ?? null);
     setGroups(page.content ?? []);
@@ -83,7 +83,7 @@ export function CompatibilityCategoryPage() {
     try {
       const name = editor.name.trim() || names[0];
       if (editor.group) {
-        await api(`/api/v1/compatibility-groups/${editor.group.id}`, {
+        await api(`/api/v1/mobistack/compatibility-groups?id=${editor.group.id}`, {
           method: "PUT",
           body: JSON.stringify({
             name,
@@ -92,12 +92,12 @@ export function CompatibilityCategoryPage() {
             active: true,
           }),
         });
-        await api(`/api/v1/compatibility-groups/${editor.group.id}/membership`, {
+        await api(`/api/v1/mobistack/compatibility-groups/membership?id=${editor.group.id}`, {
           method: "PUT",
           body: JSON.stringify({ deviceTexts: names }),
         });
       } else {
-        await api("/api/v1/compatibility-groups", {
+        await api("/api/v1/mobistack/compatibility-groups", {
           method: "POST",
           body: JSON.stringify({
             name,
@@ -122,7 +122,7 @@ export function CompatibilityCategoryPage() {
     setError(null);
     setProposing(group.id);
     try {
-      await api("/api/v1/commons/contributions", {
+      await api("/api/v1/mobistack/commons/contributions", {
         method: "POST",
         body: JSON.stringify({
           kind: "ADD_COMPONENT",
@@ -146,7 +146,7 @@ export function CompatibilityCategoryPage() {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/v1/compatibility-groups/${group.id}/copy`, {
+      await api(`/api/v1/mobistack/compatibility-groups/copy?id=${group.id}`, {
         method: "POST",
         body: JSON.stringify({}),
       });
@@ -165,7 +165,7 @@ export function CompatibilityCategoryPage() {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/v1/compatibility-groups/${pendingDelete.id}`, { method: "DELETE" });
+      await api(`/api/v1/mobistack/compatibility-groups?id=${pendingDelete.id}`, { method: "DELETE" });
       setPendingDelete(null);
       await load();
     } catch (err) {

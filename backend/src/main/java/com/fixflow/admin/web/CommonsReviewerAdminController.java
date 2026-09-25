@@ -6,8 +6,8 @@ import com.fixflow.commons.service.CommonsReviewerService.GrantRequest;
 import com.fixflow.commons.service.CommonsReviewerService.ReviewerView;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,7 +24,7 @@ import java.util.UUID;
  * that BFF is not ready yet.
  */
 @RestController
-@RequestMapping("/api/v1/admin/commons-reviewers")
+@RequestMapping("/api/v1/mobistack/admin/commons-reviewers")
 @RequiredArgsConstructor
 @Tag(name = "Commons reviewers")
 public class CommonsReviewerAdminController {
@@ -46,14 +46,14 @@ public class CommonsReviewerAdminController {
         return reviewers.grant(actor, userId, reason);
     }
 
-    @PostMapping("/{userId}/grant")
-    public ReviewerView grantPath(@PathVariable UUID userId, @RequestBody(required = false) GrantRequest request) {
+    @PostMapping("/grant")
+    public ReviewerView grantPath(@RequestParam UUID userId, @RequestBody(required = false) GrantRequest request) {
         UUID actor = platformAdminService.requireAdmin();
         return reviewers.grant(actor, userId, request == null ? null : request.reason());
     }
 
-    @PostMapping("/{userId}/revoke")
-    public void revoke(@PathVariable UUID userId) {
+    @PostMapping("/revoke")
+    public void revoke(@RequestParam UUID userId) {
         platformAdminService.requireAdmin();
         reviewers.revoke(userId);
     }

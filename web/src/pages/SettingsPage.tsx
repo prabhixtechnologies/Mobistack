@@ -33,13 +33,13 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<Shop>("/api/v1/shop").then(setShop).catch((err: Error) => setError(err.message));
+    api<Shop>("/api/v1/mobistack/shop").then(setShop).catch((err: Error) => setError(err.message));
   }, []);
 
   const save = useAction(
     async (current: Shop) => {
       setSaved(false);
-      setShop(await api<Shop>("/api/v1/shop", { method: "PUT", body: JSON.stringify(current) }));
+      setShop(await api<Shop>("/api/v1/mobistack/shop", { method: "PUT", body: JSON.stringify(current) }));
       setSaved(true);
     },
     { fallbackError: "Could not save those settings." },
@@ -160,10 +160,10 @@ function VerificationCard({
     setNotice(null);
     try {
       if (channel === "email") {
-        await api("/api/v1/auth/email-otp", { method: "POST", body: JSON.stringify({ email }) });
+        await api("/api/v1/mobistack/auth/email-otp", { method: "POST", body: JSON.stringify({ email }) });
         setNotice("A verification code was sent to your email.");
       } else {
-        await api(`/api/v1/auth/${channel === "whatsapp" ? "whatsapp" : "phone"}/start`, {
+        await api(`/api/v1/mobistack/auth/${channel === "whatsapp" ? "whatsapp" : "phone"}/start`, {
           method: "POST",
           body: JSON.stringify({ phone, channel: channel === "whatsapp" ? "WHATSAPP" : "SMS" }),
         });
@@ -181,12 +181,12 @@ function VerificationCard({
     setError(null);
     try {
       if (channel === "email") {
-        await api("/api/v1/auth/email-otp/verify", {
+        await api("/api/v1/mobistack/auth/email-otp/verify", {
           method: "POST",
           body: JSON.stringify({ email, code }),
         });
       } else {
-        await api(`/api/v1/auth/${channel === "whatsapp" ? "whatsapp" : "phone"}/verify`, {
+        await api(`/api/v1/mobistack/auth/${channel === "whatsapp" ? "whatsapp" : "phone"}/verify`, {
           method: "POST",
           body: JSON.stringify({ phone, code }),
         });

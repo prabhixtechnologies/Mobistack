@@ -26,9 +26,9 @@ export function CommonsBrowsePage() {
   const settled = useDebounced(query);
   const fitment = useFitmentGroups();
   const stats = useResource<CommonsStats>(
-    fitment.ready ? `/api/v1/commons/stats?groupId=${fitment.selected ?? ""}` : null,
+    fitment.ready ? `/api/v1/mobistack/commons/stats?groupId=${fitment.selected ?? ""}` : null,
   );
-  const brands = useResource<CommonsBrand[]>("/api/v1/commons/brands");
+  const brands = useResource<CommonsBrand[]>("/api/v1/mobistack/commons/brands");
 
   const devicePath = useMemo(() => {
     const params = new URLSearchParams();
@@ -38,7 +38,7 @@ export function CommonsBrowsePage() {
       params.set("brandId", brandId);
     }
     const suffix = params.toString();
-    return suffix ? `/api/v1/commons/devices?${suffix}` : "/api/v1/commons/devices";
+    return suffix ? `/api/v1/mobistack/commons/devices?${suffix}` : "/api/v1/mobistack/commons/devices";
   }, [settled, brandId]);
 
   const componentPath = useMemo(() => {
@@ -47,7 +47,7 @@ export function CommonsBrowsePage() {
       params.set("q", settled.trim());
     }
     const suffix = params.toString();
-    return suffix ? `/api/v1/commons/components?${suffix}` : "/api/v1/commons/components";
+    return suffix ? `/api/v1/mobistack/commons/components?${suffix}` : "/api/v1/mobistack/commons/components";
   }, [settled]);
 
   const devices = usePagedList<CommonsDevice>(tab === "devices" ? devicePath : null, { size: 30 });
@@ -272,7 +272,7 @@ function ContributeForm({ brands }: { brands: CommonsBrand[] }) {
         kind === "ADD_DEVICE"
           ? { brand, name, variant: variant || undefined, modelCode: modelCode || undefined }
           : { categoryCode, name, description: description || undefined };
-      await api("/api/v1/commons/contributions", {
+      await api("/api/v1/mobistack/commons/contributions", {
         method: "POST",
         body: JSON.stringify({ kind, payload, reason: reason || undefined }),
       });

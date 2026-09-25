@@ -255,7 +255,7 @@ export function DashboardPage() {
   useEffect(() => {
     let live = true;
     setError(null);
-    api<DashboardResponse>("/api/v1/dashboard")
+    api<DashboardResponse>("/api/v1/mobistack/dashboard")
       .then((payload) => {
         if (live) {
           setData(payload);
@@ -268,7 +268,7 @@ export function DashboardPage() {
       });
 
     if (canSales) {
-      api<PageResponse<SaleRow>>("/api/v1/sales?size=12")
+      api<PageResponse<SaleRow>>("/api/v1/mobistack/sales?size=12")
         .then((page) => {
           if (live) {
             setSales(page.content.filter((row) => row.status !== "VOIDED"));
@@ -277,7 +277,7 @@ export function DashboardPage() {
         .catch(() => undefined);
     }
     if (canRepairs) {
-      api<PageResponse<RepairRow>>("/api/v1/repairs?size=20")
+      api<PageResponse<RepairRow>>("/api/v1/mobistack/repairs?size=20")
         .then((page) => {
           if (live) {
             setRepairs(page.content);
@@ -286,7 +286,7 @@ export function DashboardPage() {
         .catch(() => undefined);
     }
     if (canStock) {
-      api<PageResponse<MovementRow>>("/api/v1/inventory/transactions?size=12")
+      api<PageResponse<MovementRow>>("/api/v1/mobistack/inventory/transactions?size=12")
         .then((page) => {
           if (live) {
             setMoves(page.content);

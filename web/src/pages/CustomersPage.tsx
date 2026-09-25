@@ -31,13 +31,13 @@ export function CustomersPage() {
 
   const path = useMemo(() => {
     const term = settled.trim();
-    return term ? `/api/v1/customers?q=${encodeURIComponent(term)}` : "/api/v1/customers";
+    return term ? `/api/v1/mobistack/customers?q=${encodeURIComponent(term)}` : "/api/v1/mobistack/customers";
   }, [settled]);
   const customers = usePagedList<Customer>(path, { size: 50 });
 
   const create = useAction(
     async () => {
-      await api("/api/v1/customers", {
+      await api("/api/v1/mobistack/customers", {
         method: "POST",
         body: JSON.stringify({ name, phone, customerType: type }),
       });

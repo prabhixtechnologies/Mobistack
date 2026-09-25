@@ -8,8 +8,8 @@ import com.fixflow.security.CurrentUser;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/compatibility-requests")
+@RequestMapping("/api/v1/mobistack/compatibility-requests")
 @RequiredArgsConstructor
 @Tag(name = "Compatibility requests")
 public class CompatibilityRequestController {
@@ -31,15 +31,15 @@ public class CompatibilityRequestController {
         return compatibilityGroupService.pendingRequests(CurrentUser.shopId());
     }
 
-    @PostMapping("/{id}/approve")
+    @PostMapping("/approve")
     @PreAuthorize(Authorize.COMPATIBILITY_APPROVE)
-    public CompatibilityGroupResponse approve(@PathVariable UUID id) {
+    public CompatibilityGroupResponse approve(@RequestParam UUID id) {
         return compatibilityGroupService.decide(CurrentUser.shopId(), id, true);
     }
 
-    @PostMapping("/{id}/reject")
+    @PostMapping("/reject")
     @PreAuthorize(Authorize.COMPATIBILITY_APPROVE)
-    public CompatibilityGroupResponse reject(@PathVariable UUID id) {
+    public CompatibilityGroupResponse reject(@RequestParam UUID id) {
         return compatibilityGroupService.decide(CurrentUser.shopId(), id, false);
     }
 }

@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/brands")
+@RequestMapping("/api/v1/mobistack/brands")
 @RequiredArgsConstructor
 @Tag(name = "Brands")
 public class BrandController {
@@ -44,9 +43,9 @@ public class BrandController {
         return brandService.create(CurrentUser.shopId(), request);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping
     @PreAuthorize(Authorize.CATALOG_WRITE)
-    public BrandResponse update(@PathVariable UUID id, @Valid @RequestBody BrandRequest request) {
+    public BrandResponse update(@RequestParam UUID id, @Valid @RequestBody BrandRequest request) {
         return brandService.update(CurrentUser.shopId(), id, request);
     }
 }

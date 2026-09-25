@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/pricing")
+@RequestMapping("/api/v1/mobistack/pricing")
 @RequiredArgsConstructor
 @Tag(name = "Pricing")
 public class PricingController {
@@ -32,10 +31,10 @@ public class PricingController {
     private final PricingService pricingService;
     private final ProductVariantRepository variantRepository;
 
-    @GetMapping("/quote/{variantId}")
+    @GetMapping("/quote")
     @PreAuthorize(Authorize.INVENTORY_READ)
     @Operation(summary = "Resolve the selling price for a variant in a given context")
-    public PriceQuote quote(@PathVariable UUID variantId,
+    public PriceQuote quote(@RequestParam UUID variantId,
                             @RequestParam(defaultValue = "NORMAL") PricingFlag flag,
                             @RequestParam(defaultValue = "RETAIL") CustomerType customerType,
                             @RequestParam(defaultValue = "SALE") PriceRule.TransactionType transactionType,

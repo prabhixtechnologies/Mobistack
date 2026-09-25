@@ -20,7 +20,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 
 @RestController
-@RequestMapping("/api/v1/reports")
+@RequestMapping("/api/v1/mobistack/reports")
 @RequiredArgsConstructor
 @Tag(name = "Reports")
 public class ReportController {

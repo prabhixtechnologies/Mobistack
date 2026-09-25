@@ -40,7 +40,7 @@ export function RepairsPage() {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
   const path = useMemo(
-    () => (filter ? `/api/v1/repairs?status=${encodeURIComponent(filter)}` : "/api/v1/repairs"),
+    () => (filter ? `/api/v1/mobistack/repairs?status=${encodeURIComponent(filter)}` : "/api/v1/mobistack/repairs"),
     [filter],
   );
   const jobs = usePagedList<Repair>(path, { size: 20 });
@@ -49,14 +49,14 @@ export function RepairsPage() {
     if (!partFor) {
       return;
     }
-    api<PageResponse<ProductVariant>>("/api/v1/variants?size=100")
+    api<PageResponse<ProductVariant>>("/api/v1/mobistack/variants?size=100")
       .then((page) => setVariants(page.content))
       .catch(() => setVariants([]));
   }, [partFor]);
 
   const create = useAction(
     async () => {
-      await api("/api/v1/repairs", {
+      await api("/api/v1/mobistack/repairs", {
         method: "POST",
         body: JSON.stringify({
           problem,
@@ -76,7 +76,7 @@ export function RepairsPage() {
 
   const changeStatus = useAction(
     async (job: Repair, status: string) => {
-      await api(`/api/v1/repairs/${job.id}`, { method: "PUT", body: JSON.stringify({ status }) });
+      await api(`/api/v1/mobistack/repairs?id=${job.id}`, { method: "PUT", body: JSON.stringify({ status }) });
       jobs.reload();
     },
     { fallbackError: "Could not update that job." },
@@ -84,7 +84,7 @@ export function RepairsPage() {
 
   const collect = useAction(
     async (job: Repair) => {
-      await api(`/api/v1/repairs/${job.id}/payments`, {
+      await api(`/api/v1/mobistack/repairs/payments?id=${job.id}`, {
         method: "POST",
         body: JSON.stringify({ payments: [{ method: "CASH", amount: job.outstanding }] }),
       });
@@ -95,7 +95,7 @@ export function RepairsPage() {
 
   const addPart = useAction(
     async (repairId: string, variantId: string, quantity: number) => {
-      await api(`/api/v1/repairs/${repairId}/parts`, {
+      await api(`/api/v1/mobistack/repairs/parts?id=${repairId}`, {
         method: "POST",
         body: JSON.stringify({ variantId, quantity }),
       });

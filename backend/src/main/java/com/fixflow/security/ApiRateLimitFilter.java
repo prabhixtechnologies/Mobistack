@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Per-IP throttle for the API. Uses Redis when the cluster is configured so nodes share the same
  * counters.
  *
- * <p>There is no longer a tighter bucket for {@code /api/v1/auth/**}: sign-in, OTP and password
+ * <p>There is no longer a tighter bucket for {@code /api/v1/mobistack/auth/**}: sign-in, OTP and password
  * reset live on Prabhix Identity, which throttles them itself, and what remains under that prefix
  * ({@code /me}, {@code /logout}) is ordinary authenticated traffic.
  */

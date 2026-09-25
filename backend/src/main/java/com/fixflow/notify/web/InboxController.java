@@ -9,8 +9,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/inbox")
+@RequestMapping("/api/v1/mobistack/inbox")
 @RequiredArgsConstructor
 @Tag(name = "Inbox")
 public class InboxController {
@@ -52,8 +52,8 @@ public class InboxController {
         return new InboxSummary(inboxNotificationRepository.countByUserIdAndReadAtIsNull(userId), items);
     }
 
-    @PostMapping("/{id}/read")
-    public InboxCard read(@PathVariable UUID id) {
+    @PostMapping("/read")
+    public InboxCard read(@RequestParam UUID id) {
         InboxNotification row = inboxNotificationRepository.findById(id)
                 .orElseThrow(() -> com.fixflow.common.error.ApiException.notFound("Notification", id));
         if (!row.getUserId().equals(CurrentUser.userId())) {

@@ -16,8 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/mobistack")
 @RequiredArgsConstructor
 @Tag(name = "Users")
 public class UserController {
@@ -42,9 +42,9 @@ public class UserController {
         return PageResponse.of(userService.list(CurrentUser.shopId(), pageable));
     }
 
-    @GetMapping("/users/{id}")
+    @GetMapping(value = "/users", params = "id")
     @PreAuthorize(Authorize.USER_READ)
-    public UserResponse get(@PathVariable UUID id) {
+    public UserResponse get(@RequestParam UUID id) {
         return userService.get(CurrentUser.shopId(), id);
     }
 
@@ -55,9 +55,9 @@ public class UserController {
         return userService.create(CurrentUser.shopId(), request);
     }
 
-    @PutMapping("/users/{id}")
+    @PutMapping("/users")
     @PreAuthorize(Authorize.USER_WRITE)
-    public UserResponse update(@PathVariable UUID id, @Valid @RequestBody UpdateUserRequest request) {
+    public UserResponse update(@RequestParam UUID id, @Valid @RequestBody UpdateUserRequest request) {
         return userService.update(CurrentUser.shopId(), id, request);
     }
 

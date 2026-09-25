@@ -46,7 +46,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void adminRoutesDoNotConsumeAShopBearerToken() throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/workspaces");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/admin/workspaces");
         request.addHeader("Authorization", "Bearer shop-user-jwt");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -89,7 +89,7 @@ class JwtAuthenticationFilterTest {
         when(tokenVerifier.verify("expired"))
                 .thenThrow(new IdentityTokenException(IdentityTokenException.Reason.EXPIRED, "expired"));
 
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/auth/me");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/auth/me");
         request.addHeader("Authorization", "Bearer expired");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -102,7 +102,7 @@ class JwtAuthenticationFilterTest {
     @Test
     void treatsHealthAsAnonymous() {
         MockHttpServletRequest health = new MockHttpServletRequest("GET", "/actuator/health");
-        MockHttpServletRequest me = new MockHttpServletRequest("GET", "/api/v1/auth/me");
+        MockHttpServletRequest me = new MockHttpServletRequest("GET", "/api/v1/mobistack/auth/me");
         assertThat(JwtAuthenticationFilter.isAnonymousOk(health)).isTrue();
         assertThat(JwtAuthenticationFilter.isAnonymousOk(me)).isFalse();
     }

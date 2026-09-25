@@ -4,8 +4,8 @@ import com.fixflow.support.service.SupportService;
 import com.fixflow.support.service.SupportService.ConversationCard;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/support")
+@RequestMapping("/api/v1/mobistack/support")
 @RequiredArgsConstructor
 @Tag(name = "Support")
 public class SupportController {
@@ -43,13 +43,13 @@ public class SupportController {
         return supportService.mine();
     }
 
-    @GetMapping("/conversations/{id}")
-    public ConversationCard one(@PathVariable UUID id) {
+    @GetMapping(value = "/conversations", params = "id")
+    public ConversationCard one(@RequestParam UUID id) {
         return supportService.getMine(id);
     }
 
-    @PostMapping("/conversations/{id}/messages")
-    public ConversationCard reply(@PathVariable UUID id, @RequestBody ChatRequest request) {
+    @PostMapping("/conversations/messages")
+    public ConversationCard reply(@RequestParam UUID id, @RequestBody ChatRequest request) {
         return supportService.replyMine(id, request.message());
     }
 }

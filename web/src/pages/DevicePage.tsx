@@ -20,7 +20,7 @@ export function DevicePage() {
     }
     let live = true;
     setError(null);
-    api<DeviceCompatibilityView>(`/api/v1/devices/${id}/compatibility?flag=${flag}`)
+    api<DeviceCompatibilityView>(`/api/v1/mobistack/devices/compatibility?id=${id}&flag=${flag}`)
       .then((payload) => {
         if (live) {
           setView(payload);

@@ -27,8 +27,8 @@ public class OpenApiConfig {
                         .description("""
                                 Mobile repair shop management platform.
 
-                                All endpoints except `/api/v1/auth/login`, `/api/v1/auth/refresh` and
-                                `/api/v1/auth/register-shop` require a Bearer access token. Every request is
+                                All endpoints except `/api/v1/mobistack/auth/login`, `/api/v1/mobistack/auth/refresh` and
+                                `/api/v1/mobistack/auth/register-shop` require a Bearer access token. Every request is
                                 scoped to the shop encoded in that token.
                                 """)
                         .contact(new Contact().name("MobiStack").email("support@prabhixtechnologies.com"))
@@ -40,6 +40,6 @@ public class OpenApiConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("Access token returned by /api/v1/auth/login")));
+                                .description("Access token returned by /api/v1/mobistack/auth/login")));
     }
 }

@@ -5,67 +5,118 @@
     "version": "v1",
     "description": "Mobile repair shop management platform. Snapshot for client generation. Refresh with SWAGGER_ENABLED=true from a running instance (backend/scripts/export-openapi.ps1 or mvn -Pgenerate-openapi)."
   },
-  "servers": [{ "url": "/", "description": "Current host" }],
-  "security": [{ "bearerAuth": [] }],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current host"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "paths": {
-    "/api/v1/auth/me": {
+    "/api/v1/mobistack/auth/me": {
       "get": {
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "operationId": "authMe",
         "responses": {
           "200": {
             "description": "OK",
-            "content": { "*/*": { "schema": { "$ref": "#/components/schemas/AuthenticatedUser" } } }
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedUser"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/v1/auth/logout": {
+    "/api/v1/mobistack/auth/logout": {
       "post": {
-        "tags": ["auth"],
+        "tags": [
+          "auth"
+        ],
         "operationId": "authLogout",
-        "responses": { "204": { "description": "No Content" } }
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
       }
     },
-    "/api/v1/billing": {
+    "/api/v1/mobistack/billing": {
       "get": {
-        "tags": ["billing"],
+        "tags": [
+          "billing"
+        ],
         "operationId": "billingOverview",
         "responses": {
           "200": {
             "description": "OK",
-            "content": { "*/*": { "schema": { "$ref": "#/components/schemas/BillingOverview" } } }
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOverview"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/v1/billing/orders": {
+    "/api/v1/mobistack/billing/orders": {
       "post": {
-        "tags": ["billing"],
+        "tags": [
+          "billing"
+        ],
         "operationId": "createBillingOrder",
         "responses": {
           "200": {
             "description": "OK",
-            "content": { "*/*": { "schema": { "$ref": "#/components/schemas/CheckoutOrderResponse" } } }
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutOrderResponse"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/v1/billing/verify": {
+    "/api/v1/mobistack/billing/verify": {
       "post": {
-        "tags": ["billing"],
+        "tags": [
+          "billing"
+        ],
         "operationId": "verifyBillingPayment",
         "requestBody": {
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/VerifyPaymentRequest" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPaymentRequest"
+              }
+            }
           }
         },
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
-    "/api/v1/admin/workspaces": {
+    "/api/v1/mobistack/admin/workspaces": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminWorkspaces",
         "responses": {
           "200": {
@@ -74,7 +125,9 @@
               "*/*": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/WorkspaceAdminCard" }
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceAdminCard"
+                  }
                 }
               }
             }
@@ -82,85 +135,123 @@
         }
       }
     },
-    "/api/v1/admin/feature-flags": {
+    "/api/v1/mobistack/admin/feature-flags": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminFeatureFlags",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "*/*": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/FlagCard" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FlagCard"
+                  }
+                }
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/billing/orders": {
+    "/api/v1/mobistack/admin/billing/orders": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminBillingOrders",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "*/*": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AdminPayment" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminPayment"
+                  }
+                }
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/billing/revenue": {
+    "/api/v1/mobistack/admin/billing/revenue": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminRevenue",
         "responses": {
           "200": {
             "description": "OK",
-            "content": { "*/*": { "schema": { "$ref": "#/components/schemas/RevenueSnapshot" } } }
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevenueSnapshot"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/api/v1/admin/plans": {
+    "/api/v1/mobistack/admin/plans": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminPlans",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "*/*": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/PlanCard" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlanCard"
+                  }
+                }
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/live": {
+    "/api/v1/mobistack/admin/live": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminLive",
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "*/*": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AdminLiveUser" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminLiveUser"
+                  }
+                }
               }
             }
           }
         }
       }
     },
-    "/api/v1/admin/support": {
+    "/api/v1/mobistack/admin/support": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminSupport",
         "responses": {
           "200": {
@@ -169,7 +260,9 @@
               "*/*": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/AdminSupportTicket" }
+                  "items": {
+                    "$ref": "#/components/schemas/AdminSupportTicket"
+                  }
                 }
               }
             }
@@ -177,9 +270,11 @@
         }
       }
     },
-    "/api/v1/admin/app-releases": {
+    "/api/v1/mobistack/admin/app-releases": {
       "get": {
-        "tags": ["Platform admin"],
+        "tags": [
+          "Platform admin"
+        ],
         "operationId": "adminAppReleases",
         "responses": {
           "200": {
@@ -188,7 +283,9 @@
               "*/*": {
                 "schema": {
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/AdminAppRelease" }
+                  "items": {
+                    "$ref": "#/components/schemas/AdminAppRelease"
+                  }
                 }
               }
             }
@@ -196,19 +293,31 @@
         }
       }
     },
-    "/api/v1/workspaces": {
+    "/api/v1/mobistack/workspaces": {
       "get": {
-        "tags": ["workspaces"],
+        "tags": [
+          "workspaces"
+        ],
         "operationId": "listWorkspaces",
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
-    "/api/v1/system/health": {
+    "/api/v1/mobistack/system/health": {
       "get": {
-        "tags": ["system"],
+        "tags": [
+          "system"
+        ],
         "operationId": "systemHealth",
         "security": [],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     }
   },
@@ -224,207 +333,499 @@
       "AuthenticatedUser": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "shopId": { "type": "string", "format": "uuid" },
-          "shopName": { "type": "string" },
-          "workspaceId": { "type": "string", "format": "uuid" },
-          "workspaceName": { "type": "string" },
-          "fullName": { "type": "string" },
-          "email": { "type": "string" },
-          "phone": { "type": "string" },
-          "avatarUrl": { "type": "string" },
-          "roles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-          "permissions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-          "systemAdmin": { "type": "boolean" },
-          "emailVerified": { "type": "boolean" },
-          "phoneVerified": { "type": "boolean" },
-          "paymentRequired": { "type": "boolean" },
-          "catalogOnly": { "type": "boolean" },
-          "features": { "type": "array", "items": { "type": "string" } },
-          "planCode": { "type": "string" },
-          "planName": { "type": "string" },
-          "periodEnd": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shopId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shopName": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workspaceName": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "systemAdmin": {
+            "type": "boolean"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "phoneVerified": {
+            "type": "boolean"
+          },
+          "paymentRequired": {
+            "type": "boolean"
+          },
+          "catalogOnly": {
+            "type": "boolean"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "PlanCard": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "code": { "type": "string" },
-          "name": { "type": "string" },
-          "description": { "type": "string" },
-          "amount": { "type": "number" },
-          "currency": { "type": "string" },
-          "interval": { "type": "string" },
-          "sortOrder": { "type": "integer" },
-          "active": { "type": "boolean" },
-          "features": { "type": "array", "items": { "type": "string" } },
-          "priceCode": { "type": "string" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "interval": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priceCode": {
+            "type": "string"
+          }
         }
       },
       "SubscriptionCard": {
         "type": "object",
         "properties": {
-          "planCode": { "type": "string" },
-          "planName": { "type": "string" },
-          "status": { "type": "string" },
-          "periodEnd": { "type": "string", "format": "date-time" },
-          "features": { "type": "array", "items": { "type": "string" } }
+          "planCode": {
+            "type": "string"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "ScreenCard": {
         "type": "object",
         "properties": {
-          "included": { "type": "integer" },
-          "extra": { "type": "integer" },
-          "subscribed": { "type": "integer" },
-          "seats": { "type": "integer" },
-          "inUse": { "type": "integer" },
-          "live": { "type": "boolean" },
-          "periodEnd": { "type": "string", "format": "date-time" },
-          "amount": { "type": "number" },
-          "renewAmount": { "type": "number" },
-          "currency": { "type": "string" },
-          "priceCode": { "type": "string" },
-          "interval": { "type": "string" }
+          "included": {
+            "type": "integer"
+          },
+          "extra": {
+            "type": "integer"
+          },
+          "subscribed": {
+            "type": "integer"
+          },
+          "seats": {
+            "type": "integer"
+          },
+          "inUse": {
+            "type": "integer"
+          },
+          "live": {
+            "type": "boolean"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "renewAmount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "priceCode": {
+            "type": "string"
+          },
+          "interval": {
+            "type": "string"
+          }
         }
       },
       "PaymentReceipt": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "planName": { "type": "string" },
-          "priceCode": { "type": "string" },
-          "amount": { "type": "number" },
-          "currency": { "type": "string" },
-          "status": { "type": "string" },
-          "paidAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "planName": {
+            "type": "string"
+          },
+          "priceCode": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "BillingOverview": {
         "type": "object",
         "properties": {
-          "plans": { "type": "array", "items": { "$ref": "#/components/schemas/PlanCard" } },
-          "subscription": { "$ref": "#/components/schemas/SubscriptionCard" },
-          "recentPayments": { "type": "array", "items": { "$ref": "#/components/schemas/PaymentReceipt" } },
-          "screens": { "$ref": "#/components/schemas/ScreenCard" },
-          "razorpayKeyId": { "type": "string" },
-          "razorpayEnabled": { "type": "boolean" },
-          "paymentRequired": { "type": "boolean" }
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanCard"
+            }
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionCard"
+          },
+          "recentPayments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentReceipt"
+            }
+          },
+          "screens": {
+            "$ref": "#/components/schemas/ScreenCard"
+          },
+          "razorpayKeyId": {
+            "type": "string"
+          },
+          "razorpayEnabled": {
+            "type": "boolean"
+          },
+          "paymentRequired": {
+            "type": "boolean"
+          }
         }
       },
       "CheckoutOrderResponse": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "order_id": { "type": "string" },
-          "amount": { "type": "integer", "format": "int64" },
-          "currency": { "type": "string" },
-          "keyId": { "type": "string" },
-          "priceCode": { "type": "string" },
-          "gateway": { "type": "string" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "order_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "keyId": {
+            "type": "string"
+          },
+          "priceCode": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          }
         }
       },
       "VerifyPaymentRequest": {
         "type": "object",
         "properties": {
-          "razorpayOrderId": { "type": "string" },
-          "razorpayPaymentId": { "type": "string" },
-          "razorpaySignature": { "type": "string" }
+          "razorpayOrderId": {
+            "type": "string"
+          },
+          "razorpayPaymentId": {
+            "type": "string"
+          },
+          "razorpaySignature": {
+            "type": "string"
+          }
         }
       },
       "WorkspaceAdminCard": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "name": { "type": "string" },
-          "city": { "type": "string" },
-          "active": { "type": "boolean" },
-          "members": { "type": "integer", "format": "int64" },
-          "extraScreens": { "type": "integer" },
-          "screenSeats": { "type": "integer" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "members": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "extraScreens": {
+            "type": "integer"
+          },
+          "screenSeats": {
+            "type": "integer"
+          }
         }
       },
       "FlagCard": {
         "type": "object",
         "properties": {
-          "code": { "type": "string" },
-          "enabled": { "type": "boolean" }
+          "code": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
         }
       },
       "AdminPayment": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "shopId": { "type": "string", "format": "uuid" },
-          "shopName": { "type": "string" },
-          "priceCode": { "type": "string" },
-          "amount": { "type": "number" },
-          "currency": { "type": "string" },
-          "status": { "type": "string" },
-          "gateway": { "type": "string" },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "paidAt": { "type": "string", "format": "date-time" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shopId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "shopName": {
+            "type": "string"
+          },
+          "priceCode": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "RevenueSnapshot": {
         "type": "object",
         "properties": {
-          "capturedTotal": { "type": "number" },
-          "pendingTotal": { "type": "number" },
-          "capturedCount": { "type": "integer" },
-          "pendingCount": { "type": "integer" },
-          "failedCount": { "type": "integer" },
-          "currency": { "type": "string" },
-          "asOf": { "type": "string", "format": "date-time" }
+          "capturedTotal": {
+            "type": "number"
+          },
+          "pendingTotal": {
+            "type": "number"
+          },
+          "capturedCount": {
+            "type": "integer"
+          },
+          "pendingCount": {
+            "type": "integer"
+          },
+          "failedCount": {
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "AdminLiveUser": {
         "type": "object",
         "properties": {
-          "userId": { "type": "string", "format": "uuid" },
-          "fullName": { "type": "string" },
-          "email": { "type": "string" },
-          "shopName": { "type": "string" },
-          "deviceId": { "type": "string" },
-          "platform": { "type": "string" },
-          "appVersion": { "type": "string" },
-          "ipAddress": { "type": "string" },
-          "seenAt": { "type": "string", "format": "date-time" }
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "shopName": {
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "appVersion": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "type": "string"
+          },
+          "seenAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "AdminSupportMessage": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "authorType": { "type": "string" },
-          "body": { "type": "string" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "authorType": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
         }
       },
       "AdminSupportTicket": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" },
-          "subject": { "type": "string" },
-          "status": { "type": "string" },
-          "userName": { "type": "string" },
-          "lastMessageAt": { "type": "string", "format": "date-time" },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "userName": {
+            "type": "string"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "messages": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/AdminSupportMessage" }
+            "items": {
+              "$ref": "#/components/schemas/AdminSupportMessage"
+            }
           }
         }
       },
       "AdminAppRelease": {
         "type": "object",
         "properties": {
-          "platform": { "type": "string" },
-          "minNativeBuild": { "type": "integer" },
-          "latestNativeBuild": { "type": "integer" },
-          "forceNativeUpdate": { "type": "boolean" },
-          "otaChannel": { "type": "string" },
-          "storeUrl": { "type": "string" },
-          "notes": { "type": "string" }
+          "platform": {
+            "type": "string"
+          },
+          "minNativeBuild": {
+            "type": "integer"
+          },
+          "latestNativeBuild": {
+            "type": "integer"
+          },
+          "forceNativeUpdate": {
+            "type": "boolean"
+          },
+          "otaChannel": {
+            "type": "string"
+          },
+          "storeUrl": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
         }
       }
     }

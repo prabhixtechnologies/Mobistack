@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Platform admin is the oneOps BFF's, over the service token. A shop JWT must not mint
      * a principal here even if the owner once held {@code system_admin}.
      */
-    private static final String ADMIN_PREFIX = "/api/v1/admin";
+    private static final String ADMIN_PREFIX = "/api/v1/mobistack/admin";
 
     private final IdentityTokenVerifier tokenVerifier;
     private final UserRepository userRepository;
@@ -182,7 +182,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (path == null) {
             return false;
         }
-        return path.startsWith("/api/v1/public/")
+        return path.startsWith("/api/v1/mobistack/public/")
                 || path.startsWith("/download/")
                 || path.startsWith("/actuator/health");
     }

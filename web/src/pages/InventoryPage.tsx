@@ -34,7 +34,7 @@ export function InventoryPage() {
       search.set("lowStockOnly", "true");
     }
     const suffix = search.toString();
-    return suffix ? `/api/v1/variants?${suffix}` : "/api/v1/variants";
+    return suffix ? `/api/v1/mobistack/variants?${suffix}` : "/api/v1/mobistack/variants";
   }, [settled, lowOnly]);
 
   const parts = usePagedList<ProductVariant>(path, { size: 25 });
@@ -162,7 +162,7 @@ function ReceiveSheet({
 
   const receive = useAction(
     async () => {
-      await apiOnce("/api/v1/inventory/receive", { variantId: variant.id, quantity, unitCost, reason });
+      await apiOnce("/api/v1/mobistack/inventory/receive", { variantId: variant.id, quantity, unitCost, reason });
       onSaved();
       onClose();
     },

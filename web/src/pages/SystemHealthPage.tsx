@@ -63,7 +63,7 @@ const COMPONENT_LABELS: Record<string, string> = {
  * 15-second cadence a single aggregated request is cheaper than standing up one.
  */
 export function SystemHealthPage() {
-  const health = useResource<SystemStatus>("/api/v1/system/health");
+  const health = useResource<SystemStatus>("/api/v1/mobistack/system/health");
   const [live, setLive] = useState(true);
 
   useEffect(() => {

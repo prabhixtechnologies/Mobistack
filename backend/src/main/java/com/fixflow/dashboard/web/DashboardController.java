@@ -22,7 +22,7 @@ import java.time.ZoneId;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/dashboard")
+@RequestMapping("/api/v1/mobistack/dashboard")
 @RequiredArgsConstructor
 @Tag(name = "Dashboard")
 public class DashboardController {

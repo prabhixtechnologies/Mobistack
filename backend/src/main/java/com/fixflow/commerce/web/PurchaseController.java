@@ -13,8 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/purchases")
+@RequestMapping("/api/v1/mobistack/purchases")
 @RequiredArgsConstructor
 @Tag(name = "Purchases")
 public class PurchaseController {
@@ -38,9 +38,9 @@ public class PurchaseController {
         return PageResponse.of(purchaseService.list(CurrentUser.shopId(), pageable));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(params = "id")
     @PreAuthorize(Authorize.PURCHASE_READ)
-    public PurchaseResponse get(@PathVariable UUID id) {
+    public PurchaseResponse get(@RequestParam UUID id) {
         return purchaseService.get(CurrentUser.shopId(), id);
     }
 
@@ -51,9 +51,9 @@ public class PurchaseController {
         return purchaseService.receive(CurrentUser.shopId(), request);
     }
 
-    @PostMapping("/{id}/cancel")
+    @PostMapping("/cancel")
     @PreAuthorize(Authorize.PURCHASE_WRITE)
-    public PurchaseResponse cancel(@PathVariable UUID id, @RequestBody(required = false) Map<String, String> body) {
+    public PurchaseResponse cancel(@RequestParam UUID id, @RequestBody(required = false) Map<String, String> body) {
         String reason = body == null ? null : body.get("reason");
         return purchaseService.cancel(CurrentUser.shopId(), id, reason);
     }

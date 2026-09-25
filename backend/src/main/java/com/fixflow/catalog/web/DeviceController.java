@@ -22,7 +22,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/devices")
+@RequestMapping("/api/v1/mobistack/devices")
 @RequiredArgsConstructor
 @Tag(name = "Devices")
 public class DeviceController {
@@ -50,9 +49,9 @@ public class DeviceController {
         return PageResponse.of(deviceService.list(CurrentUser.shopId(), brandId, pageable));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping(params = "id")
     @PreAuthorize(Authorize.CATALOG_READ)
-    public DeviceModelResponse get(@PathVariable UUID id) {
+    public DeviceModelResponse get(@RequestParam UUID id) {
         return deviceService.get(CurrentUser.shopId(), id);
     }
 
@@ -67,10 +66,10 @@ public class DeviceController {
      * The flagship screen. One call returns the model, its aliases, every
      * compatible phone, and all stock grouped by category with live prices.
      */
-    @GetMapping("/{id}/compatibility")
+    @GetMapping("/compatibility")
     @PreAuthorize(Authorize.CATALOG_READ)
     @Operation(summary = "What parts fit this phone, how many, and at what price")
-    public DeviceCompatibilityView compatibility(@PathVariable UUID id,
+    public DeviceCompatibilityView compatibility(@RequestParam UUID id,
                                                  @RequestParam(defaultValue = "NORMAL") PricingFlag flag) {
         billingService.requireCatalog(CurrentUser.shopId());
         return compatibilityLookupService.lookup(CurrentUser.shopId(), id, flag);
@@ -83,23 +82,23 @@ public class DeviceController {
         return deviceService.create(CurrentUser.shopId(), request);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping
     @PreAuthorize(Authorize.CATALOG_WRITE)
-    public DeviceModelResponse update(@PathVariable UUID id, @Valid @RequestBody DeviceModelRequest request) {
+    public DeviceModelResponse update(@RequestParam UUID id, @Valid @RequestBody DeviceModelRequest request) {
         return deviceService.update(CurrentUser.shopId(), id, request);
     }
 
-    @PostMapping("/{id}/aliases")
+    @PostMapping("/aliases")
     @PreAuthorize(Authorize.CATALOG_WRITE)
     @ResponseStatus(HttpStatus.CREATED)
-    public DeviceModelResponse addAlias(@PathVariable UUID id, @Valid @RequestBody AddAliasRequest request) {
+    public DeviceModelResponse addAlias(@RequestParam UUID id, @Valid @RequestBody AddAliasRequest request) {
         return deviceService.addAlias(CurrentUser.shopId(), id, request);
     }
 
-    @DeleteMapping("/aliases/{aliasId}")
+    @DeleteMapping("/aliases")
     @PreAuthorize(Authorize.CATALOG_WRITE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeAlias(@PathVariable UUID aliasId) {
+    public void removeAlias(@RequestParam UUID aliasId) {
         deviceService.removeAlias(CurrentUser.shopId(), aliasId);
     }
 }

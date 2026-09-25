@@ -42,7 +42,7 @@ function relativeDate(iso: string | undefined): string {
  * Workspace access administration: the accounts that exist, the roles they hold,
  * and what each role can do.
  *
- * The `/api/v1/users` and `/api/v1/roles` endpoints already existed with no UI in
+ * The `/api/v1/mobistack/users` and `/api/v1/mobistack/roles` endpoints already existed with no UI in
  * front of them, so owners had no way to add an account or change a role after
  * the initial invite.
  */
@@ -51,8 +51,8 @@ export function AccessControlPage() {
   const toast = useToast();
   const [tab, setTab] = useState("users");
 
-  const users = useResource<PageResponse<WorkspaceUser>>("/api/v1/users?size=100");
-  const roles = useResource<WorkspaceRole[]>("/api/v1/roles");
+  const users = useResource<PageResponse<WorkspaceUser>>("/api/v1/mobistack/users?size=100");
+  const roles = useResource<WorkspaceRole[]>("/api/v1/mobistack/roles");
 
   const [draft, setDraft] = useState<UserDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -91,7 +91,7 @@ export function AccessControlPage() {
     setFormError(null);
     try {
       if (draft.id) {
-        await api(`/api/v1/users/${draft.id}`, {
+        await api(`/api/v1/mobistack/users?id=${draft.id}`, {
           method: "PUT",
           body: JSON.stringify({
             fullName: draft.fullName,
@@ -102,7 +102,7 @@ export function AccessControlPage() {
         });
         toast.success(`${draft.fullName} updated.`);
       } else {
-        await api("/api/v1/users", {
+        await api("/api/v1/mobistack/users", {
           method: "POST",
           body: JSON.stringify({
             fullName: draft.fullName,
@@ -124,7 +124,7 @@ export function AccessControlPage() {
 
   const setActive = async (user: WorkspaceUser, active: boolean) => {
     try {
-      await api(`/api/v1/users/${user.id}`, {
+      await api(`/api/v1/mobistack/users?id=${user.id}`, {
         method: "PUT",
         body: JSON.stringify({
           fullName: user.fullName,

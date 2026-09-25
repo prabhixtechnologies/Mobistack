@@ -24,8 +24,8 @@ export function ImportPage() {
 
   async function load() {
     const [overview, page] = await Promise.all([
-      api<CompatibilityOverview>("/api/v1/compatibility-groups/overview"),
-      api<PageResponse<ImportJob>>("/api/v1/imports?size=20"),
+      api<CompatibilityOverview>("/api/v1/mobistack/compatibility-groups/overview"),
+      api<PageResponse<ImportJob>>("/api/v1/mobistack/imports?size=20"),
     ]);
     setCategories(overview.categories);
     if (!categoryId && overview.categories[0]) {
@@ -42,7 +42,7 @@ export function ImportPage() {
   const runImport = useAction(
     async () => {
       const body = await api<{ groups: number; devices: number; aliases: number; warnings: string[] }>(
-        "/api/v1/imports/compatibility",
+        "/api/v1/mobistack/imports/compatibility",
         {
           method: "POST",
           body: JSON.stringify({

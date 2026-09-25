@@ -52,7 +52,7 @@ class PlatformAdminServiceTest {
 
     @Test
     void rejectsANormalUserJwt() {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/workspaces");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/admin/workspaces");
         request.addHeader("Authorization", "Bearer shop-user-jwt");
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
@@ -64,7 +64,7 @@ class PlatformAdminServiceTest {
 
     @Test
     void rejectsAMissingActingUserEvenWithTheServiceToken() {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/workspaces");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/admin/workspaces");
         request.addHeader(IdentityInternalClient.SERVICE_TOKEN_HEADER, TOKEN);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
@@ -76,7 +76,7 @@ class PlatformAdminServiceTest {
 
     @Test
     void acceptsTheServiceTokenAndActingUser() {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/workspaces");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/admin/workspaces");
         request.addHeader(IdentityInternalClient.SERVICE_TOKEN_HEADER, TOKEN);
         request.addHeader(IdentityInternalClient.ACTING_USER_HEADER, actor.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
@@ -86,7 +86,7 @@ class PlatformAdminServiceTest {
 
     @Test
     void aWrongServiceTokenIsNotAShopAdminEither() {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/admin/workspaces/x/suspend");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/mobistack/admin/workspaces/x/suspend");
         request.addHeader(IdentityInternalClient.SERVICE_TOKEN_HEADER, "not-the-token");
         request.addHeader(IdentityInternalClient.ACTING_USER_HEADER, actor.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));

@@ -6,8 +6,8 @@ import { PageHeader } from "../ui/PageHeader";
 import type { CommonsContribution, CommonsStanding } from "../lib/types";
 
 export function CommonsStandingPage() {
-  const standing = useResource<CommonsStanding>("/api/v1/commons/standing");
-  const mine = usePagedList<CommonsContribution>("/api/v1/commons/contributions/mine", { size: 25 });
+  const standing = useResource<CommonsStanding>("/api/v1/mobistack/commons/standing");
+  const mine = usePagedList<CommonsContribution>("/api/v1/mobistack/commons/contributions/mine", { size: 25 });
   const row = standing.data;
 
   return (

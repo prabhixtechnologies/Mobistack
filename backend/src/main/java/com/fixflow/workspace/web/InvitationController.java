@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/invitations")
+@RequestMapping("/api/v1/mobistack/invitations")
 @RequiredArgsConstructor
 @Tag(name = "Invitations")
 public class InvitationController {

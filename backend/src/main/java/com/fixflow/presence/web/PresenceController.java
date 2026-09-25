@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/presence")
+@RequestMapping("/api/v1/mobistack/presence")
 @RequiredArgsConstructor
 @Tag(name = "Presence")
 public class PresenceController {

@@ -30,7 +30,7 @@ import java.util.Map;
  * only workspace administrators see dependency status and runtime numbers.
  */
 @RestController
-@RequestMapping("/api/v1/system")
+@RequestMapping("/api/v1/mobistack/system")
 @RequiredArgsConstructor
 @Tag(name = "System")
 public class SystemHealthController {

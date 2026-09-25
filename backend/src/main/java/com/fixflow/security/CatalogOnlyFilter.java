@@ -17,7 +17,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.util.regex.Pattern;
 
 /**
  * Shop operations are closed. A signed-in caller may only read the shared
@@ -27,7 +26,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class CatalogOnlyFilter extends OncePerRequestFilter {
 
-    private static final Pattern WORKSPACE_SELECT = Pattern.compile("^/api/v1/workspaces/[^/]+/select$");
+    private static final String WORKSPACE_SELECT = "/api/v1/mobistack/workspaces/select";
 
     private final ObjectMapper objectMapper;
 
@@ -50,26 +49,26 @@ public class CatalogOnlyFilter extends OncePerRequestFilter {
     static boolean allowed(HttpServletRequest request) {
         String path = request.getRequestURI();
         String method = request.getMethod();
-        if (!path.startsWith("/api/v1/")) {
+        if (!path.startsWith("/api/v1/mobistack/")) {
             return true;
         }
-        if (path.startsWith("/api/v1/auth")
-                || path.startsWith("/api/v1/billing")
-                || path.startsWith("/api/v1/public")
-                || path.startsWith("/api/v1/admin")
-                || path.startsWith("/api/v1/groups")) {
+        if (path.startsWith("/api/v1/mobistack/auth")
+                || path.startsWith("/api/v1/mobistack/billing")
+                || path.startsWith("/api/v1/mobistack/public")
+                || path.startsWith("/api/v1/mobistack/admin")
+                || path.startsWith("/api/v1/mobistack/groups")) {
             return true;
         }
-        if ("GET".equals(method) && path.startsWith("/api/v1/commons")) {
+        if ("GET".equals(method) && path.startsWith("/api/v1/mobistack/commons")) {
             return true;
         }
-        if ("POST".equals(method) && "/api/v1/commons/contributions".equals(path)) {
+        if ("POST".equals(method) && "/api/v1/mobistack/commons/contributions".equals(path)) {
             return true;
         }
-        if ("GET".equals(method) && (path.equals("/api/v1/workspaces") || path.startsWith("/api/v1/workspaces/"))) {
+        if ("GET".equals(method) && (path.equals("/api/v1/mobistack/workspaces") || path.startsWith("/api/v1/mobistack/workspaces/"))) {
             return true;
         }
-        return "POST".equals(method) && WORKSPACE_SELECT.matcher(path).matches();
+        return "POST".equals(method) && WORKSPACE_SELECT.equals(path);
     }
 
     private static boolean signedIn() {

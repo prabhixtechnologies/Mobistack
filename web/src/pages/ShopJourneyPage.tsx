@@ -34,7 +34,7 @@ export function useShopGate(): GateKind {
       return;
     }
     let cancelled = false;
-    api<FitmentGroup[]>("/api/v1/groups")
+    api<FitmentGroup[]>("/api/v1/mobistack/groups")
       .then((list) => {
         if (!cancelled) setGroups(list);
       })
@@ -52,7 +52,7 @@ export function useShopGate(): GateKind {
       return;
     }
     let cancelled = false;
-    api<JoinState>("/api/v1/groups/join")
+    api<JoinState>("/api/v1/mobistack/groups/join")
       .then((row) => {
         if (!cancelled) setPendingGroup(row.status === "PENDING" ? row.groupName ?? "the union" : null);
       })
@@ -169,12 +169,12 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
     setBusy(true);
     setError(null);
     try {
-      const checkout = await api<JoinCheckout>(group ? "/api/v1/groups/join/checkout" : "/api/v1/workspaces/join/checkout", {
+      const checkout = await api<JoinCheckout>(group ? "/api/v1/mobistack/groups/join/checkout" : "/api/v1/mobistack/workspaces/join/checkout", {
         method: "POST",
         body: JSON.stringify({ joinCode }),
       });
       const payment = await collectJoinPayment(checkout, joinCode, user ?? undefined, checkout.shopName);
-      await api(group ? "/api/v1/groups/join/complete" : "/api/v1/workspaces/join/complete", {
+      await api(group ? "/api/v1/mobistack/groups/join/complete" : "/api/v1/mobistack/workspaces/join/complete", {
         method: "POST",
         body: JSON.stringify({
           joinCode,
@@ -241,7 +241,7 @@ function Invite({ onBack }: { onBack: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api("/api/v1/invitations/accept", { method: "POST", body: JSON.stringify({ token: token.trim() }) });
+      await api("/api/v1/mobistack/invitations/accept", { method: "POST", body: JSON.stringify({ token: token.trim() }) });
       await refreshUser();
       await refreshWorkspaces();
     } catch (err) {
@@ -282,9 +282,9 @@ function Waiting({ union }: { union: boolean }) {
     setError(null);
     try {
       if (union) {
-        await api("/api/v1/groups/join/cancel", { method: "POST" });
+        await api("/api/v1/mobistack/groups/join/cancel", { method: "POST" });
       } else if (waiting) {
-        await api(`/api/v1/workspaces/${waiting.id}/join/cancel`, { method: "POST" });
+        await api(`/api/v1/mobistack/workspaces/join/cancel?id=${waiting.id}`, { method: "POST" });
       }
       await refreshUser();
       await refreshWorkspaces();

@@ -18,7 +18,7 @@ public class AppDownloadController {
 
     private final AppBinaryService binaries;
 
-    @GetMapping("/api/v1/public/downloads")
+    @GetMapping("/api/v1/mobistack/public/downloads")
     @SecurityRequirements
     public AppBinaryService.Catalog catalog() {
         return binaries.catalog();
@@ -31,7 +31,7 @@ public class AppDownloadController {
     @RequestMapping(method = {RequestMethod.GET, RequestMethod.HEAD}, path = {
             "/download/android",
             "/download/android.apk",
-            "/api/v1/public/downloads/android"
+            "/api/v1/mobistack/public/downloads/android"
     })
     @SecurityRequirements
     public ResponseEntity<Resource> android() {
@@ -41,7 +41,7 @@ public class AppDownloadController {
     @RequestMapping(method = {RequestMethod.GET, RequestMethod.HEAD}, path = {
             "/download/ios",
             "/download/ios.ipa",
-            "/api/v1/public/downloads/ios"
+            "/api/v1/mobistack/public/downloads/ios"
     })
     @SecurityRequirements
     public ResponseEntity<Resource> ios() {

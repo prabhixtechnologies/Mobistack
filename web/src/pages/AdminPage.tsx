@@ -113,14 +113,14 @@ export function AdminPage() {
 
   async function load() {
     const [shopRows, flagRows, liveRows, ticketRows, releaseRows, planRows, featureRows, paymentRows] = await Promise.all([
-      api<Workspace[]>("/api/v1/admin/workspaces"),
-      api<Flag[]>("/api/v1/admin/feature-flags"),
-      api<LiveUser[]>("/api/v1/admin/live"),
-      api<Conversation[]>("/api/v1/admin/support"),
-      api<Release[]>("/api/v1/admin/app-releases"),
-      api<Plan[]>("/api/v1/admin/plans"),
-      api<FeatureDef[]>("/api/v1/admin/plan-features"),
-      api<PaymentRow[]>("/api/v1/admin/billing/orders"),
+      api<Workspace[]>("/api/v1/mobistack/admin/workspaces"),
+      api<Flag[]>("/api/v1/mobistack/admin/feature-flags"),
+      api<LiveUser[]>("/api/v1/mobistack/admin/live"),
+      api<Conversation[]>("/api/v1/mobistack/admin/support"),
+      api<Release[]>("/api/v1/mobistack/admin/app-releases"),
+      api<Plan[]>("/api/v1/mobistack/admin/plans"),
+      api<FeatureDef[]>("/api/v1/mobistack/admin/plan-features"),
+      api<PaymentRow[]>("/api/v1/mobistack/admin/billing/orders"),
     ]);
     setWorkspaces(shopRows);
     setFlags(flagRows);
@@ -135,7 +135,7 @@ export function AdminPage() {
   async function loadReviewers() {
     const rows = await api<
       { userId: string; email?: string; fullName?: string; reason?: string; grantedAt?: string }[]
-    >("/api/v1/admin/commons-reviewers");
+    >("/api/v1/mobistack/admin/commons-reviewers");
     setReviewers(rows);
   }
 
@@ -143,7 +143,7 @@ export function AdminPage() {
     load().catch((err: Error) => setError(err.message));
     const tick = () => {
       if (document.hidden) return;
-      void api<LiveUser[]>("/api/v1/admin/live").then(setLive).catch(() => undefined);
+      void api<LiveUser[]>("/api/v1/mobistack/admin/live").then(setLive).catch(() => undefined);
     };
     const timer = window.setInterval(tick, 10000);
     document.addEventListener("visibilitychange", tick);
@@ -161,12 +161,12 @@ export function AdminPage() {
   }, [tab]);
 
   async function toggleShop(workspace: Workspace) {
-    await api(`/api/v1/admin/workspaces/${workspace.id}/${workspace.active ? "suspend" : "activate"}`, { method: "POST" });
+    await api(`/api/v1/mobistack/admin/workspaces/${workspace.active ? "suspend" : "activate"}?id=${workspace.id}`, { method: "POST" });
     await load();
   }
 
   async function toggleFlag(flag: Flag) {
-    await api("/api/v1/admin/feature-flags", {
+    await api("/api/v1/mobistack/admin/feature-flags", {
       method: "PUT",
       body: JSON.stringify({ code: flag.code, enabled: !flag.enabled }),
     });
@@ -215,7 +215,7 @@ export function AdminPage() {
                     max={49}
                     defaultValue={workspace.extraScreens ?? 0}
                     onBlur={(event) => {
-                      void api(`/api/v1/admin/workspaces/${workspace.id}/screens`, {
+                      void api(`/api/v1/mobistack/admin/workspaces/screens?id=${workspace.id}`, {
                         method: "POST",
                         body: JSON.stringify({ extraScreens: Number(event.target.value) }),
                       });
@@ -265,7 +265,7 @@ export function AdminPage() {
                 features: draft.features,
                 active: true,
               };
-              const path = editingId ? `/api/v1/admin/plans/${editingId}` : "/api/v1/admin/plans";
+              const path = editingId ? `/api/v1/mobistack/admin/plans?id=${editingId}` : "/api/v1/mobistack/admin/plans";
               void api(path, {
                 method: editingId ? "PUT" : "POST",
                 body: JSON.stringify(body),
@@ -411,7 +411,7 @@ export function AdminPage() {
                 className="btn ghost"
                 type="button"
                 onClick={() =>
-                  void api(`/api/v1/admin/sessions/${row.userId}/revoke-device`, {
+                  void api(`/api/v1/mobistack/admin/live/kick?userId=${row.userId}`, {
                     method: "POST",
                     body: JSON.stringify({ deviceId: row.deviceId }),
                   }).then(load)
@@ -439,7 +439,7 @@ export function AdminPage() {
                     {ticket.userName} · {ticket.status}
                   </div>
                 </div>
-                <button className="btn ghost" type="button" onClick={() => void api(`/api/v1/admin/support/${ticket.id}/resolve`, { method: "POST" }).then(load)}>
+                <button className="btn ghost" type="button" onClick={() => void api(`/api/v1/mobistack/admin/support/resolve?id=${ticket.id}`, { method: "POST" }).then(load)}>
                   Resolve
                 </button>
               </div>
@@ -463,7 +463,7 @@ export function AdminPage() {
                   className="btn"
                   type="button"
                   onClick={() => {
-                    void api(`/api/v1/admin/support/${ticket.id}/messages`, {
+                    void api(`/api/v1/mobistack/admin/support/messages?id=${ticket.id}`, {
                       method: "POST",
                       body: JSON.stringify({ message: reply }),
                     }).then(() => {
@@ -518,7 +518,7 @@ export function AdminPage() {
                 className="btn ghost"
                 type="button"
                 onClick={() =>
-                  void api(`/api/v1/admin/app-releases/${release.platform}`, {
+                  void api(`/api/v1/mobistack/admin/app-releases?platform=${release.platform}`, {
                     method: "PUT",
                     body: JSON.stringify(release),
                   }).then(load)
@@ -538,7 +538,7 @@ export function AdminPage() {
             className="card stack"
             onSubmit={(event) => {
               event.preventDefault();
-              void api("/api/v1/admin/commons-reviewers", {
+              void api("/api/v1/mobistack/admin/commons-reviewers", {
                 method: "POST",
                 body: JSON.stringify({ userId: reviewerId.trim(), reason: reviewerReason.trim() || undefined }),
               })
@@ -572,7 +572,7 @@ export function AdminPage() {
                     className="btn ghost"
                     type="button"
                     onClick={() =>
-                      void api(`/api/v1/admin/commons-reviewers/${row.userId}/revoke`, { method: "POST" })
+                      void api(`/api/v1/mobistack/admin/commons-reviewers/revoke?userId=${row.userId}`, { method: "POST" })
                         .then(loadReviewers)
                         .catch((err: Error) => setError(err.message))
                     }

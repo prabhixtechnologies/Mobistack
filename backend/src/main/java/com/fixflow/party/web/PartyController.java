@@ -16,7 +16,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api/v1/mobistack")
 @RequiredArgsConstructor
 @Tag(name = "Parties")
 public class PartyController {
@@ -42,9 +41,9 @@ public class PartyController {
         return PageResponse.of(partyService.searchCustomers(CurrentUser.shopId(), q, pageable));
     }
 
-    @GetMapping("/customers/{id}")
+    @GetMapping(value = "/customers", params = "id")
     @PreAuthorize(Authorize.CUSTOMER_READ)
-    public CustomerResponse customer(@PathVariable UUID id) {
+    public CustomerResponse customer(@RequestParam UUID id) {
         return partyService.getCustomer(CurrentUser.shopId(), id);
     }
 
@@ -55,9 +54,9 @@ public class PartyController {
         return partyService.createCustomer(CurrentUser.shopId(), request);
     }
 
-    @PutMapping("/customers/{id}")
+    @PutMapping("/customers")
     @PreAuthorize(Authorize.CUSTOMER_WRITE)
-    public CustomerResponse updateCustomer(@PathVariable UUID id, @Valid @RequestBody CustomerRequest request) {
+    public CustomerResponse updateCustomer(@RequestParam UUID id, @Valid @RequestBody CustomerRequest request) {
         return partyService.updateCustomer(CurrentUser.shopId(), id, request);
     }
 
@@ -68,9 +67,9 @@ public class PartyController {
         return PageResponse.of(partyService.searchSuppliers(CurrentUser.shopId(), q, pageable));
     }
 
-    @GetMapping("/suppliers/{id}")
+    @GetMapping(value = "/suppliers", params = "id")
     @PreAuthorize(Authorize.SUPPLIER_READ)
-    public SupplierResponse supplier(@PathVariable UUID id) {
+    public SupplierResponse supplier(@RequestParam UUID id) {
         return partyService.getSupplier(CurrentUser.shopId(), id);
     }
 
@@ -81,9 +80,9 @@ public class PartyController {
         return partyService.createSupplier(CurrentUser.shopId(), request);
     }
 
-    @PutMapping("/suppliers/{id}")
+    @PutMapping("/suppliers")
     @PreAuthorize(Authorize.SUPPLIER_WRITE)
-    public SupplierResponse updateSupplier(@PathVariable UUID id, @Valid @RequestBody SupplierRequest request) {
+    public SupplierResponse updateSupplier(@RequestParam UUID id, @Valid @RequestBody SupplierRequest request) {
         return partyService.updateSupplier(CurrentUser.shopId(), id, request);
     }
 }

@@ -10,8 +10,8 @@ import com.fixflow.workspace.dto.WorkspaceDtos.JoinWorkspaceRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/groups")
+@RequestMapping("/api/v1/mobistack/groups")
 @RequiredArgsConstructor
 public class GroupJoinController {
 
@@ -49,20 +49,20 @@ public class GroupJoinController {
         joins.cancel(CurrentUser.userId());
     }
 
-    @GetMapping("/{id}/requests")
-    public List<JoinRequestCard> pending(@PathVariable UUID id) {
+    @GetMapping("/requests")
+    public List<JoinRequestCard> pending(@RequestParam UUID id) {
         return joins.pending(id);
     }
 
-    @PostMapping("/{id}/requests/{requestId}/approve")
+    @PostMapping("/requests/approve")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void approve(@PathVariable UUID id, @PathVariable UUID requestId) {
+    public void approve(@RequestParam UUID id, @RequestParam UUID requestId) {
         joins.approve(id, requestId);
     }
 
-    @PostMapping("/{id}/requests/{requestId}/reject")
+    @PostMapping("/requests/reject")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void reject(@PathVariable UUID id, @PathVariable UUID requestId) {
+    public void reject(@RequestParam UUID id, @RequestParam UUID requestId) {
         joins.reject(id, requestId);
     }
 }

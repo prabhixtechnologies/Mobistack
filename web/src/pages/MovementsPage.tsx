@@ -5,7 +5,7 @@ import { PageHeader } from "../ui/PageHeader";
 import type { InventoryTransaction } from "../lib/types";
 
 export function MovementsPage() {
-  const movements = usePagedList<InventoryTransaction>("/api/v1/inventory/transactions", { size: 40 });
+  const movements = usePagedList<InventoryTransaction>("/api/v1/mobistack/inventory/transactions", { size: 40 });
 
   const columns: Column<InventoryTransaction>[] = [
     {
