@@ -112,6 +112,7 @@ function MembersDialog({
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [requests, setRequests] = useState<{ id: string; shopName: string; askedBy: string }[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -130,6 +131,11 @@ function MembersDialog({
           setError(err.message);
         }
       });
+    api<{ id: string; shopName: string; askedBy: string }[]>(`/api/v1/groups/${groupId}/requests`)
+      .then((loaded) => {
+        if (!cancelled) setRequests(loaded);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -141,6 +147,7 @@ function MembersDialog({
     try {
       await task();
       setDetail(await api<FitmentGroupDetail>(`/api/v1/groups/${groupId}`));
+      setRequests(await api(`/api/v1/groups/${groupId}/requests`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update the group");
     } finally {
@@ -173,7 +180,42 @@ function MembersDialog({
   return (
     <Modal open={open} title="Members" onClose={onClose}>
       {error && <div className="error">{error}</div>}
+      {detail?.joinCode && (
+        <p className="faint">Union code {detail.joinCode}. A new shop enters this on Join the union.</p>
+      )}
       <div className="stack">
+        {requests.map((request) => (
+          <div className="spread" key={request.id}>
+            <div>
+              <strong>{request.shopName}</strong>
+              <div className="faint">{request.askedBy} paid and is waiting</div>
+            </div>
+            <button
+              className="btn"
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await api(`/api/v1/groups/${groupId}/requests/${request.id}/approve`, { method: "POST" });
+                })
+              }
+            >
+              Admit
+            </button>
+            <button
+              className="btn ghost"
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await api(`/api/v1/groups/${groupId}/requests/${request.id}/reject`, { method: "POST" });
+                })
+              }
+            >
+              Refuse
+            </button>
+          </div>
+        ))}
         {(detail?.members ?? []).map((member) => (
           <MemberRow
             key={`${member.kind}-${member.subjectId}`}

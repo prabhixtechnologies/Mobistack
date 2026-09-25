@@ -11,6 +11,7 @@ import com.fixflow.security.CurrentUser;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.workspace.service.JoinCodeGenerator;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +43,7 @@ public class SharingGroupService {
     public record MemberCard(String kind, UUID subjectId, String label, GroupRole role) {
     }
 
-    public record GroupDetail(UUID id, String name, GroupRole callerRole, List<MemberCard> members) {
+    public record GroupDetail(UUID id, String name, GroupRole callerRole, List<MemberCard> members, String joinCode) {
     }
 
     private final SharingGroupRepository groups;
@@ -58,11 +59,16 @@ public class SharingGroupService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public GroupDetail detail(UUID groupId) {
         UserPrincipal caller = CurrentUser.require();
         SharingGroup group = requireVisible(caller, groupId);
-        return new GroupDetail(group.getId(), group.getName(), roleOf(caller, group), memberCards(group));
+        GroupRole role = roleOf(caller, group);
+        String code = null;
+        if (role == GroupRole.OWNER || role == GroupRole.ADMIN) {
+            code = ensureJoinCode(group);
+        }
+        return new GroupDetail(group.getId(), group.getName(), role, memberCards(group), code);
     }
 
     @Transactional
@@ -72,6 +78,7 @@ public class SharingGroupService {
         SharingGroup group = new SharingGroup();
         group.setName(trimmed);
         group.setOwnerUserId(caller.getId());
+        group.setJoinCode(freshJoinCode(trimmed));
         groups.save(group);
         return new GroupCard(group.getId(), group.getName(), GroupRole.OWNER);
     }
@@ -256,6 +263,10 @@ public class SharingGroupService {
         return groups.visibleTo(caller.getId(), shopId == null ? new UUID(0L, 0L) : shopId, shopId != null);
     }
 
+    public SharingGroup requireManager(UUID groupId) {
+        return requireManaged(groupId);
+    }
+
     private SharingGroup requireManaged(UUID groupId) {
         UserPrincipal caller = CurrentUser.require();
         SharingGroup group = requireVisible(caller, groupId);
@@ -336,6 +347,34 @@ public class SharingGroupService {
             return person.getFullName();
         }
         return person.getEmail();
+    }
+
+    @Transactional
+    public void backfillJoinCodes() {
+        for (SharingGroup group : groups.findAll()) {
+            ensureJoinCode(group);
+        }
+    }
+
+    private String ensureJoinCode(SharingGroup group) {
+        if (group.getJoinCode() != null && !group.getJoinCode().isBlank()) {
+            return group.getJoinCode();
+        }
+        String code = freshJoinCode(group.getName());
+        group.setJoinCode(code);
+        groups.save(group);
+        return code;
+    }
+
+    private String freshJoinCode(String name) {
+        for (int attempt = 0; attempt < 12; attempt++) {
+            String code = JoinCodeGenerator.generate(name);
+            if (groups.findByJoinCodeIgnoreCase(code).isEmpty()
+                    && shops.findByJoinCodeIgnoreCase(code).isEmpty()) {
+                return code;
+            }
+        }
+        throw ApiException.businessRule("Could not assign a join code.");
     }
 
     private static String requiredName(String name) {

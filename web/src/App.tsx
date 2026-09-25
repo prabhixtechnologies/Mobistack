@@ -1,15 +1,11 @@
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth";
-import { selectedWorkspaceId } from "./lib/types";
 import { AppShell } from "./ui/AppShell";
-import { BrandFooter, BrandMark } from "./ui/BrandMark";
-import { ThemeToggle } from "./ui/ThemeToggle";
-import { SkipLink } from "./ui/SkipLink";
 import { RequirePermission } from "./ui/PermissionGate";
 import { LoginPage, SessionRestore } from "./pages/LoginPage";
 import { OidcCallbackPage } from "./pages/OidcCallbackPage";
-import { WorkspacesPage } from "./pages/WorkspacesPage";
+import { ShopJourneyPage, useShopGate } from "./pages/ShopJourneyPage";
 
 /**
  * Named-export pages need adapting before `React.lazy`, which expects a module
@@ -71,28 +67,6 @@ function LegalRoutes() {
   );
 }
 
-function UnscopedWorkspaces() {
-  const { logout } = useAuth();
-  return (
-    <div className="workspaces-shell">
-      <SkipLink />
-      <header className="app-header">
-        <BrandMark compact />
-        <div className="app-header__actions">
-          <ThemeToggle icon />
-          <button className="btn ghost header-ghost" type="button" onClick={() => void logout()}>
-            Sign out
-          </button>
-        </div>
-      </header>
-      <div className="workspaces-shell__body" id="main-content" tabIndex={-1}>
-        <WorkspacesPage />
-      </div>
-      <BrandFooter />
-    </div>
-  );
-}
-
 /**
  * Gates the app in widening order: session, then a forced password change, then a
  * selected workspace, then subscription state, and finally per-route capability.
@@ -140,14 +114,20 @@ export function App() {
     );
   }
 
-  if (!selectedWorkspaceId(user)) {
+  return <SignedIn />;
+}
+
+function SignedIn() {
+  const gate = useShopGate();
+
+  if (gate === "loading") {
+    return <SessionRestore />;
+  }
+
+  if (gate !== "catalog") {
     return (
       <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/workspaces" element={<UnscopedWorkspaces />} />
-          {LegalRoutes()}
-          <Route path="*" element={<Navigate to="/workspaces" replace />} />
-        </Routes>
+        <ShopJourneyPage gate={gate} />
       </Suspense>
     );
   }

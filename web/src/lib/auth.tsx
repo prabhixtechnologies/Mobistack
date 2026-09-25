@@ -219,7 +219,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ name, city }),
         });
         applyWorkspaceChange(auth, setUser, setWorkspaces);
-        window.location.assign(afterAuthPath(auth.user));
       },
       async joinWorkspace(joinCode) {
         const card = await api<WorkspaceCard>("/api/v1/workspaces/join", {

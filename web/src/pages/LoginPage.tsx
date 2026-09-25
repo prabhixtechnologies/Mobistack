@@ -92,7 +92,7 @@ function LoginActions() {
       <div className="auth-intro">
         <h1 className="auth-heading">Welcome</h1>
         <p className="auth-brand__welcome">
-          One Prabhix account. Sign in or create one — then pick a shop workspace.
+          Create an account, then open your own shop or join one that already exists.
         </p>
       </div>
       {error ? (
@@ -196,14 +196,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
           {children}
         </section>
         <aside className="auth-showcase">
-          <p className="auth-kicker">Prabhix Identity</p>
+          <p className="auth-kicker">MobiStack</p>
           <div className="auth-showcase__brand">
             <LogoMark size={48} />
-            <h2>{BRAND.product}</h2>
+            <h2>Your shop. Shared compatibility.</h2>
           </div>
           <p className="auth-tagline">
-            {BRAND.tagline} Sign in once with your Prabhix account — the same one used by OneOps and
-            Mailroom.
+            Create a counter, or join one that already exists. A real code opens payment. The union
+            shares which part fits which phone.
           </p>
           <ul className="auth-highlights">
             <li className="auth-highlight">
@@ -211,8 +211,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 <SearchIcon />
               </span>
               <div>
-                <strong>See what fits</strong>
-                <p>Search a phone and get the parts that actually fit it, not a generic list.</p>
+                <strong>Create or join</strong>
+                <p>Both choices are on the first screen. Creating a shop does not charge you.</p>
               </div>
             </li>
             <li className="auth-highlight">
@@ -220,8 +220,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 <BoxIcon />
               </span>
               <div>
-                <strong>See stock and price</strong>
-                <p>Live quantities and counter prices before you commit the sale or the job.</p>
+                <strong>Pay after the code</strong>
+                <p>₹50 opens only when the shop code or the union code is recognized.</p>
               </div>
             </li>
             <li className="auth-highlight">
@@ -229,8 +229,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 <CartIcon />
               </span>
               <div>
-                <strong>Sell from the ledger</strong>
-                <p>Every sale, repair and receive appends a row. Offline tickets stay idempotent.</p>
+                <strong>Then the catalog</strong>
+                <p>Compatibility opens once that shop is in the union. Stock stays on the shop.</p>
               </div>
             </li>
           </ul>

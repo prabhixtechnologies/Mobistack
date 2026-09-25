@@ -33,6 +33,10 @@ public class SharingGroup {
     @Column(name = "name", nullable = false, length = 160)
     private String name;
 
+    /** Code a shop types to ask to share this group's fitment. Null until an admin opens the group. */
+    @Column(name = "join_code", length = 16)
+    private String joinCode;
+
     @Column(name = "owner_user_id", nullable = false)
     private UUID ownerUserId;
 

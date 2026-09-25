@@ -16,6 +16,7 @@ export interface FitmentMember {
 
 export interface FitmentGroupDetail extends FitmentGroup {
   members: FitmentMember[];
+  joinCode?: string | null;
 }
 
 export function canManageGroup(group: FitmentGroup | null | undefined): boolean {

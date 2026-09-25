@@ -305,6 +305,16 @@ public class BillingService {
 
     public static final String JOIN_PRICE = "WORKSPACE_JOIN";
     public static final String JOIN_USED = "JOIN_USED";
+    public static final String GROUP_JOIN_PREFIX = "GROUP_JOIN:";
+    public static final String GROUP_JOIN_USED_PREFIX = "GROUP_JOIN_USED:";
+
+    public static String groupJoinPurpose(UUID groupId) {
+        return GROUP_JOIN_PREFIX + groupId;
+    }
+
+    public static String groupJoinUsedPurpose(UUID groupId) {
+        return GROUP_JOIN_USED_PREFIX + groupId;
+    }
 
     public boolean hasUnspentJoinPayment(UUID userId, UUID workspaceId) {
         return findUnspentJoin(userId, workspaceId).isPresent();
@@ -381,6 +391,76 @@ public class BillingService {
                 order.getPriceCode(), order.getGateway());
     }
 
+    /** Same ₹50 price as a shop join. The purpose names the fitment group so the two fees do not mix. */
+    public CheckoutOrderResponse createGroupJoinOrder(UUID userId, UUID workspaceId, UUID groupId) {
+        BillingPrice price = priceRepository.findByCodeAndActiveTrue(JOIN_PRICE)
+                .orElseThrow(() -> ApiException.notFound("Price", JOIN_PRICE));
+        long amountPaise = RazorpayMoney.requireMinimum(RazorpayMoney.toPaise(price.getAmount()));
+
+        BillingOrder order = new BillingOrder();
+        order.setWorkspaceId(workspaceId);
+        order.setUserId(userId);
+        order.setPriceCode(price.getCode());
+        order.setPurpose(groupJoinPurpose(groupId));
+        order.setAmount(price.getAmount());
+        order.setCurrency(price.getCurrency());
+        order.setStatus(PaymentStatus.CREATED);
+        order.setEntitlementCode(price.getEntitlement());
+
+        if (razorpayGateway.configured()) {
+            Map<String, String> notes = new LinkedHashMap<>();
+            notes.put("workspace_id", workspaceId.toString());
+            notes.put("group_id", groupId.toString());
+            notes.put("price_code", price.getCode());
+            notes.put("joiner_user_id", userId.toString());
+            notes.put("internal_order_id", order.getId().toString());
+            RazorpayGateway.CreatedOrder remote = razorpayGateway.createOrder(
+                    amountPaise, price.getCurrency(), receiptFor(order.getId()), notes);
+            order.setGateway("RAZORPAY");
+            order.setGatewayOrderId(remote.id());
+            order.setStatus(PaymentStatus.PENDING);
+        } else if (environment.acceptsProfiles(Profiles.of("prod"))) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
+                    "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+        } else {
+            order.setGateway("DEV");
+            order.setGatewayOrderId("dev-" + UUID.randomUUID());
+        }
+        orderRepository.save(order);
+        return new CheckoutOrderResponse(order.getId(), order.getGatewayOrderId(), amountPaise,
+                order.getCurrency(), razorpayGateway.configured() ? razorpayGateway.keyId() : null,
+                order.getPriceCode(), order.getGateway());
+    }
+
+    public boolean hasUnspentGroupJoin(UUID userId, UUID workspaceId, UUID groupId) {
+        return orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
+                workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, groupJoinPurpose(groupId)).isPresent();
+    }
+
+    public boolean consumeGroupJoin(UUID userId, UUID workspaceId, UUID groupId) {
+        return orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
+                        workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, groupJoinPurpose(groupId))
+                .map(order -> {
+                    order.setPurpose(groupJoinUsedPurpose(groupId));
+                    order.setUpdatedAt(Instant.now());
+                    orderRepository.save(order);
+                    return true;
+                }).orElse(false);
+    }
+
+    public void releaseGroupJoin(UUID userId, UUID workspaceId, UUID groupId) {
+        if (userId == null || workspaceId == null || groupId == null) {
+            return;
+        }
+        orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
+                        workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, groupJoinUsedPurpose(groupId))
+                .ifPresent(order -> {
+                    order.setPurpose(groupJoinPurpose(groupId));
+                    order.setUpdatedAt(Instant.now());
+                    orderRepository.save(order);
+                });
+    }
+
     public BillingOrder verifyJoinPayment(UUID userId, VerifyPaymentRequest request) {
         if (request == null || isBlank(request.razorpayOrderId()) || isBlank(request.razorpayPaymentId())
                 || isBlank(request.razorpaySignature())) {
@@ -440,6 +520,11 @@ public class BillingService {
                 .filter(value -> value != null)
                 .max(Instant::compareTo)
                 .orElse(null);
+    }
+
+    /** The union join fee is the ₹50 that opens compatibility for a shop that had no plan. */
+    public void grantCatalog(UUID workspaceId) {
+        grantOne(workspaceId, CATALOG, null, null);
     }
 
     public boolean hasLive(UUID workspaceId, String entitlement) {

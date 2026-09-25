@@ -13,6 +13,8 @@ public interface SharingGroupRepository extends JpaRepository<SharingGroup, UUID
 
     Optional<SharingGroup> findFirstByName(String name);
 
+    Optional<SharingGroup> findByJoinCodeIgnoreCase(String joinCode);
+
     @Query("""
             select distinct g from SharingGroup g
             where g.ownerUserId = :userId

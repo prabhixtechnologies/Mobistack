@@ -566,13 +566,14 @@ public class WorkspaceAccessService {
     private Shop requireJoinTarget(String rawCode) {
         String code = rawCode == null ? "" : rawCode.trim().toUpperCase();
         return shopRepository.findByJoinCodeIgnoreCase(code)
-                .orElseThrow(() -> ApiException.notFound("Workspace", code));
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No shop with that code."));
     }
 
     private void rejectIfAlreadyWaitingOrActive(UUID workspaceId, UUID userId) {
         membershipRepository.findByWorkspaceIdAndUserId(workspaceId, userId).ifPresent(membership -> {
             if (membership.getStatus() == MembershipStatus.ACTIVE
-                    || membership.getStatus() == MembershipStatus.PENDING) {
+                    || membership.getStatus() == MembershipStatus.PENDING
+                    || membership.getStatus() == MembershipStatus.INVITED) {
                 throw ApiException.alreadyExists("You already have a membership in this workspace.");
             }
         });
