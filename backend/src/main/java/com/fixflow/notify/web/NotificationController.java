@@ -5,10 +5,12 @@ import com.fixflow.notify.domain.NotificationOutbox;
 import com.fixflow.notify.domain.NotificationPreference;
 import com.fixflow.notify.repository.NotificationOutboxRepository;
 import com.fixflow.notify.repository.NotificationPreferenceRepository;
+import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,6 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/mobistack/notifications")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "Notifications")
 public class NotificationController {
 
@@ -31,6 +34,7 @@ public class NotificationController {
     }
 
     @GetMapping("/preferences")
+    @PreAuthorize(Authorize.NOTIFICATION_READ)
     public List<NotificationPreference> preferences() {
         List<NotificationPreference> existing = preferenceRepository.findByUserIdOrderByEventTypeAsc(CurrentUser.userId());
         if (!existing.isEmpty()) {
@@ -42,6 +46,7 @@ public class NotificationController {
     }
 
     @PutMapping("/preferences")
+    @PreAuthorize(Authorize.NOTIFICATION_WRITE)
     public List<NotificationPreference> save(@RequestBody List<PreferenceRequest> body) {
         return body.stream().map(request -> {
             NotificationPreference row = preferenceRepository
@@ -81,6 +86,7 @@ public class NotificationController {
     }
 
     @GetMapping
+    @PreAuthorize(Authorize.NOTIFICATION_READ)
     public List<OutboxView> recent() {
         return outboxRepository.findByShopIdOrderByCreatedAtDesc(CurrentUser.shopId(), PageRequest.of(0, 40))
                 .getContent()

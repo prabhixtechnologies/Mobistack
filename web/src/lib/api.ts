@@ -14,27 +14,7 @@ let accessTokenMemory: string | null = null;
 
 const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN as string | undefined) ?? "";
 
-const ANONYMOUS_API = new Set([
-  "/api/v1/mobistack/auth/login",
-  "/api/v1/mobistack/auth/refresh",
-  "/api/v1/mobistack/auth/register",
-  "/api/v1/mobistack/auth/register-shop",
-  "/api/v1/mobistack/auth/forgot-password",
-  "/api/v1/mobistack/auth/reset-password",
-  "/api/v1/mobistack/auth/request-otp",
-  "/api/v1/mobistack/auth/verify-otp",
-  "/api/v1/mobistack/auth/methods",
-  "/api/v1/mobistack/auth/magic-link",
-  "/api/v1/mobistack/auth/magic-link/consume",
-  "/api/v1/mobistack/auth/email-otp",
-  "/api/v1/mobistack/auth/email-otp/verify",
-  "/api/v1/mobistack/auth/phone/start",
-  "/api/v1/mobistack/auth/phone/verify",
-  "/api/v1/mobistack/auth/whatsapp/start",
-  "/api/v1/mobistack/auth/whatsapp/verify",
-  "/api/v1/mobistack/auth/sso/google/start",
-  "/api/v1/mobistack/auth/sso/google",
-]);
+const ANONYMOUS_API = new Set<string>();
 
 function pathOnly(path: string): string {
   const cut = path.indexOf("?");
@@ -158,8 +138,13 @@ function withDevice(headers: Headers): Headers {
   return headers;
 }
 
-function endSession(reason: "session" | "expired"): void {
+function endSession(reason: "session" | "expired", message?: string): void {
   clearSession();
+  const security = message?.toLowerCase().includes("security update");
+  if (security && !window.location.pathname.startsWith("/security-sign-in")) {
+    window.location.assign("/security-sign-in");
+    return;
+  }
   if (!window.location.pathname.startsWith("/login")) {
     window.location.assign(`/login?reason=${reason}`);
   }
@@ -248,10 +233,12 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const canRefresh = isOidcEnabled() || Boolean(getRefreshToken());
   if (response.status === 401 && !anonymous && canRefresh && path !== "/api/v1/mobistack/auth/refresh") {
     let sessionExpired = true;
+    let expiryMessage: string | undefined;
     try {
       const payload = (await response.clone().json()) as ApiError;
+      expiryMessage = payload.message;
       if (payload.code === "SESSION_REPLACED") {
-        endSession("session");
+        endSession("session", expiryMessage);
         await parseError(response);
       }
       sessionExpired = !payload.code || payload.code === "UNAUTHENTICATED"
@@ -271,7 +258,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       headers.set("Authorization", `Bearer ${getAccessToken()}`);
       response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
     } else {
-      endSession("expired");
+      endSession("expired", expiryMessage);
       await parseError(response);
     }
   }

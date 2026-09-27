@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,6 +20,7 @@ public class OpenApiConfig {
     private static final String BEARER_SCHEME = "bearerAuth";
 
     @Bean
+    @ConditionalOnProperty(name = "springdoc.api-docs.enabled", havingValue = "true", matchIfMissing = true)
     public OpenAPI mobiStackOpenApi() {
         return new OpenAPI()
                 .info(new Info()
@@ -27,9 +29,8 @@ public class OpenApiConfig {
                         .description("""
                                 Mobile repair shop management platform.
 
-                                All endpoints except `/api/v1/mobistack/auth/login`, `/api/v1/mobistack/auth/refresh` and
-                                `/api/v1/mobistack/auth/register-shop` require a Bearer access token. Every request is
-                                scoped to the shop encoded in that token.
+                                All business endpoints require a Prabhix Identity bearer token. Sign-in happens on
+                                Identity; this API only resolves shop authority from the selected workspace.
                                 """)
                         .contact(new Contact().name("MobiStack").email("support@prabhixtechnologies.com"))
                         .license(new License().name("Proprietary")))
@@ -40,6 +41,6 @@ public class OpenApiConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("Access token returned by /api/v1/mobistack/auth/login")));
+                                .description("Prabhix Identity access token")));
     }
 }

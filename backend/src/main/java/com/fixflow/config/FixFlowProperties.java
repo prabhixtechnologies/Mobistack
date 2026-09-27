@@ -81,6 +81,12 @@ public class FixFlowProperties {
 
         /** A development SSO bypass. Off. This API never signs someone in by itself. */
         private boolean devSsoEnabled = false;
+
+        /**
+         * Tokens issued before this instant are rejected so clients re-authenticate through Identity
+         * after a security cutover. Blank disables the check.
+         */
+        private String securitySignInAfter = "";
     }
 
     @Getter
@@ -103,6 +109,11 @@ public class FixFlowProperties {
         private String supportEmail = "support@prabhixtechnologies.com";
         private String supportPhone = "";
         private boolean requireHttps = false;
+        /**
+         * When the immediate peer matches one of these addresses, {@code X-Forwarded-For} is trusted
+         * for rate limiting. Empty means only {@code getRemoteAddr()} is used.
+         */
+        private List<String> trustedProxies = List.of();
     }
 
     @Getter

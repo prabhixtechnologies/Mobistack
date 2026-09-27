@@ -91,7 +91,7 @@ class SaleServiceTest {
                 .thenReturn(List.of());
 
         CreateSaleRequest request = new CreateSaleRequest(null, PricingFlag.NORMAL, BigDecimal.ZERO, null, "pos-1",
-                null, List.of(new SaleLineRequest(UUID.randomUUID(), 1, new BigDecimal("80"), BigDecimal.ZERO)),
+                null, List.of(new SaleLineRequest(UUID.randomUUID(), 1, new BigDecimal("80"), BigDecimal.ZERO, null)),
                 List.of());
 
         SaleResponse response = saleService.complete(shopId, request);

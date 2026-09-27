@@ -1,21 +1,20 @@
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth";
+import { selectedWorkspaceId } from "./lib/types";
+import { afterAuthPath } from "./lib/plan";
 import { AppShell } from "./ui/AppShell";
-import { RequirePermission } from "./ui/PermissionGate";
+import { BrandFooter, BrandMark } from "./ui/BrandMark";
+import { ThemeToggle } from "./ui/ThemeToggle";
+import { SkipLink } from "./ui/SkipLink";
+import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
 import { LoginPage, SessionRestore } from "./pages/LoginPage";
 import { OidcCallbackPage } from "./pages/OidcCallbackPage";
 import { ShopJourneyPage, useShopGate } from "./pages/ShopJourneyPage";
+import { WorkspacesPage } from "./pages/WorkspacesPage";
+import { ForcePasswordChangePage } from "./pages/ForcePasswordChangePage";
+import { SecuritySignInPage } from "./pages/SecuritySignInPage";
 
-/**
- * Named-export pages need adapting before `React.lazy`, which expects a module
- * with a `default`. Keeping the helper here means pages stay conventional named
- * exports and testable without a default-export shim.
- *
- * Only the named export is constrained, so a module may export other things, and
- * the page's own prop types survive the indirection — `LegalPage` still requires
- * its `kind`.
- */
 function page<P extends object, K extends string>(
   loader: () => Promise<{ [key in K]: ComponentType<P> }>,
   name: K,
@@ -23,16 +22,38 @@ function page<P extends object, K extends string>(
   return lazy(() => loader().then((module) => ({ default: module[name] })));
 }
 
+const DashboardPage = page(() => import("./pages/DashboardPage"), "DashboardPage");
+const SearchPage = page(() => import("./pages/SearchPage"), "SearchPage");
 const CommonsBrowsePage = page(() => import("./pages/CommonsBrowsePage"), "CommonsBrowsePage");
 const CommonsDevicePage = page(() => import("./pages/CommonsDevicePage"), "CommonsDevicePage");
 const CommonsComponentPage = page(() => import("./pages/CommonsComponentPage"), "CommonsComponentPage");
+const CommonsStandingPage = page(() => import("./pages/CommonsStandingPage"), "CommonsStandingPage");
+const CommonsReviewPage = page(() => import("./pages/CommonsReviewPage"), "CommonsReviewPage");
+const CatalogLinksPage = page(() => import("./pages/CatalogLinksPage"), "CatalogLinksPage");
+const CompatibilityPage = page(() => import("./pages/CompatibilityPage"), "CompatibilityPage");
+const CompatibilityCategoryPage = page(() => import("./pages/CompatibilityCategoryPage"), "CompatibilityCategoryPage");
+const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
+const InventoryPage = page(() => import("./pages/InventoryPage"), "InventoryPage");
+const MovementsPage = page(() => import("./pages/MovementsPage"), "MovementsPage");
+const SettingsPage = page(() => import("./pages/SettingsPage"), "SettingsPage");
+const SalesPage = page(() => import("./pages/SalesPage"), "SalesPage");
+const RepairsPage = page(() => import("./pages/RepairsPage"), "RepairsPage");
+const CustomersPage = page(() => import("./pages/CustomersPage"), "CustomersPage");
+const SuppliersPage = page(() => import("./pages/SuppliersPage"), "SuppliersPage");
+const PurchasesPage = page(() => import("./pages/PurchasesPage"), "PurchasesPage");
+const ReportsPage = page(() => import("./pages/ReportsPage"), "ReportsPage");
+const MembersPage = page(() => import("./pages/MembersPage"), "MembersPage");
+const AccessControlPage = page(() => import("./pages/AccessControlPage"), "AccessControlPage");
+const ProfilePage = page(() => import("./pages/ProfilePage"), "ProfilePage");
+const SystemHealthPage = page(() => import("./pages/SystemHealthPage"), "SystemHealthPage");
 const BillingPage = page(() => import("./pages/BillingPage"), "BillingPage");
+const ImportPage = page(() => import("./pages/ImportPage"), "ImportPage");
+const AuditPage = page(() => import("./pages/AuditPage"), "AuditPage");
+const AdminPage = page(() => import("./pages/AdminPage"), "AdminPage");
+const NotificationsPage = page(() => import("./pages/NotificationsPage"), "NotificationsPage");
+const SupportPage = page(() => import("./pages/SupportPage"), "SupportPage");
 const LegalPage = page(() => import("./pages/LegalPage"), "LegalPage");
 const AppDownloadPage = page(() => import("./pages/AppDownloadPage"), "AppDownloadPage");
-const ForcePasswordChangePage = page(
-  () => import("./pages/ForcePasswordChangePage"),
-  "ForcePasswordChangePage",
-);
 
 function RouteFallback() {
   return (
@@ -67,12 +88,28 @@ function LegalRoutes() {
   );
 }
 
-/**
- * Gates the app in widening order: session, then a forced password change, then a
- * selected workspace, then subscription state, and finally per-route capability.
- * Each stage assumes the previous one passed, so a route only ever needs to
- * declare its permission.
- */
+function UnscopedWorkspaces() {
+  const { logout } = useAuth();
+  return (
+    <div className="workspaces-shell">
+      <SkipLink />
+      <header className="app-header">
+        <BrandMark compact />
+        <div className="app-header__actions">
+          <ThemeToggle icon />
+          <button className="btn ghost header-ghost" type="button" onClick={() => void logout()}>
+            Sign out
+          </button>
+        </div>
+      </header>
+      <div className="workspaces-shell__body" id="main-content" tabIndex={-1}>
+        <WorkspacesPage />
+      </div>
+      <BrandFooter />
+    </div>
+  );
+}
+
 export function App() {
   const { user, ready } = useAuth();
 
@@ -101,7 +138,6 @@ export function App() {
     );
   }
 
-  // A temporary credential must be replaced before it can reach workspace data.
   if (user.mustChangePassword) {
     return (
       <Suspense fallback={<RouteFallback />}>
@@ -114,17 +150,17 @@ export function App() {
     );
   }
 
-  return <SignedIn />;
+  return <SignedIn user={user} />;
 }
 
-function SignedIn() {
+function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user"]> }) {
   const gate = useShopGate();
 
   if (gate === "loading") {
     return <SessionRestore />;
   }
 
-  if (gate !== "catalog") {
+  if (gate === "start" || gate === "waitingShop") {
     return (
       <Suspense fallback={<RouteFallback />}>
         <ShopJourneyPage gate={gate} />
@@ -132,22 +168,63 @@ function SignedIn() {
     );
   }
 
+  if (!selectedWorkspaceId(user)) {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/workspaces" element={<UnscopedWorkspaces />} />
+          {LegalRoutes()}
+          <Route path="*" element={<Navigate to="/workspaces" replace />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  const home = afterAuthPath(user);
+
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes>
+        <Route path="/security-sign-in" element={<SecuritySignInPage />} />
         <Route element={<AppShell />}>
-          {/* Capability comes from ROUTE_PERMISSIONS, keyed on the live pathname. */}
           <Route element={<RequirePermission />}>
-            <Route path="/" element={<Navigate to="/commons" replace />} />
+            <Route path="/" element={home === "/" ? <DashboardPage /> : <Navigate to={home} replace />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/commons" element={<CommonsBrowsePage />} />
             <Route path="/commons/devices/:id" element={<CommonsDevicePage />} />
             <Route path="/commons/components/:id" element={<CommonsComponentPage />} />
+            <Route path="/commons/standing" element={<CommonsStandingPage />} />
+            <Route path="/commons/review" element={<CommonsReviewPage />} />
+            <Route path="/devices/:id" element={<DevicePage />} />
+            <Route path="/sales" element={<SalesPage />} />
+            <Route path="/repairs" element={<RepairsPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/inventory/catalog-links" element={<CatalogLinksPage />} />
+            <Route path="/purchases" element={<PurchasesPage />} />
+            <Route path="/customers" element={<CustomersPage />} />
+            <Route path="/suppliers" element={<SuppliersPage />} />
+            <Route path="/compatibility" element={<CompatibilityPage />} />
+            <Route path="/compatibility/:categoryId" element={<CompatibilityCategoryPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/movements" element={<MovementsPage />} />
+            <Route path="/members" element={<MembersPage />} />
+            <Route path="/users" element={<AccessControlPage />} />
+            <Route path="/workspaces" element={<WorkspacesPage />} />
             <Route path="/billing" element={<BillingPage />} />
-            <Route path="*" element={<Navigate to="/commons" replace />} />
+            <Route path="/import" element={<ImportPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/audit" element={<AuditPage />} />
+            <Route path="/health" element={<SystemHealthPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+          <Route element={<RequirePlatformAdmin />}>
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>
         {LegalRoutes()}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </Suspense>
   );

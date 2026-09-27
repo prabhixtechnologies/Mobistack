@@ -1,6 +1,7 @@
 package com.fixflow.security.jwt;
 
 import tools.jackson.databind.ObjectMapper;
+import com.fixflow.config.FixFlowProperties;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.user.repository.UserRepository;
 import com.fixflow.workspace.service.WorkspaceAccessService;
@@ -41,7 +42,7 @@ class JwtAuthenticationFilterTest {
     void setUp() {
         filter = new JwtAuthenticationFilter(
                 tokenVerifier, userRepository, workspaceAccessService, identityUserMirror,
-                new ObjectMapper());
+                new FixFlowProperties(), new ObjectMapper());
     }
 
     @Test

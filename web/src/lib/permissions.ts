@@ -40,6 +40,13 @@ export const PERMISSIONS = [
   "AUDIT_READ",
   "WORKSPACE_BILLING",
   "COMPATIBILITY_APPROVE",
+  "NOTIFICATION_READ",
+  "NOTIFICATION_WRITE",
+  "SUPPORT_READ",
+  "SUPPORT_WRITE",
+  "FEATURE_FLAG_READ",
+  "SALES_PRICE_OVERRIDE",
+  "PURCHASE_COST_OVERRIDE",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -95,6 +102,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   "/billing": "WORKSPACE_BILLING",
   "/health": "SETTINGS_READ",
   "/settings": "SETTINGS_READ",
+  "/notifications": "NOTIFICATION_READ",
+  "/support": "SUPPORT_READ",
 };
 
 /**
@@ -103,13 +112,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
  * see `routePermission`.
  */
 const OPEN_ROUTES = new Set([
-  "/",
   "/profile",
-  "/notifications",
-  "/support",
   "/workspaces",
-  "/search",
-  "/commons",
   "/commons/standing",
   "/commons/review",
 ]);

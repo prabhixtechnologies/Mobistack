@@ -72,12 +72,6 @@ public class WorkspaceController {
         return workspaceAccessService.completePaidJoin(CurrentUser.userId(), request);
     }
 
-    @PostMapping("/join")
-    @Operation(summary = "Request to join by code after the join fee is paid. Stays PENDING until an owner approves.")
-    public WorkspaceCard join(@Valid @RequestBody JoinWorkspaceRequest request) {
-        return workspaceAccessService.requestJoin(CurrentUser.userId(), request.joinCode());
-    }
-
     @PostMapping("/select")
     @Operation(summary = "Switch the selected workspace; the bearer token stays the same")
     public WorkspaceSession select(@RequestParam UUID id) {

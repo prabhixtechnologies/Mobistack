@@ -45,6 +45,13 @@ public final class Authorize {
      * own private fitment notes.
      */
     public static final String COMMONS_REVIEW = "hasAuthority('COMMONS_REVIEW')";
+    public static final String NOTIFICATION_READ = "hasAuthority('NOTIFICATION_READ')";
+    public static final String NOTIFICATION_WRITE = "hasAuthority('NOTIFICATION_WRITE')";
+    public static final String SUPPORT_READ = "hasAuthority('SUPPORT_READ')";
+    public static final String SUPPORT_WRITE = "hasAuthority('SUPPORT_WRITE')";
+    public static final String FEATURE_FLAG_READ = "hasAuthority('FEATURE_FLAG_READ')";
+    public static final String SALES_PRICE_OVERRIDE = "hasAuthority('SALES_PRICE_OVERRIDE')";
+    public static final String PURCHASE_COST_OVERRIDE = "hasAuthority('PURCHASE_COST_OVERRIDE')";
 
     private Authorize() {
     }

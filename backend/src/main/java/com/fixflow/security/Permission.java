@@ -35,6 +35,13 @@ public enum Permission {
     WORKSPACE_BILLING,
     REPORT_EXPORT,
     COMPATIBILITY_APPROVE,
+    NOTIFICATION_READ,
+    NOTIFICATION_WRITE,
+    SUPPORT_READ,
+    SUPPORT_WRITE,
+    FEATURE_FLAG_READ,
+    SALES_PRICE_OVERRIDE,
+    PURCHASE_COST_OVERRIDE,
     /**
      * Not grantable as a shop role. Attached to the principal when the user is in
      * {@code commons_reviewers}.

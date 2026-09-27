@@ -25,7 +25,8 @@ public final class CommerceDtos {
             UUID variantId,
             @Positive int quantity,
             BigDecimal unitPrice,
-            BigDecimal discount
+            BigDecimal discount,
+            String priceOverrideReason
     ) {
     }
 
@@ -106,7 +107,8 @@ public final class CommerceDtos {
             UUID variantId,
             @Positive int quantity,
             BigDecimal unitCost,
-            String batchNo
+            String batchNo,
+            String costOverrideReason
     ) {
     }
 

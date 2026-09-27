@@ -4,8 +4,7 @@ import tools.jackson.databind.ObjectMapper;
 import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
+import com.prabhix.identity.client.ServiceTokenGuard;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +12,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -24,58 +22,81 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Per-IP throttle for the API. Uses Redis when the cluster is configured so nodes share the same
- * counters.
- *
- * <p>There is no longer a tighter bucket for {@code /api/v1/mobistack/auth/**}: sign-in, OTP and password
- * reset live on Prabhix Identity, which throttles them itself, and what remains under that prefix
- * ({@code /me}, {@code /logout}) is ordinary authenticated traffic.
+ * Shared rejection path for {@code /internal/**} and {@code /api/v1/mobistack/admin/**}: rate-limit
+ * failed service-token attempts and log an audit record for each rejection.
  */
 @Slf4j
 @Component
-public class ApiRateLimitFilter extends OncePerRequestFilter {
+public class ServiceTokenAuthHandler {
 
-    private static final int API_LIMIT = 240;
-    private static final Duration WINDOW = Duration.ofMinutes(1);
+    static final int FAILURE_LIMIT = 20;
+    static final Duration WINDOW = Duration.ofMinutes(1);
 
     private final ObjectMapper objectMapper;
     private final FixFlowProperties properties;
     private final ObjectProvider<StringRedisTemplate> redis;
     private final Map<String, Deque<Long>> hits = new ConcurrentHashMap<>();
 
-    public ApiRateLimitFilter(ObjectMapper objectMapper, FixFlowProperties properties,
-                              ObjectProvider<StringRedisTemplate> redis) {
+    public ServiceTokenAuthHandler(ObjectMapper objectMapper, FixFlowProperties properties,
+                                   ObjectProvider<StringRedisTemplate> redis) {
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.redis = redis;
     }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        if (path == null || !path.startsWith("/api/")) {
+    /**
+     * @return {@code true} when the caller may continue the filter chain
+     */
+    public boolean permitOrReject(HttpServletRequest request, HttpServletResponse response,
+                                  ServiceTokenGuard guard, String route) throws IOException {
+        if (guard.configured() && guard.permits(request)) {
             return true;
         }
-        return path.startsWith("/actuator/") || path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui");
-    }
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-        String key = "api:" + clientKey(request);
-        if (overLimit(key, API_LIMIT)) {
+        String client = clientKey(request);
+        String bucket = "svc-token-fail:" + route + ":" + client;
+        if (overLimit(bucket)) {
+            log.warn("Service token attempts throttled route={} client={} path={}",
+                    route, client, request.getRequestURI());
             response.setStatus(429);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             objectMapper.writeValue(response.getOutputStream(),
                     ApiError.of(ErrorCode.BUSINESS_RULE_VIOLATION,
-                            "Too many requests. Try again shortly.",
+                            "Too many invalid service token attempts. Try again shortly.",
                             request.getRequestURI()));
-            return;
+            return false;
         }
-        filterChain.doFilter(request, response);
+        auditRejection(route, client, request, guard.configured());
+        String message = guard.configured()
+                ? "That service token is not valid."
+                : "Internal routes require a configured service token.";
+        if ("platform-admin".equals(route)) {
+            message = guard.configured()
+                    ? "Platform admin requires the operations service token."
+                    : message;
+        }
+        write(response, ErrorCode.UNAUTHENTICATED.status().value(), message, request.getRequestURI());
+        return false;
     }
 
-    private boolean overLimit(String key, int limit) {
+    private void auditRejection(String route, String client, HttpServletRequest request, boolean configured) {
+        log.warn(
+                "AUDIT service_token_rejected route={} client={} path={} method={} tokenConfigured={}",
+                route,
+                client,
+                request.getRequestURI(),
+                request.getMethod(),
+                configured);
+    }
+
+    private void write(HttpServletResponse response, int status, String message, String path)
+            throws IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        objectMapper.writeValue(response.getOutputStream(),
+                ApiError.of(ErrorCode.UNAUTHENTICATED, message, path));
+    }
+
+    private boolean overLimit(String key) {
         StringRedisTemplate template = properties.getRedis().isEnabled() ? redis.getIfAvailable() : null;
         if (template != null) {
             try {
@@ -84,9 +105,9 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
                 if (count != null && count == 1L) {
                     template.expire(redisKey, WINDOW);
                 }
-                return count != null && count > limit;
+                return count != null && count > FAILURE_LIMIT;
             } catch (RuntimeException ex) {
-                log.warn("Redis rate limit unavailable, using local counters: {}", ex.getMessage());
+                log.warn("Redis service-token rate limit unavailable, using local counters: {}", ex.getMessage());
             }
         }
         long now = Instant.now().toEpochMilli();
@@ -96,7 +117,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
             while (!stamps.isEmpty() && now - stamps.peekFirst() > windowMs) {
                 stamps.removeFirst();
             }
-            if (stamps.size() >= limit) {
+            if (stamps.size() >= FAILURE_LIMIT) {
                 return true;
             }
             stamps.addLast(now);

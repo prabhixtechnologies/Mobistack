@@ -22,6 +22,7 @@ import com.fixflow.commerce.repository.PaymentRepository;
 import com.fixflow.commerce.repository.SaleItemRepository;
 import com.fixflow.commerce.repository.SaleRepository;
 import com.fixflow.common.error.ApiException;
+import com.fixflow.common.error.ErrorCode;
 import com.fixflow.inventory.domain.InventoryReferenceType;
 import com.fixflow.inventory.domain.InventoryTransactionType;
 import com.fixflow.inventory.service.InventoryService;
@@ -35,6 +36,8 @@ import com.fixflow.pricing.service.PriceContext;
 import com.fixflow.pricing.service.PriceQuote;
 import com.fixflow.pricing.service.PricingService;
 import com.fixflow.config.FixFlowProperties;
+import com.fixflow.security.CurrentUser;
+import com.fixflow.security.Permission;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
 import lombok.RequiredArgsConstructor;
@@ -105,14 +108,27 @@ public class SaleService {
         List<SaleItem> items = new ArrayList<>();
 
         for (SaleLineRequest line : request.items()) {
+            CommerceValidation.requirePositiveQuantity(line.quantity());
             ProductVariant variant = variantRepository.findByIdAndShopId(line.variantId(), shopId)
                     .orElseThrow(() -> ApiException.notFound("Product variant", line.variantId()));
             PriceQuote quote = pricingService.quote(PriceContext.of(shopId, variant, flag)
                     .withCustomerType(customerType)
                     .withQuantity(line.quantity()));
-            BigDecimal unitPrice = line.unitPrice() == null ? quote.unitPrice() : line.unitPrice();
+            BigDecimal unitPrice = quote.unitPrice();
+            if (line.unitPrice() != null && !CommerceValidation.pricesMatch(unitPrice, line.unitPrice())) {
+                if (!CurrentUser.has(Permission.SALES_PRICE_OVERRIDE)) {
+                    throw ApiException.forbidden("You may not override sale prices.");
+                }
+                if (line.priceOverrideReason() == null || line.priceOverrideReason().isBlank()) {
+                    throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                            "A reason is required when overriding a sale price.");
+                }
+                unitPrice = CommerceValidation.money(line.unitPrice());
+            }
             pricingService.assertAboveMinimum(variant, unitPrice);
-            BigDecimal discount = PartyService.nz(line.discount());
+            BigDecimal discount = CommerceValidation.money(PartyService.nz(line.discount()));
+            CommerceValidation.requireNonNegative(discount, "Discount");
+            CommerceValidation.requireLineDiscountCap(unitPrice, line.quantity(), discount);
             BigDecimal lineGross = unitPrice.multiply(BigDecimal.valueOf(line.quantity()));
             BigDecimal lineTotal = lineGross.subtract(discount).max(BigDecimal.ZERO);
             BigDecimal lineCost = quote.costPrice().multiply(BigDecimal.valueOf(line.quantity()));
@@ -145,8 +161,11 @@ public class SaleService {
             profit = profit.add(item.getProfit());
         }
 
-        BigDecimal headerDiscount = PartyService.nz(request.discount());
+        BigDecimal headerDiscount = CommerceValidation.money(PartyService.nz(request.discount()));
+        CommerceValidation.requireNonNegative(headerDiscount, "Invoice discount");
+        CommerceValidation.requireHeaderDiscountCap(subtotal, headerDiscount);
         BigDecimal total = subtotal.add(tax).subtract(headerDiscount).max(BigDecimal.ZERO);
+        CommerceValidation.requirePaymentsCoverTotal(total, request.payments());
         List<Payment> payments = capturePayments(shopId, PaymentReferenceType.SALE, sale.getId(), request.payments());
         BigDecimal paid = payments.stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 

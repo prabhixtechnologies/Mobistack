@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { collectJoinPayment, type CheckoutOrder } from "../lib/payOrder";
@@ -7,7 +8,14 @@ import { AuthGate } from "./LoginPage";
 import { selectedWorkspaceId } from "../lib/types";
 
 type Step = "home" | "create" | "join" | "invite";
-type GateKind = "loading" | "start" | "joinUnion" | "waitingShop" | "waitingUnion" | "outside" | "catalog";
+export type GateKind =
+  | "loading"
+  | "start"
+  | "joinUnion"
+  | "waitingShop"
+  | "waitingUnion"
+  | "ready"
+  | "error";
 
 interface JoinCheckout extends CheckoutOrder {
   shopName?: string;
@@ -22,24 +30,33 @@ interface JoinState {
 export function useShopGate(): GateKind {
   const { user, workspaces } = useAuth();
   const [groups, setGroups] = useState<FitmentGroup[] | null>(null);
-  const [pendingGroup, setPendingGroup] = useState<string | null | undefined>(undefined);
+  const [groupsError, setGroupsError] = useState(false);
+  const [, setPendingGroup] = useState<string | null | undefined>(undefined);
   const active = workspaces.filter((row) => row.status === "ACTIVE");
   const shopId = selectedWorkspaceId(user);
   const open = active.find((row) => row.id === shopId) ?? active.find((row) => row.selected) ?? active[0];
 
-  useEffect(() => {
+  const loadGroups = useCallback(() => {
     if (!open) {
       setGroups(null);
+      setGroupsError(false);
       setPendingGroup(undefined);
       return;
     }
+    setGroupsError(false);
     let cancelled = false;
     api<FitmentGroup[]>("/api/v1/mobistack/groups")
       .then((list) => {
-        if (!cancelled) setGroups(list);
+        if (!cancelled) {
+          setGroups(list);
+          setGroupsError(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setGroups([]);
+        if (!cancelled) {
+          setGroups(null);
+          setGroupsError(true);
+        }
       });
     return () => {
       cancelled = true;
@@ -47,14 +64,20 @@ export function useShopGate(): GateKind {
   }, [open?.id]);
 
   useEffect(() => {
-    if (!open || !groups || groups.length > 0 || open.role !== "OWNER") {
+    return loadGroups();
+  }, [loadGroups]);
+
+  useEffect(() => {
+    if (!open || groupsError || !groups || groups.length > 0 || open.role !== "OWNER") {
       setPendingGroup(undefined);
       return;
     }
     let cancelled = false;
     api<JoinState>("/api/v1/mobistack/groups/join")
       .then((row) => {
-        if (!cancelled) setPendingGroup(row.status === "PENDING" ? row.groupName ?? "the union" : null);
+        if (!cancelled) {
+          setPendingGroup(row.status === "PENDING" ? row.groupName ?? "the union" : null);
+        }
       })
       .catch(() => {
         if (!cancelled) setPendingGroup(null);
@@ -62,28 +85,50 @@ export function useShopGate(): GateKind {
     return () => {
       cancelled = true;
     };
-  }, [open?.id, open?.role, groups]);
+  }, [open?.id, open?.role, groups, groupsError]);
 
   if (!user) return "loading";
   if (active.length === 0) {
     const waiting = workspaces.some((row) => row.status === "PENDING" || row.status === "INVITED");
     return waiting ? "waitingShop" : "start";
   }
-  if (!groups || (groups.length === 0 && open?.role === "OWNER" && pendingGroup === undefined)) {
+  if (!groups && !groupsError && open) {
     return "loading";
   }
-  if (groups.length > 0) return "catalog";
-  if (open?.role !== "OWNER") return "outside";
-  return pendingGroup ? "waitingUnion" : "joinUnion";
+  return "ready";
 }
 
-export function ShopJourneyPage({ gate }: { gate: Exclude<GateKind, "loading" | "catalog"> }) {
+export function ShopJourneyPage({ gate }: { gate: Exclude<GateKind, "loading" | "ready"> }) {
   const [step, setStep] = useState<Step>("home");
+
+  if (gate === "error") {
+    return (
+      <Journey
+        title="Could not load your union status"
+        body="The fitment catalog did not open because the union check failed. Your shop is still here — retry, switch workspace, or contact support."
+      >
+        <button className="auth-submit" type="button" onClick={() => window.location.reload()}>
+          Retry
+        </button>
+        <Link className="auth-submit auth-submit--secondary" to="/workspaces">
+          Switch workspace
+        </Link>
+        <Link className="auth-text" to="/support">
+          Contact support
+        </Link>
+        <Link className="auth-text" to="/">
+          Open the shop anyway
+        </Link>
+      </Journey>
+    );
+  }
+
   if (gate === "waitingShop" || gate === "waitingUnion") {
     return <Waiting union={gate === "waitingUnion"} />;
   }
-  if (gate === "outside") return <Outside />;
-  if (gate === "joinUnion") return <CodeJoin group onBack={null} />;
+  if (gate === "joinUnion") {
+    return <CodeJoin group onBack={null} />;
+  }
   if (step === "create") return <CreateShop onBack={() => setStep("home")} />;
   if (step === "join") return <CodeJoin group={false} onBack={() => setStep("home")} />;
   if (step === "invite") return <Invite onBack={() => setStep("home")} />;
@@ -169,10 +214,13 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
     setBusy(true);
     setError(null);
     try {
-      const checkout = await api<JoinCheckout>(group ? "/api/v1/mobistack/groups/join/checkout" : "/api/v1/mobistack/workspaces/join/checkout", {
-        method: "POST",
-        body: JSON.stringify({ joinCode }),
-      });
+      const checkout = await api<JoinCheckout>(
+        group ? "/api/v1/mobistack/groups/join/checkout" : "/api/v1/mobistack/workspaces/join/checkout",
+        {
+          method: "POST",
+          body: JSON.stringify({ joinCode }),
+        },
+      );
       const payment = await collectJoinPayment(checkout, joinCode, user ?? undefined, checkout.shopName);
       await api(group ? "/api/v1/mobistack/groups/join/complete" : "/api/v1/mobistack/workspaces/join/complete", {
         method: "POST",
@@ -304,21 +352,6 @@ function Waiting({ union }: { union: boolean }) {
   );
 }
 
-function Outside() {
-  const { user, logout } = useAuth();
-  const name = user?.shopName ?? user?.workspaceName ?? "This shop";
-  return (
-    <Journey
-      title={name}
-      body="You are in this shop. It is not in Bihar mobile union yet, so compatibility stays closed until a union admin adds it."
-    >
-      <button className="auth-text" type="button" onClick={() => void logout()}>
-        Sign out
-      </button>
-    </Journey>
-  );
-}
-
 function Journey({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
     <AuthGate>
@@ -328,4 +361,3 @@ function Journey({ title, body, children }: { title: string; body: string; child
     </AuthGate>
   );
 }
-

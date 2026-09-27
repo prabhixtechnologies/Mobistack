@@ -97,7 +97,6 @@ export function SalesPage() {
           items: lines.map((line) => ({
             variantId: line.variantId,
             quantity: line.quantity,
-            unitPrice: line.unitPrice,
           })),
           payments: [{ method, amount: total }],
         }),

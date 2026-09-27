@@ -324,9 +324,6 @@ public class BillingService {
      * Marks one captured join payment as used. Returns false when the user still owes ₹50 for this shop.
      */
     public boolean consumeJoinPayment(UUID userId, UUID workspaceId) {
-        if (userId != null && userRepository.findById(userId).map(u -> u.isSystemAdmin()).orElse(false)) {
-            return true;
-        }
         return findUnspentJoin(userId, workspaceId).map(order -> {
             order.setPurpose(JOIN_USED);
             order.setUpdatedAt(Instant.now());

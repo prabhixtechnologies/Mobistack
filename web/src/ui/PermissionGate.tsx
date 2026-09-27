@@ -61,6 +61,10 @@ export function RequirePermission({ need }: { need?: Permission }) {
     );
   }
 
+  if (user?.catalogOnly && !allowedWhileUnpaid(pathname) && !pathname.startsWith("/commons")) {
+    return <Navigate to="/commons" replace />;
+  }
+
   if (user && !user.paymentRequired && !allowedOnPlan(pathname, user.features)) {
     return <Navigate to={afterAuthPath(user)} replace />;
   }

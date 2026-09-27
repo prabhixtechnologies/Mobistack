@@ -50,7 +50,7 @@ public class SharingGroupController {
     @PostMapping("/shops")
     @ResponseStatus(HttpStatus.CREATED)
     public MemberCard addShop(@RequestParam UUID id, @RequestBody AddShop body) {
-        return groups.addShop(id, body.workspaceId(), body.joinCode());
+        return groups.addShop(id, body.joinCode());
     }
 
     @DeleteMapping("/shops")
@@ -79,7 +79,7 @@ public class SharingGroupController {
     public record CreateGroup(@NotBlank String name) {
     }
 
-    public record AddShop(UUID workspaceId, String joinCode) {
+    public record AddShop(@NotBlank String joinCode) {
     }
 
     public record AddPerson(@NotBlank String email, GroupRole role) {

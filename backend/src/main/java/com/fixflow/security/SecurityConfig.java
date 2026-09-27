@@ -50,11 +50,11 @@ public class SecurityConfig {
             // Service-to-service. The JWT filter skips this prefix; PlatformAdminAuthFilter
             // accepts the shared token and names the acting staff member. A shop JWT is not
             // a credential here — requireAdmin refuses anything that is not the BFF.
-            "/api/v1/mobistack/admin/**",
-            "/internal/**"
+            "/api/v1/mobistack/admin/**"
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalServiceAuthFilter internalServiceAuthFilter;
     private final CatalogOnlyFilter catalogOnlyFilter;
     private final CatalogPlanFilter catalogPlanFilter;
     private final WorkspaceGuardFilter workspaceGuardFilter;
@@ -90,6 +90,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
                 .addFilterBefore(apiRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(internalServiceAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(platformAdminAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(workspaceGuardFilter, JwtAuthenticationFilter.class)
@@ -103,6 +104,14 @@ public class SecurityConfig {
     @Bean
     public FilterRegistrationBean<WorkspaceGuardFilter> workspaceGuardRegistration(WorkspaceGuardFilter filter) {
         FilterRegistrationBean<WorkspaceGuardFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<InternalServiceAuthFilter> internalServiceAuthRegistration(
+            InternalServiceAuthFilter filter) {
+        FilterRegistrationBean<InternalServiceAuthFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

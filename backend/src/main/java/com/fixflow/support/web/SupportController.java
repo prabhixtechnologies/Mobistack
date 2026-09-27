@@ -1,9 +1,11 @@
 package com.fixflow.support.web;
 
+import com.fixflow.security.Authorize;
 import com.fixflow.support.service.SupportService;
 import com.fixflow.support.service.SupportService.ConversationCard;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +19,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/mobistack/support")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "Support")
 public class SupportController {
 
@@ -29,26 +32,31 @@ public class SupportController {
     private final SupportService supportService;
 
     @PostMapping("/chat")
+    @PreAuthorize(Authorize.SUPPORT_WRITE)
     public ConversationCard chat(@RequestBody ChatRequest request) {
         return supportService.chat(request.message(), request.channel());
     }
 
     @PostMapping("/conversations")
+    @PreAuthorize(Authorize.SUPPORT_WRITE)
     public ConversationCard open(@RequestBody TicketRequest request) {
         return supportService.openTicket(request.subject(), request.message(), request.channel());
     }
 
     @GetMapping("/conversations")
+    @PreAuthorize(Authorize.SUPPORT_READ)
     public List<ConversationCard> mine() {
         return supportService.mine();
     }
 
     @GetMapping(value = "/conversations", params = "id")
+    @PreAuthorize(Authorize.SUPPORT_READ)
     public ConversationCard one(@RequestParam UUID id) {
         return supportService.getMine(id);
     }
 
     @PostMapping("/conversations/messages")
+    @PreAuthorize(Authorize.SUPPORT_WRITE)
     public ConversationCard reply(@RequestParam UUID id, @RequestBody ChatRequest request) {
         return supportService.replyMine(id, request.message());
     }

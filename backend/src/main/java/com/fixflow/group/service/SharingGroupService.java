@@ -110,9 +110,24 @@ public class SharingGroupService {
     }
 
     @Transactional
-    public MemberCard addShop(UUID groupId, UUID workspaceId, String joinCode) {
+    public MemberCard addShop(UUID groupId, String shopJoinCode) {
         SharingGroup group = requireManaged(groupId);
-        Shop shop = resolveShop(workspaceId, joinCode);
+        Shop shop = resolveShopByJoinCode(shopJoinCode);
+        return admitShop(group, shop);
+    }
+
+    /**
+     * Called only after a paid join request was approved — no bare workspace id is accepted.
+     */
+    @Transactional
+    public MemberCard admitApprovedShop(UUID groupId, UUID workspaceId) {
+        SharingGroup group = requireManaged(groupId);
+        Shop shop = shops.findById(workspaceId)
+                .orElseThrow(() -> ApiException.notFound("Shop", workspaceId));
+        return admitShop(group, shop);
+    }
+
+    private MemberCard admitShop(SharingGroup group, Shop shop) {
         if (members.findByGroupIdAndWorkspaceId(group.getId(), shop.getId()).isPresent()) {
             throw ApiException.alreadyExists(shop.getName() + " is already in this group.");
         }
@@ -319,12 +334,8 @@ public class SharingGroupService {
         return cards;
     }
 
-    private Shop resolveShop(UUID workspaceId, String joinCode) {
-        if (workspaceId != null) {
-            return shops.findById(workspaceId)
-                    .orElseThrow(() -> ApiException.notFound("Shop", workspaceId));
-        }
-        String code = required(joinCode, "A shop id or a join code is required.");
+    private Shop resolveShopByJoinCode(String joinCode) {
+        String code = required(joinCode, "The target shop's join code is required.");
         return shops.findByJoinCodeIgnoreCase(code)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No shop with that code."));
     }

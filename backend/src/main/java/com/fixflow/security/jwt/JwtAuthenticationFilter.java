@@ -4,6 +4,7 @@ import tools.jackson.databind.ObjectMapper;
 import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
+import com.fixflow.config.FixFlowProperties;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
@@ -29,6 +30,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,6 +61,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final IdentityUserMirror identityUserMirror;
+    private final FixFlowProperties properties;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -74,6 +77,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             IdentityToken identity = verify(token);
+            requireFreshSignIn(identity);
             UserPrincipal principal = authorizeIdentityToken(identity, request);
 
             var authentication = new UsernamePasswordAuthenticationToken(
@@ -99,6 +103,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Maps the verifier's refusal onto the error vocabulary the clients already handle. EXPIRED is
      * the one they act on (silent re-login through Identity); the rest are a sign-out.
      */
+    private void requireFreshSignIn(IdentityToken token) {
+        String cutoffRaw = properties.getAuth().getSecuritySignInAfter();
+        if (cutoffRaw == null || cutoffRaw.isBlank() || token.issuedAt() == null) {
+            return;
+        }
+        Instant cutoff = Instant.parse(cutoffRaw.trim());
+        if (token.issuedAt().isBefore(cutoff)) {
+            throw new ApiException(ErrorCode.TOKEN_EXPIRED,
+                    "Sign in again to continue after the security update.");
+        }
+    }
+
     private IdentityToken verify(String token) {
         try {
             return tokenVerifier.verify(token);

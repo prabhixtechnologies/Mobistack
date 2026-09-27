@@ -2,9 +2,11 @@ package com.fixflow.flags.web;
 
 import com.fixflow.flags.service.FeatureFlagService;
 import com.fixflow.flags.service.FeatureFlagService.FlagCard;
+import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +22,7 @@ public class FeatureFlagController {
     private final FeatureFlagService featureFlagService;
 
     @GetMapping
+    @PreAuthorize(Authorize.FEATURE_FLAG_READ)
     public List<FlagCard> mine() {
         return featureFlagService.resolved(CurrentUser.shopId());
     }

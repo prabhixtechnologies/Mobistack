@@ -145,7 +145,7 @@ public class WorkspaceAccessService {
     public com.fixflow.workspace.dto.WorkspaceDtos.JoinCheckoutResponse beginPaidJoin(UUID userId, String rawCode) {
         Shop workspace = requireJoinTarget(rawCode);
         rejectIfAlreadyWaitingOrActive(workspace.getId(), userId);
-        if (isAdmin(userId) || billingService.hasUnspentJoinPayment(userId, workspace.getId())) {
+        if (billingService.hasUnspentJoinPayment(userId, workspace.getId())) {
             return com.fixflow.workspace.dto.WorkspaceDtos.JoinCheckoutResponse.alreadyPaid(workspace.getName());
         }
         var order = billingService.createJoinOrder(userId, workspace.getId());
@@ -159,7 +159,7 @@ public class WorkspaceAccessService {
                                           com.fixflow.workspace.dto.WorkspaceDtos.CompleteJoinRequest request) {
         Shop workspace = requireJoinTarget(request == null ? null : request.joinCode());
         rejectIfAlreadyWaitingOrActive(workspace.getId(), userId);
-        if (!isAdmin(userId) && !billingService.hasUnspentJoinPayment(userId, workspace.getId())) {
+        if (!billingService.hasUnspentJoinPayment(userId, workspace.getId())) {
             if (request != null && request.razorpayOrderId() != null && !request.razorpayOrderId().isBlank()) {
                 billingService.verifyJoinPayment(userId, new com.fixflow.billing.service.BillingService.VerifyPaymentRequest(
                         request.razorpayOrderId(), request.razorpayPaymentId(), request.razorpaySignature()));
@@ -577,10 +577,6 @@ public class WorkspaceAccessService {
                 throw ApiException.alreadyExists("You already have a membership in this workspace.");
             }
         });
-    }
-
-    private boolean isAdmin(UUID userId) {
-        return userRepository.findById(userId).map(User::isSystemAdmin).orElse(false);
     }
 
     private Role systemRole(SystemRole systemRole) {

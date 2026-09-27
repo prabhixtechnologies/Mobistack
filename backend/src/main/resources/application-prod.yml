@@ -14,6 +14,9 @@ fixflow:
     public-origin: https://mobistack.prabhixtechnologies.com
     api-origin: https://mobistack.prabhixtechnologies.com
     require-https: true
+    trusted-proxies:
+      - 127.0.0.1
+      - ::1
   redis:
     enabled: true
   cors:

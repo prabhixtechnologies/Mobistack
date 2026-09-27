@@ -1,5 +1,6 @@
 package com.fixflow.security;
 
+import com.fixflow.billing.service.BillingService;
 import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ErrorCode;
 import jakarta.servlet.FilterChain;
@@ -17,17 +18,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.UUID;
 
 /**
- * Shop operations are closed. A signed-in caller may only read the shared
- * fitment catalog, pay for the workspace, and keep the session that billing needs.
+ * Catalog-only plans may use billing, workspaces, the shared fitment catalog and support paths.
+ * Full shop APIs stay available on paid operational plans — this filter never blocks them.
  */
 @Component
 @RequiredArgsConstructor
 public class CatalogOnlyFilter extends OncePerRequestFilter {
 
-    private static final String WORKSPACE_SELECT = "/api/v1/mobistack/workspaces/select";
-
+    private final BillingService billingService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -38,11 +39,17 @@ public class CatalogOnlyFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        response.setStatus(ErrorCode.FORBIDDEN.status().value());
+        UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        UUID shopId = principal.getShopId();
+        if (shopId == null || !billingService.catalogOnly(shopId)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        response.setStatus(ErrorCode.ENTITLEMENT_DENIED.status().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         objectMapper.writeValue(response.getOutputStream(),
-                ApiError.of(ErrorCode.FORBIDDEN,
-                        "Only the fitment catalog and billing are available.",
+                ApiError.of(ErrorCode.ENTITLEMENT_DENIED,
+                        "This plan includes the fitment catalog only. Open Billing to upgrade for shop operations.",
                         request.getRequestURI()));
     }
 
@@ -56,25 +63,26 @@ public class CatalogOnlyFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/v1/mobistack/billing")
                 || path.startsWith("/api/v1/mobistack/public")
                 || path.startsWith("/api/v1/mobistack/admin")
-                || path.startsWith("/api/v1/mobistack/groups")) {
+                || path.startsWith("/api/v1/mobistack/groups")
+                || path.startsWith("/api/v1/mobistack/commons")
+                || path.startsWith("/api/v1/mobistack/workspaces")
+                || path.startsWith("/api/v1/mobistack/notifications")
+                || path.startsWith("/api/v1/mobistack/support")
+                || path.startsWith("/api/v1/mobistack/feature-flags")
+                || path.startsWith("/api/v1/mobistack/invitations")
+                || path.startsWith("/api/v1/mobistack/shop")
+                || path.startsWith("/api/v1/mobistack/presence")
+                || path.startsWith("/api/v1/mobistack/inbox")) {
             return true;
         }
-        if ("GET".equals(method) && path.startsWith("/api/v1/mobistack/commons")) {
-            return true;
-        }
-        if ("POST".equals(method) && "/api/v1/mobistack/commons/contributions".equals(path)) {
-            return true;
-        }
-        if ("GET".equals(method) && (path.equals("/api/v1/mobistack/workspaces") || path.startsWith("/api/v1/mobistack/workspaces/"))) {
-            return true;
-        }
-        return "POST".equals(method) && WORKSPACE_SELECT.equals(path);
+        return "POST".equals(method) && "/api/v1/mobistack/workspaces/select".equals(path);
     }
 
     private static boolean signedIn() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null
                 && authentication.isAuthenticated()
-                && !(authentication instanceof AnonymousAuthenticationToken);
+                && !(authentication instanceof AnonymousAuthenticationToken)
+                && authentication.getPrincipal() instanceof UserPrincipal;
     }
 }

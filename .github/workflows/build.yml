@@ -521,7 +521,7 @@ jobs:
         with:
           context: ./web
           build-contexts: |
-            webkit=https://github.com/prabhixtechnologies/web-kit.git#main
+            webkit=https://github.com/prabhixtechnologies/web-kit.git#6841e45aab52e52d4fb970ee08f4540e71c6c447
           build-args: |
             VITE_IDENTITY_ISSUER=https://api.prabhixtechnologies.com
             VITE_STORE_URL=https://store.prabhixtechnologies.com

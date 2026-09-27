@@ -28,6 +28,8 @@ import com.fixflow.inventory.service.StockMovement;
 import com.fixflow.party.domain.Supplier;
 import com.fixflow.party.repository.SupplierRepository;
 import com.fixflow.party.service.PartyService;
+import com.fixflow.security.CurrentUser;
+import com.fixflow.security.Permission;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -81,9 +83,23 @@ public class PurchaseService {
         BigDecimal subtotal = BigDecimal.ZERO;
         List<PurchaseItem> items = new ArrayList<>();
         for (PurchaseLineRequest line : request.items()) {
+            CommerceValidation.requirePositiveQuantity(line.quantity());
             ProductVariant variant = variantRepository.findByIdAndShopId(line.variantId(), shopId)
                     .orElseThrow(() -> ApiException.notFound("Product variant", line.variantId()));
-            BigDecimal unitCost = line.unitCost() == null ? variant.getCostPrice() : line.unitCost();
+            BigDecimal unitCost = variant.getCostPrice() == null ? BigDecimal.ZERO : variant.getCostPrice();
+            if (line.unitCost() != null && !CommerceValidation.pricesMatch(unitCost, line.unitCost())) {
+                if (!CurrentUser.has(Permission.PURCHASE_COST_OVERRIDE)) {
+                    throw ApiException.forbidden("You may not override purchase costs.");
+                }
+                if (line.costOverrideReason() == null || line.costOverrideReason().isBlank()) {
+                    throw new ApiException(com.fixflow.common.error.ErrorCode.VALIDATION_FAILED,
+                            "A reason is required when overriding a purchase cost.");
+                }
+                unitCost = CommerceValidation.money(line.unitCost());
+            } else {
+                unitCost = CommerceValidation.money(unitCost);
+            }
+            CommerceValidation.requireNonNegative(unitCost, "Unit cost");
             BigDecimal lineTotal = unitCost.multiply(BigDecimal.valueOf(line.quantity()));
 
             PurchaseItem item = new PurchaseItem();
@@ -106,8 +122,10 @@ public class PurchaseService {
             subtotal = subtotal.add(lineTotal);
         }
 
-        BigDecimal tax = PartyService.nz(request.tax());
+        BigDecimal tax = CommerceValidation.money(PartyService.nz(request.tax()));
+        CommerceValidation.requireNonNegative(tax, "Tax");
         BigDecimal total = subtotal.add(tax);
+        CommerceValidation.requirePaymentsCoverTotal(total, request.payments());
         List<Payment> payments = capture(shopId, purchase.getId(), request.payments());
         BigDecimal paid = payments.stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 

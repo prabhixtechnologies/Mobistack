@@ -12,7 +12,6 @@ import {
   persistWorkspaces,
   refreshSession,
 } from "./api";
-import { getDeviceId } from "./device";
 import { afterAuthPath } from "./plan";
 import { beginLogout, isOidcEnabled } from "@prabhix/oidc-client";
 import "./oidc-config";
@@ -23,13 +22,11 @@ interface AuthContextValue {
   workspaces: WorkspaceCard[];
   /** False while Identity cookie restore is in flight — do not flash the login page. */
   ready: boolean;
-  login: (email: string, password: string) => Promise<AuthResponse>;
   loginWithTokens: (accessToken: string) => Promise<void>;
   acceptSession: (auth: AuthResponse) => void;
   logout: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   createWorkspace: (name: string, city?: string) => Promise<void>;
-  joinWorkspace: (joinCode: string) => Promise<WorkspaceCard>;
   refreshWorkspaces: () => Promise<MyWorkspacesResponse>;
   refreshUser: () => Promise<AuthenticatedUser>;
   has: (permission: string) => boolean;
@@ -164,22 +161,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       workspaces,
       ready,
-      async login(email, password) {
-        clearSession();
-        setUser(null);
-        setWorkspaces([]);
-        const auth = await api<AuthResponse>("/api/v1/mobistack/auth/login", {
-          method: "POST",
-          body: JSON.stringify({
-            email: email.trim(),
-            password,
-            deviceId: getDeviceId(),
-          }),
-        });
-        applySession(auth, setUser, setWorkspaces);
-        setReady(true);
-        return auth;
-      },
       loginWithTokens,
       acceptSession(auth) {
         applySession(auth, setUser, setWorkspaces);
@@ -219,16 +200,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({ name, city }),
         });
         applyWorkspaceChange(auth, setUser, setWorkspaces);
-      },
-      async joinWorkspace(joinCode) {
-        const card = await api<WorkspaceCard>("/api/v1/mobistack/workspaces/join", {
-          method: "POST",
-          body: JSON.stringify({ joinCode }),
-        });
-        const mine = await api<MyWorkspacesResponse>("/api/v1/mobistack/workspaces");
-        persistWorkspaces(mine.workspaces);
-        setWorkspaces(mine.workspaces);
-        return card;
       },
       async refreshWorkspaces() {
         const mine = await api<MyWorkspacesResponse>("/api/v1/mobistack/workspaces");

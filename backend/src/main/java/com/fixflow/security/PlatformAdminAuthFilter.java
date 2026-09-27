@@ -27,8 +27,10 @@ import java.util.UUID;
 public class PlatformAdminAuthFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_PREFIX = "/api/v1/mobistack/admin";
+    private static final String ROUTE = "platform-admin";
 
     private final ServiceTokenGuard serviceToken;
+    private final ServiceTokenAuthHandler authHandler;
 
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
@@ -43,14 +45,19 @@ public class PlatformAdminAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
-        if (serviceToken.permits(request)) {
-            UUID actor = serviceToken.actingUser(request).orElse(null);
-            if (actor != null) {
-                UserPrincipal principal = UserPrincipal.platformBff(actor);
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        principal, null, principal.getAuthorities());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+        if (!serviceToken.configured()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        if (!authHandler.permitOrReject(request, response, serviceToken, ROUTE)) {
+            return;
+        }
+        UUID actor = serviceToken.actingUser(request).orElse(null);
+        if (actor != null) {
+            UserPrincipal principal = UserPrincipal.platformBff(actor);
+            var authentication = new UsernamePasswordAuthenticationToken(
+                    principal, null, principal.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
         filterChain.doFilter(request, response);
     }

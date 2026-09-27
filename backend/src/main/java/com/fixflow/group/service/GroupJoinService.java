@@ -144,7 +144,7 @@ public class GroupJoinService {
     public void approve(UUID groupId, UUID requestId) {
         groupService.requireManager(groupId);
         GroupJoinRequest row = openRequest(groupId, requestId);
-        groupService.addShop(groupId, row.getWorkspaceId(), null);
+        groupService.admitApprovedShop(groupId, row.getWorkspaceId());
         billing.grantCatalog(row.getWorkspaceId());
         row.setStatus(GroupJoinRequest.ADMITTED);
         requests.save(row);
