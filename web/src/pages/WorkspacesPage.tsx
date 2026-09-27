@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useState } from "react";
+import { toneFor } from "@prabhix/brand";
+import { FormEvent, useEffect, useState, type CSSProperties } from "react";
 import { useAuth } from "../lib/auth";
 import { api, money } from "../lib/api";
 import { collectJoinPayment, type CheckoutOrder } from "../lib/payOrder";
@@ -347,14 +348,25 @@ function WorkspaceTile({
 }) {
   const canOpen = workspace.status === "ACTIVE" && !workspace.selected;
   const waiting = workspace.status === "PENDING" || workspace.status === "INVITED";
-  const tone = workspace.selected ? "selected" : waiting ? "pending" : workspace.status === "ACTIVE" ? "active" : "idle";
+    const tone = workspace.selected ? "selected" : waiting ? "pending" : workspace.status === "ACTIVE" ? "active" : "idle";
+    // Seeded on the id, not the name: renaming a shop should not change its colour.
+    const markTone = toneFor(workspace.id);
 
   return (
     <article className={`workspace-tile workspace-tile--${tone}`}>
       <div className="workspace-tile__top">
-        <div className="workspace-tile__mark" aria-hidden>
-          {initials(workspace.name)}
-        </div>
+          <div
+            className="workspace-tile__mark"
+            aria-hidden
+            style={
+              {
+                "--tile-bg": `var(--px-tag-${markTone}-bg)`,
+                "--tile-ink": `var(--px-tag-${markTone}-ink)`,
+              } as CSSProperties
+            }
+          >
+            {initials(workspace.name)}
+          </div>
         <div className="workspace-tile__identity">
           <div className="workspace-tile__name">{workspace.name}</div>
           <div className="faint">{[workspace.city, workspace.role].filter(Boolean).join(" · ")}</div>

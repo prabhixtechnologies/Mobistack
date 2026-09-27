@@ -4461,6 +4461,10 @@ iframe.razorpay-checkout-frame,
   align-items: start;
 }
 
+/* The tile mark takes a per-shop swatch from --tile-bg/--tile-ink, which the component
+   seeds from the workspace id. The accent fallbacks keep it correct if those are absent,
+   because an undefined custom property resolves to the property's initial value, not to
+   the previous declaration: without the fallback a missing --tile-ink is black. */
 .workspace-tile__mark {
   width: 42px;
   height: 42px;
@@ -4470,10 +4474,12 @@ iframe.razorpay-checkout-frame,
   font-size: 14px;
   font-weight: 800;
   letter-spacing: -0.04em;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--tile-bg, var(--accent-soft));
+  color: var(--tile-ink, var(--accent));
 }
 
+/* A shop waiting on an invite is a state, and state outranks identity: the warning
+   swatch wins over the per-shop one. */
 .workspace-tile--pending .workspace-tile__mark {
   background: var(--warn-soft);
   color: var(--warn);
