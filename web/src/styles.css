@@ -5776,3 +5776,38 @@ a.metric-card:hover {
   justify-content: center;
   margin-top: 12px;
 }
+
+/*
+  Row context menu. Shares every visual value with `.menu__panel` above; the only
+  difference is that it is positioned in the viewport at the pointer rather than
+  anchored under a trigger, so it is `fixed` and takes its offsets from JS.
+*/
+.row-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 248px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  animation: pop 120ms ease-out;
+}
+
+.row-menu__label {
+  margin: 0;
+  padding: 6px 10px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-menu { animation: none; }
+}
+
+/* A row that can be right-clicked says so on pointer devices. */
+@media (hover: hover) {
+  .row-actions-host { cursor: context-menu; }
+}

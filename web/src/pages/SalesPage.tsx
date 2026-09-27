@@ -7,6 +7,7 @@ import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
+import type { RowAction } from "../ui/RowActions";
 import { ConfirmDialog } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
 import { humanLabel } from "../lib/labels";
@@ -124,6 +125,30 @@ export function SalesPage() {
     }
   }
 
+  // The same verbs the actions column renders as buttons, reachable by right-click on the
+  // counter PC, by long-press on the tablet, and by Shift+F10 without a mouse. Defined here
+  // so the two routes cannot drift apart.
+  const saleActions = (sale: Sale): RowAction[] => [
+    {
+      id: "invoice",
+      label: "Open invoice",
+      onSelect: () => openInvoice(sale.id),
+    },
+    ...(canVoid && sale.status === "COMPLETED"
+      ? [
+          {
+            id: "void",
+            label: "Void invoice",
+            danger: true,
+            disabled: voidSale.busy,
+            // Routed through the page's existing confirm dialog rather than the menu's own,
+            // because that one is already wired to the mutation's busy and error state.
+            onSelect: () => setVoidTarget(sale),
+          } satisfies RowAction,
+        ]
+      : []),
+  ];
+
   const columns: Column<Sale>[] = [
     {
       key: "invoice",
@@ -187,7 +212,7 @@ export function SalesPage() {
             className="field"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Part, SKU, barcode…"
+            placeholder="Part, SKU, barcodeâ€¦"
             aria-label="Find a part to sell"
             autoComplete="off"
           />
@@ -210,7 +235,7 @@ export function SalesPage() {
                         ...current,
                         {
                           variantId: hit.variantId,
-                          name: `${hit.productName} · ${hit.variantName}`,
+                          name: `${hit.productName} Â· ${hit.variantName}`,
                           quantity: 1,
                           unitPrice: hit.price,
                         },
@@ -223,7 +248,7 @@ export function SalesPage() {
                   <div>
                     <div style={{ fontWeight: 650 }}>{hit.productName}</div>
                     <div className="faint">
-                      {hit.sku} · {hit.availableQty} in stock
+                      {hit.sku} Â· {hit.availableQty} in stock
                     </div>
                   </div>
                   <span>{money.format(hit.price)}</span>
@@ -272,12 +297,12 @@ export function SalesPage() {
             <strong>{money.format(total)}</strong>
           </div>
           <button className="btn" disabled={checkout.busy || lines.length === 0}>
-            {checkout.busy ? "Saving…" : "Complete sale"}
+            {checkout.busy ? "Savingâ€¦" : "Complete sale"}
           </button>
         </form>
       ) : (
         <div className="pos__ticket faint">
-          Your role can read invoices but not raise them. Ask an owner for the “Take sales” permission.
+          Your role can read invoices but not raise them. Ask an owner for the â€œTake salesâ€ permission.
         </div>
       )}
 
@@ -289,6 +314,8 @@ export function SalesPage() {
           loading={sales.loading}
           error={sales.error}
           onRetry={sales.reload}
+          rowActions={saleActions}
+          rowLabel={(sale) => `Invoice ${sale.invoiceNumber}`}
           skeletonRows={8}
           empty={{
             icon: "cart",

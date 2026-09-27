@@ -3,6 +3,7 @@ import { useAccess } from "../lib/access";
 import type { Permission } from "../lib/permissions";
 import { EmptyState, ErrorState } from "./EmptyState";
 import type { NavIconName } from "./navIcons";
+import { useRowMenu, type RowAction } from "./RowActions";
 
 export interface Column<T> {
   key: string;
@@ -22,6 +23,14 @@ interface DataTableProps<T> {
   error?: string | null;
   onRetry?: () => void;
   onRowClick?: (row: T) => void;
+  /**
+   * The verbs for a single row, opened by right-click, touch long-press, Shift+F10 or the
+   * Menu key. Returning an empty array leaves the row without a menu, which is correct for
+   * read-only audit rows.
+   */
+  rowActions?: (row: T) => RowAction[];
+  /** Names the record for the menu heading and screen readers: "Invoice INV-1043". */
+  rowLabel?: (row: T) => string;
   /** Copy for the zero-row state. */
   empty?: { icon?: NavIconName; title: string; hint?: string; action?: ReactNode };
   /** Skeleton row count while loading. Match the page size to avoid layout jump. */
@@ -34,8 +43,57 @@ interface DataTableProps<T> {
 }
 
 /**
- * One table that owns all four states — loading, error, empty and populated — so
- * pages stop hand-rolling `{loading ? "Loading…" : ...}` chains that each look
+ * One row. Split out only because `useRowMenu` is a hook and cannot be called inside the
+ * `rows.map` of the parent.
+ */
+function DataRow<T>({
+  row,
+  columns,
+  onRowClick,
+  actions,
+  label,
+}: {
+  row: T;
+  columns: Column<T>[];
+  onRowClick?: (row: T) => void;
+  actions: RowAction[];
+  label: string;
+}) {
+  const { rowProps, menu, confirmDialog } = useRowMenu(actions, label);
+  const hasMenu = actions.length > 0;
+
+  return (
+    <>
+      <tr
+        className={onRowClick ? "table__row--clickable" : undefined}
+        tabIndex={onRowClick ? 0 : undefined}
+        role={onRowClick ? "button" : undefined}
+        onClick={onRowClick ? () => onRowClick(row) : undefined}
+        {...(hasMenu ? rowProps : {})}
+        onKeyDown={(event) => {
+          if (onRowClick && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onRowClick(row);
+            return;
+          }
+          if (hasMenu) rowProps.onKeyDown(event);
+        }}
+      >
+        {columns.map((column) => (
+          <td key={column.key} style={{ textAlign: column.align }}>
+            {column.render(row)}
+          </td>
+        ))}
+      </tr>
+      {menu}
+      {confirmDialog}
+    </>
+  );
+}
+
+/**
+ * One table that owns all four states â€” loading, error, empty and populated â€” so
+ * pages stop hand-rolling `{loading ? "Loadingâ€¦" : ...}` chains that each look
  * slightly different.
  *
  * Columns carrying sensitive data (cost price, margin) can declare `need` and
@@ -49,6 +107,8 @@ export function DataTable<T>({
   error = null,
   onRetry,
   onRowClick,
+  rowActions,
+  rowLabel,
   empty,
   skeletonRows = 6,
   paging,
@@ -108,29 +168,14 @@ export function DataTable<T>({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr
+              <DataRow
                 key={rowKey(row)}
-                className={onRowClick ? "table__row--clickable" : undefined}
-                tabIndex={onRowClick ? 0 : undefined}
-                role={onRowClick ? "button" : undefined}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                onKeyDown={
-                  onRowClick
-                    ? (event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          onRowClick(row);
-                        }
-                      }
-                    : undefined
-                }
-              >
-                {visible.map((column) => (
-                  <td key={column.key} style={{ textAlign: column.align }}>
-                    {column.render(row)}
-                  </td>
-                ))}
-              </tr>
+                row={row}
+                columns={visible}
+                onRowClick={onRowClick}
+                actions={rowActions?.(row) ?? []}
+                label={rowLabel?.(row) ?? ""}
+              />
             ))}
           </tbody>
         </table>
@@ -169,7 +214,7 @@ export function LoadMore({
       </span>
       {hasMore && (
         <button className="btn ghost" type="button" onClick={onLoadMore} disabled={loadingMore}>
-          {loadingMore ? "Loading…" : "Load more"}
+          {loadingMore ? "Loadingâ€¦" : "Load more"}
         </button>
       )}
     </div>
