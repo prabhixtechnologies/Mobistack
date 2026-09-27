@@ -1,5 +1,11 @@
 <!doctype html>
-<html lang="en">
+<!--
+  data-brand and data-density select the generated token theme from
+  web-kit/packages/brand/tokens.json: ochre accent, teal partner accent, warm sand surfaces,
+  and the compact density a counter tool wants. Set here rather than from React so the first
+  paint is already the right colour.
+-->
+<html lang="en" data-brand="mobistack" data-density="compact">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -11,7 +17,7 @@
     <meta property="og:title" content="MobiStack" />
     <meta property="og:description" content="MobiStack by Prabhix Technologies Pvt Ltd. See what fits. See stock. Sell." />
     <meta property="og:image" content="/og.png" />
-    <meta name="theme-color" content="#0e7490" />
+    <meta name="theme-color" content="#b45309" />
     <meta name="color-scheme" content="light dark" />
     <script>
       (function () {
@@ -23,7 +29,10 @@
           document.documentElement.dataset.theme = theme;
           document.documentElement.style.colorScheme = theme;
           var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute("content", theme === "dark" ? "#071018" : "#0e7490");
+          // Literal because this runs before any stylesheet has loaded, so the token
+          // custom properties do not exist yet. Must match --px-bg / --px-accent for the
+          // mobistack theme in web-kit/packages/brand/tokens.json.
+          if (meta) meta.setAttribute("content", theme === "dark" ? "#12100e" : "#b45309");
         } catch (e) {}
       })();
     </script>

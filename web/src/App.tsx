@@ -1,5 +1,6 @@
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import { RouteError } from "./ui/RouteError";
 import { useAuth } from "./lib/auth";
 import { selectedWorkspaceId } from "./lib/types";
 import { afterAuthPath } from "./lib/plan";
@@ -224,7 +225,10 @@ function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user
           </Route>
         </Route>
         {LegalRoutes()}
-        <Route path="*" element={<Navigate to={home} replace />} />
+        {/* An unknown URL says so. It used to redirect to the dashboard, which made a
+            stale link indistinguishable from a working one and threw away the history
+            entry the user would have needed to get back. */}
+        <Route path="*" element={<RouteError />} />
       </Routes>
     </Suspense>
   );

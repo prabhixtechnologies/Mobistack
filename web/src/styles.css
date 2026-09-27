@@ -1,35 +1,46 @@
 @import "@prabhix/brand/prabhix-tokens.css";
 
+/*
+  MobiStack is the `mobistack` token theme: ochre accent, teal partner accent, warm sand
+  surfaces, compact density. The brand attribute is set on <html> in index.html.
+
+  Nothing below defines a colour. The names in this block are MobiStack's own long-standing
+  vocabulary — --bg, --ink, --accent, --line, --good — kept because ~5,600 lines of rules
+  and every component reference them. They are now aliases onto the generated semantic
+  roles, so the dark theme, the contrast floor and the accent all come from
+  web-kit/packages/brand/tokens.json instead of being retyped here.
+
+  Contract: Infra/docs/UX-STANDARD.md
+*/
 :root {
   color-scheme: light;
 
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
+  --space-1: var(--px-space-1);
+  --space-2: var(--px-space-2);
+  --space-3: var(--px-space-3);
+  --space-4: var(--px-space-4);
+  --space-5: var(--px-space-5);
+  --space-6: var(--px-space-6);
+  --space-8: var(--px-space-8);
+  --space-10: var(--px-space-10);
+  --space-12: var(--px-space-12);
 
-  /* Color — light is the flagship shop floor */
-  --background: #eceee9;
-  --paper: #f4f3ef;
-  --surface: #fffcf8;
-  --surface-elevated: #ffffff;
-  --surface-muted: #e6e4df;
-  --border: rgba(28, 26, 22, 0.1);
-  --border-subtle: rgba(28, 26, 22, 0.06);
-  --text-primary: #16181c;
-  --text-secondary: #5a6168;
-  --text-muted: #7d858c;
-  --brand: #0e7490;
-  --brand-hover: #0b5f75;
-  --success: #067647;
-  --warning: #b45309;
-  --danger: #b42318;
-  --info: #0e7490;
+  --background: var(--px-bg);
+  --paper: var(--px-surface);
+  --surface: var(--px-surface);
+  --surface-elevated: var(--px-surface-raised);
+  --surface-muted: var(--px-surface-sunken);
+  --border: var(--px-border);
+  --border-subtle: var(--px-border);
+  --text-primary: var(--px-ink);
+  --text-secondary: var(--px-ink-muted);
+  --text-muted: var(--px-ink-faint);
+  --brand: var(--px-accent);
+  --brand-hover: var(--px-accent-hover);
+  --success: var(--px-success);
+  --warning: var(--px-warning);
+  --danger: var(--px-danger);
+  --info: var(--px-info);
 
   --type-display: clamp(44px, 4.6vw, 66px);
   --type-heading: 16px;
@@ -42,100 +53,79 @@
 
   --rail: 3px;
   --rail-side: 2px;
-  --elevation-station: 0 1px 0 rgba(22, 24, 28, 0.04), 0 10px 28px rgba(14, 116, 144, 0.07);
+  --elevation-station: var(--px-elevation-1);
   --elevation-side: none;
 
-  --bg: var(--background);
-  --bg-elevated: var(--surface);
-  --bg-muted: var(--surface-muted);
-  --ink: var(--text-primary);
-  --ink-soft: var(--text-secondary);
-  --ink-faint: var(--text-muted);
-  --line: var(--border);
-  --line-strong: rgba(22, 24, 28, 0.16);
-  --accent: var(--brand);
-  --accent-ink: #f0fdfa;
-  --accent-soft: #e4f3f6;
-  --header: var(--surface);
-  --chrome: var(--background);
-  --good: var(--success);
-  --good-soft: #dcfce7;
-  --warn: var(--warning);
-  --warn-soft: #ffedd5;
-  --bad: var(--danger);
-  --bad-soft: #fee2e2;
+  --bg: var(--px-bg);
+  --bg-elevated: var(--px-surface);
+  --bg-muted: var(--px-surface-sunken);
+  --ink: var(--px-ink);
+  --ink-soft: var(--px-ink-muted);
+  --ink-faint: var(--px-ink-faint);
+  --line: var(--px-border);
+  /* Anything that identifies a control, not a divider, must use this: it clears 3:1. */
+  --line-strong: var(--px-border-strong);
+  --accent: var(--px-accent);
+  --accent-ink: var(--px-accent-ink);
+  --accent-soft: var(--px-accent-subtle);
+  --accent-soft-ink: var(--px-accent-subtle-ink);
+  /* The teal partner accent — gives the counter a second hue for totals, links and charts. */
+  --accent-2: var(--px-accent-2);
+  --accent-2-ink: var(--px-accent-2-ink);
+  --accent-2-soft: var(--px-accent-2-subtle);
+  --accent-2-soft-ink: var(--px-accent-2-subtle-ink);
+  --header: var(--px-surface);
+  --chrome: var(--px-bg);
+  --good: var(--px-success);
+  --good-soft: var(--px-success-subtle);
+  --good-soft-ink: var(--px-success-subtle-ink);
+  /* Ochre and amber share an arc, so warning here is tint-only — never a solid fill. */
+  --warn: var(--px-warning-subtle-ink);
+  --warn-soft: var(--px-warning-subtle);
+  --bad: var(--px-danger);
+  --bad-soft: var(--px-danger-subtle);
+  --bad-soft-ink: var(--px-danger-subtle-ink);
   --shadow: none;
-  --shadow-float: 0 16px 40px rgba(22, 24, 28, 0.12);
-  --shadow-lg: var(--shadow-float);
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius: 10px;
-  --radius-lg: 14px;
-  --motion: 140ms ease;
-  --sidebar: 232px;
-  --header-h: 52px;
+  --shadow-float: var(--px-elevation-4);
+  --shadow-lg: var(--px-elevation-4);
+  --radius-xs: var(--px-radius-sm);
+  --radius-sm: var(--px-radius-sm);
+  --radius: var(--px-radius-md);
+  --radius-lg: var(--px-radius-lg);
+  --motion: var(--px-duration-fast) var(--px-ease-out);
+  --sidebar: var(--px-sidebar);
+  --header-h: var(--px-header);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
-  --font: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-  --serif: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", "ui-monospace", "SFMono-Regular", Menlo, Consolas, monospace;
+  --font: var(--px-font-body);
+  --serif: var(--px-font-display);
+  --mono: var(--px-font-mono);
 }
 
 :root[data-theme="dark"] .floor-mast {
-  background: color-mix(in srgb, var(--brand) 9%, #1a2024);
-  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--brand) 26%, transparent);
+  background: color-mix(in srgb, var(--px-accent) 9%, var(--px-surface));
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--px-accent) 26%, transparent);
 }
 
 :root[data-theme="dark"] .floor-daybook {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--px-ink-inverse) 5%, transparent);
 }
 
+/*
+  The dark theme is generated, not retyped. Every colour above is already an alias, and
+  [data-theme="dark"] in the generated stylesheet re-points the underlying --px-* roles, so
+  the only thing this block still has to do is declare the colour scheme and swap the two
+  elevation values that differ by mode.
+*/
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --background: #101418;
-  --paper: #151a1e;
-  --surface: #1b2126;
-  --surface-elevated: #22292f;
-  --surface-muted: #242b31;
-  --border: rgba(230, 232, 234, 0.08);
-  --border-subtle: rgba(230, 232, 234, 0.05);
-  --text-primary: #e7e9eb;
-  --text-secondary: #9aa2a8;
-  --text-muted: #717980;
-  --brand: #3e9eaf;
-  --brand-hover: #62b4c2;
-  --success: #3d9b6e;
-  --warning: #d4a017;
-  --danger: #d4675e;
-  --info: #3e9eaf;
-
-  --elevation-station: 0 1px 0 rgba(255, 255, 255, 0.03), 0 12px 28px rgba(0, 0, 0, 0.28);
+  --elevation-station: var(--px-elevation-1);
   --elevation-side: none;
-
-  --bg: var(--background);
-  --bg-elevated: var(--surface);
-  --bg-muted: var(--surface-muted);
-  --ink: var(--text-primary);
-  --ink-soft: var(--text-secondary);
-  --ink-faint: var(--text-muted);
-  --line: var(--border);
-  --line-strong: rgba(230, 232, 234, 0.14);
-  --accent: var(--brand);
-  --accent-ink: #071318;
-  --accent-soft: #1a3338;
-  --header: var(--surface);
-  --chrome: var(--background);
-  --shadow-float: 0 18px 40px rgba(0, 0, 0, 0.4);
-  --shadow-lg: var(--shadow-float);
-  --good: var(--success);
-  --good-soft: #163422;
-  --warn: var(--warning);
-  --warn-soft: #3a2c14;
-  --bad: var(--danger);
-  --bad-soft: #3d1c19;
+  --shadow-float: var(--px-elevation-4);
+  --shadow-lg: var(--px-elevation-4);
   --shadow: none;
 }
 
@@ -323,7 +313,7 @@ button {
   flex: 0 0 auto;
   display: block;
   line-height: 0;
-  box-shadow: 0 8px 18px rgba(14, 116, 144, 0.35);
+  box-shadow: var(--px-elevation-2);
 }
 
 .brand-mark svg {
@@ -491,7 +481,7 @@ button {
   padding: 16px 28px;
   border-bottom: 1px solid var(--line);
   background: var(--header);
-  color: #e8eef4;
+  color: var(--px-sand-50);
 }
 
 .page {
@@ -613,7 +603,7 @@ button {
 .card.lift:hover,
 .metric-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 16px 36px rgba(21, 24, 38, 0.12);
+  box-shadow: var(--px-elevation-3);
 }
 
 .metric-card {
@@ -629,14 +619,26 @@ button {
   background: var(--accent);
 }
 
-.metric-card.tint-green::before { background: #16a34a; }
-.metric-card.tint-blue::before { background: #2563eb; }
-.metric-card.tint-amber::before { background: #d97706; }
-.metric-card.tint-rose::before { background: #e11d48; }
-.metric-card.tint-cyan::before { background: #0891b2; }
-.metric-card.tint-orange::before { background: #ea580c; }
-.metric-card.tint-slate::before { background: #64748b; }
-.metric-card.tint-violet::before { background: #0e7490; }
+/*
+  A 3px decorative rail carries no meaning on its own, so it takes the mid step of a
+  primitive ramp rather than a semantic role: the 500s are vivid enough to read on the warm
+  light surface and on the dark one, which a role that flips by mode would not be.
+*/
+.metric-card.tint-green::before { background: var(--px-green-500); }
+.metric-card.tint-blue::before { background: var(--px-blue-500); }
+.metric-card.tint-amber::before { background: var(--px-yellow-500); }
+.metric-card.tint-rose::before { background: var(--px-rose-500); }
+.metric-card.tint-cyan::before { background: var(--px-cyan-500); }
+.metric-card.tint-orange::before { background: var(--px-ochre-500); }
+.metric-card.tint-slate::before { background: var(--px-neutral-500); }
+.metric-card.tint-violet::before { background: var(--px-violet-500); }
+.metric-card.tint-teal::before { background: var(--px-teal-500); }
+.metric-card.tint-fuchsia::before { background: var(--px-fuchsia-500); }
+.metric-card.tint-indigo::before { background: var(--px-indigo-500); }
+.metric-card.tint-lime::before { background: var(--px-lime-500); }
+.metric-card.tint-clay::before { background: var(--px-clay-500); }
+.metric-card.tint-pink::before { background: var(--px-pink-500); }
+.metric-card.tint-red::before { background: var(--px-red-500); }
 
 .card.tight { padding: 0; overflow: auto; }
 
@@ -1014,7 +1016,7 @@ button {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--px-surface-raised) 70%, transparent);
 }
 
 .daybook__head {
@@ -1906,7 +1908,7 @@ button {
   place-items: center;
   font-size: 13px;
   font-weight: 800;
-  color: #fff;
+  color: var(--px-accent-ink);
   background: var(--card-accent, var(--accent));
 }
 
@@ -1938,7 +1940,7 @@ a.universal-row:hover {
 .universal-row:last-child { border-bottom: 0; }
 
 .universal-row.is-hit {
-  background: color-mix(in srgb, #f59e0b 14%, var(--bg-elevated));
+  background: var(--px-accent-subtle);
 }
 
 .universal-row__n {
@@ -1971,8 +1973,8 @@ a.universal-row:hover {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: #16a34a;
-  color: #fff;
+  background: var(--px-success);
+  color: var(--px-success-ink);
   font-size: 11px;
   font-weight: 800;
   vertical-align: 1px;
@@ -1980,13 +1982,13 @@ a.universal-row:hover {
 
 .compat-match {
   margin: 0;
-  color: #16a34a;
+  color: var(--px-success-subtle-ink);
   font-weight: 700;
 }
 
 .compat-hl {
-  background: #fecaca;
-  color: #9f1239;
+  background: var(--px-accent-2-subtle);
+  color: var(--px-accent-2-subtle-ink);
   padding: 0 2px;
   border-radius: 4px;
 }
@@ -2037,11 +2039,29 @@ body:has(.auth-screen),
   overflow: hidden;
 }
 
+/*
+  The stage behind the sign-in panel is always dark, whatever the app theme is, so it takes
+  fixed ramp steps rather than roles that flip by mode. It leads with the product's ochre and
+  uses the teal only as the far corner, which is what keeps it reading as MobiStack rather
+  than as a generic dark-green login.
+*/
 .auth-screen {
-  --auth-canvas: #071018;
-  --auth-canvas-2: #0f2a36;
-  --auth-brand: #0e7490;
-  --auth-brand-deep: #0f766e;
+  --auth-canvas: var(--px-sand-950);
+  --auth-canvas-2: var(--px-ochre-950);
+  --auth-brand: var(--px-ochre-500);
+  --auth-brand-deep: var(--px-teal-600);
+  /* Ink on the stage, not in the panel. Warm off-white, legible on all three corners. */
+  --auth-stage-ink: var(--px-sand-50);
+  --auth-stage-ink-dim: color-mix(in srgb, var(--px-sand-50) 74%, transparent);
+  /*
+    Glass on the stage. Written against sand-50 rather than --px-ink-inverse, which is
+    near-black in dark mode and would turn every one of these panels black on black.
+  */
+  --auth-stage-glass: color-mix(in srgb, var(--px-sand-50) 8%, transparent);
+  --auth-stage-glass-hover: color-mix(in srgb, var(--px-sand-50) 14%, transparent);
+  --auth-stage-hairline: color-mix(in srgb, var(--px-sand-50) 18%, transparent);
+  /* The stage's accent ink: light enough to read on it, unlike the -subtle-ink roles. */
+  --auth-stage-accent-ink: var(--px-ochre-200);
   height: 100%;
   height: 100dvh;
   max-height: 100dvh;
@@ -2053,10 +2073,10 @@ body:has(.auth-screen),
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(900px 520px at 88% 8%, rgba(34, 211, 238, 0.22), transparent 58%),
-    radial-gradient(720px 480px at 8% 88%, rgba(8, 145, 178, 0.14), transparent 52%),
-    linear-gradient(160deg, var(--auth-canvas), var(--auth-canvas-2) 62%, #0a1c26);
-  color: #e8eef4;
+    radial-gradient(900px 520px at 88% 8%, color-mix(in srgb, var(--auth-brand) 34%, transparent), transparent 58%),
+    radial-gradient(720px 480px at 8% 88%, color-mix(in srgb, var(--auth-brand-deep) 26%, transparent), transparent 52%),
+    linear-gradient(160deg, var(--auth-canvas), var(--auth-canvas-2) 58%, var(--px-sand-950));
+  color: var(--auth-stage-ink);
 }
 
 .auth-screen__glow {
@@ -2066,7 +2086,7 @@ body:has(.auth-screen),
   bottom: 0;
   width: min(520px, 100%);
   height: min(520px, 70%);
-  background: radial-gradient(circle, rgba(14, 116, 144, 0.35), transparent 68%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--auth-brand) 30%, transparent), transparent 68%);
 }
 
 .auth-top {
@@ -2083,14 +2103,14 @@ body:has(.auth-screen),
 
 .auth-screen .auth-top .btn.ghost,
 .auth-screen .auth-top .icon-btn {
-  color: #e8eef4;
-  border-color: rgba(248, 245, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--auth-stage-ink);
+  border-color: var(--auth-stage-hairline);
+  background: var(--auth-stage-glass);
   backdrop-filter: blur(8px);
 }
 
 .auth-screen .auth-top .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--auth-stage-glass-hover);
 }
 
 .auth-secure {
@@ -2100,8 +2120,13 @@ body:has(.auth-screen),
   min-height: 40px;
   padding: 0 12px;
   border-radius: 999px;
-  background: rgba(52, 211, 153, 0.12);
-  color: #86efac;
+  /*
+    On the always-dark stage, so this is the one badge that cannot use the success role pair:
+    success-subtle-ink is near-black in light mode and would disappear here. Fixed light
+    step instead, 7.3:1 on the stage.
+  */
+  background: color-mix(in srgb, var(--px-green-400) 16%, transparent);
+  color: var(--px-green-300);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.04em;
@@ -2137,29 +2162,17 @@ body:has(.auth-screen),
   align-content: start;
   min-width: 0;
   min-height: 0;
-  background: #fff;
-  color: #0c1524;
+  background: var(--px-surface-raised);
+  color: var(--px-ink);
   border-radius: 24px;
   padding: 26px 26px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.55) inset,
-    0 18px 50px rgba(7, 16, 24, 0.38),
-    0 2px 8px rgba(7, 16, 24, 0.18);
+  border: 1px solid var(--px-border);
+  box-shadow: var(--px-elevation-5);
   max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(14, 116, 144, 0.28) transparent;
-}
-
-:root[data-theme="dark"] .auth-panel {
-  background: #0d1a24;
-  color: #e8eef4;
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 18px 50px rgba(0, 0, 0, 0.45);
+  scrollbar-color: color-mix(in srgb, var(--px-accent) 28%, transparent) transparent;
 }
 
 .auth-brand {
@@ -2176,7 +2189,7 @@ body:has(.auth-screen),
   overflow: hidden;
   line-height: 0;
   flex: 0 0 auto;
-  box-shadow: 0 8px 16px rgba(14, 116, 144, 0.28);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--px-accent) 28%, transparent);
 }
 
 .auth-brand__mark svg {
@@ -2189,11 +2202,7 @@ body:has(.auth-screen),
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.045em;
-  color: #155e75;
-}
-
-:root[data-theme="dark"] .auth-brand__name {
-  color: #a5f3fc;
+  color: var(--px-accent-hover);
 }
 
 .auth-intro {
@@ -2205,13 +2214,9 @@ body:has(.auth-screen),
 
 .auth-brand__welcome {
   margin: 0;
-  color: #3d5163;
+  color: var(--px-ink-muted);
   font-size: 13px;
   line-height: 1.4;
-}
-
-:root[data-theme="dark"] .auth-brand__welcome {
-  color: #8fa3b5;
 }
 
 .auth-heading {
@@ -2221,11 +2226,7 @@ body:has(.auth-screen),
   font-weight: 560;
   letter-spacing: -0.04em;
   line-height: 1.08;
-  color: #121018;
-}
-
-:root[data-theme="dark"] .auth-heading {
-  color: #e8eef4;
+  color: var(--px-ink);
 }
 
 .auth-label {
@@ -2233,19 +2234,15 @@ body:has(.auth-screen),
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #3f3a47;
-}
-
-:root[data-theme="dark"] .auth-label {
-  color: #c8c2b6;
+  color: var(--px-ink-muted);
 }
 
 .auth-field {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #d5dee8;
-  background: #f7f5fa;
+  border: 1px solid var(--px-border-strong);
+  background: var(--px-surface-sunken);
   border-radius: 12px;
   padding: 0 12px;
   min-height: 44px;
@@ -2253,30 +2250,21 @@ body:has(.auth-screen),
 }
 
 .auth-field:hover {
-  border-color: #c5d4e0;
-  background: #f3f6fb;
-}
-
-:root[data-theme="dark"] .auth-field {
-  border-color: rgba(232, 238, 244, 0.12);
-  background: #071018;
+  border-color: var(--px-border-accent);
+  background: var(--px-surface-hover);
 }
 
 .auth-field:focus-within {
-  border-color: #0e7490;
-  background: #fff;
-  box-shadow: 0 0 0 4px rgba(14, 116, 144, 0.14);
-}
-
-:root[data-theme="dark"] .auth-field:focus-within {
-  background: #0f2a36;
+  border-color: var(--px-accent);
+  background: var(--px-surface-raised);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--px-focus) 18%, transparent);
 }
 
 .auth-field svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
-  color: #8fa3b5;
+  color: var(--px-ink-faint);
 }
 
 .auth-input {
@@ -2291,13 +2279,13 @@ body:has(.auth-screen),
 }
 
 .auth-input::placeholder {
-  color: #8fa3b5;
+  color: var(--px-ink-faint);
 }
 
 .auth-eye {
   border: 0;
   background: transparent;
-  color: #8fa3b5;
+  color: var(--px-ink-faint);
   padding: 6px;
   display: grid;
   place-items: center;
@@ -2305,8 +2293,8 @@ body:has(.auth-screen),
 }
 
 .auth-eye:hover {
-  color: #155e75;
-  background: rgba(14, 116, 144, 0.08);
+  color: var(--px-accent-hover);
+  background: color-mix(in srgb, var(--px-accent) 10%, transparent);
 }
 
 .auth-eye svg {
@@ -2329,7 +2317,7 @@ body:has(.auth-screen),
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
-  color: #5b6b7c;
+  color: var(--px-ink-muted);
 }
 
 .auth-remember input[type="checkbox"] {
@@ -2338,55 +2326,42 @@ body:has(.auth-screen),
   height: 16px;
   margin: 1px 0 0;
   flex: 0 0 auto;
-  border: 1.5px solid #b8c7d4;
+  border: 1.5px solid var(--px-border-strong);
   border-radius: 5px;
-  background: #fff;
+  background: var(--px-surface-raised);
   display: grid;
   place-items: center;
   cursor: pointer;
 }
 
 .auth-remember input[type="checkbox"]:checked {
-  background: #0e7490;
-  border-color: #0e7490;
+  background: var(--px-accent);
+  border-color: var(--px-accent);
 }
 
 .auth-remember input[type="checkbox"]:checked::after {
   content: "";
   width: 8px;
   height: 5px;
-  border: 2px solid #fff;
+  border: 2px solid var(--px-accent-ink);
   border-top: 0;
   border-right: 0;
   transform: rotate(-45deg) translate(0, -1px);
 }
 
-:root[data-theme="dark"] .auth-remember {
-  color: #8fa3b5;
-}
-
-:root[data-theme="dark"] .auth-remember input[type="checkbox"] {
-  background: #071018;
-  border-color: rgba(232, 238, 244, 0.24);
-}
-
 .auth-link {
   border: 0;
   background: transparent;
-  color: #0e7490;
+  color: var(--px-accent);
   font-weight: 650;
   font-size: 13px;
   padding: 0;
 }
 
 .auth-link:hover {
-  color: #155e75;
+  color: var(--px-accent-hover);
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-:root[data-theme="dark"] .auth-link {
-  color: #67e8f9;
 }
 
 .auth-link--center {
@@ -2402,23 +2377,13 @@ body:has(.auth-screen),
 }
 
 .auth-notice {
-  color: #166534;
-  background: #f0fdf4;
+  color: var(--px-success-subtle-ink);
+  background: var(--px-success-subtle);
 }
 
 .auth-error {
-  color: #991b1b;
-  background: #fef2f2;
-}
-
-:root[data-theme="dark"] .auth-notice {
-  color: #86efac;
-  background: rgba(22, 101, 52, 0.22);
-}
-
-:root[data-theme="dark"] .auth-error {
-  color: #fca5a5;
-  background: rgba(153, 27, 27, 0.22);
+  color: var(--px-danger-subtle-ink);
+  background: var(--px-danger-subtle);
 }
 
 .journey-form {
@@ -2433,10 +2398,10 @@ body:has(.auth-screen),
 
 .auth-panel .field {
   min-height: 46px;
-  border: 1px solid #d5dee8;
+  border: 1px solid var(--px-border-strong);
   border-radius: 12px;
-  background: #f3f6fb;
-  color: #0c1524;
+  background: var(--px-surface-hover);
+  color: var(--px-ink);
   padding: 0 12px;
   font: inherit;
 }
@@ -2444,7 +2409,7 @@ body:has(.auth-screen),
 .auth-text {
   border: 0;
   background: transparent;
-  color: #0e7490;
+  color: var(--px-accent);
   font: inherit;
   font-weight: 650;
   cursor: pointer;
@@ -2459,12 +2424,12 @@ body:has(.auth-screen),
   border: 0;
   border-radius: 12px;
   min-height: 44px;
-  background: linear-gradient(180deg, #0e7490, #0f766e);
-  color: #fff;
+  background-image: var(--px-gradient-brand);
+  color: var(--px-accent-ink);
   font-weight: 700;
   font-size: 14px;
   letter-spacing: -0.01em;
-  box-shadow: 0 10px 20px rgba(14, 116, 144, 0.28);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--px-accent) 28%, transparent);
   transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
 }
 
@@ -2481,7 +2446,7 @@ body:has(.auth-screen),
 .auth-submit:focus-visible,
 .auth-alt:focus-visible,
 .auth-submit--secondary:focus-visible {
-  outline: 2px solid #0e7490;
+  outline: 2px solid var(--px-focus);
   outline-offset: 2px;
 }
 
@@ -2515,21 +2480,15 @@ a.auth-submit {
 }
 
 .auth-submit--secondary {
-  background: #ecfeff;
-  color: #0f766e;
+  background: var(--px-accent-2-subtle);
+  color: var(--px-accent-2-subtle-ink);
   box-shadow: none;
   border: 1px solid transparent;
 }
 
 .auth-submit--secondary:hover:not(:disabled) {
-  background: #cffafe;
+  background: var(--px-accent-2-subtle);
   filter: none;
-}
-
-:root[data-theme="dark"] .auth-submit--secondary {
-  background: rgba(103, 232, 249, 0.08);
-  color: #a5f3fc;
-  border-color: rgba(103, 232, 249, 0.22);
 }
 
 .auth-rule {
@@ -2537,7 +2496,7 @@ a.auth-submit {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  color: #8fa3b5;
+  color: var(--px-ink-faint);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.06em;
@@ -2549,12 +2508,7 @@ a.auth-submit {
 .auth-rule::after {
   content: "";
   height: 1px;
-  background: #d5dee8;
-}
-
-:root[data-theme="dark"] .auth-rule::before,
-:root[data-theme="dark"] .auth-rule::after {
-  background: rgba(232, 238, 244, 0.1);
+  background: var(--px-border);
 }
 
 .auth-alts {
@@ -2570,27 +2524,17 @@ a.auth-submit {
   gap: 7px;
   min-height: 40px;
   border-radius: 12px;
-  border: 1px solid #d5dee8;
-  background: #fff;
-  color: #0c1524;
+  border: 1px solid var(--px-border-strong);
+  background: var(--px-surface-raised);
+  color: var(--px-ink);
   font-weight: 650;
   font-size: 13px;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .auth-alt:hover {
-  background: #f0f9ff;
-  border-color: #c5d4e0;
-}
-
-:root[data-theme="dark"] .auth-alt {
-  background: #0f2a36;
-  border-color: rgba(232, 238, 244, 0.1);
-  color: #e8eef4;
-}
-
-:root[data-theme="dark"] .auth-alt:hover {
-  background: #164e63;
+  background: var(--px-surface-hover);
+  border-color: var(--px-border-accent);
 }
 
 .auth-alt svg {
@@ -2599,9 +2543,9 @@ a.auth-submit {
 }
 
 .auth-alt.on {
-  border-color: #0e7490;
-  background: #ecfeff;
-  box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.12);
+  border-color: var(--px-accent);
+  background: var(--px-accent-2-subtle);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--px-accent) 14%, transparent);
 }
 
 .auth-channel {
@@ -2611,8 +2555,8 @@ a.auth-submit {
 }
 
 .auth-channel button {
-  border: 1px solid #d5dee8;
-  background: #f7f5fa;
+  border: 1px solid var(--px-border-strong);
+  background: var(--px-surface-sunken);
   border-radius: 999px;
   padding: 8px 10px;
   font-weight: 650;
@@ -2621,13 +2565,13 @@ a.auth-submit {
 }
 
 .auth-channel button:hover {
-  background: #e0f2fe;
+  background: var(--px-accent-subtle);
 }
 
 .auth-channel button.on {
-  background: #0f766e;
-  color: #fff;
-  border-color: #0f766e;
+  background: var(--px-accent-2);
+  color: var(--px-accent-ink);
+  border-color: var(--px-accent-2-subtle-ink);
 }
 
 .auth-footer-links {
@@ -2635,7 +2579,7 @@ a.auth-submit {
   justify-content: center;
   align-items: center;
   gap: 8px;
-  color: #3d5163;
+  color: var(--px-ink-muted);
 }
 
 .auth-legal-block {
@@ -2648,7 +2592,7 @@ a.auth-submit {
 .auth-legal {
   margin: 0;
   text-align: center;
-  color: #3d5163;
+  color: var(--px-ink-muted);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -2659,19 +2603,15 @@ a.auth-submit {
   justify-content: center;
   gap: 4px 12px;
   font-size: 12px;
-  color: #3d5163;
+  color: var(--px-ink-muted);
 }
 
 .auth-legal-links a {
-  color: #0e4a5c;
+  color: var(--px-accent-hover);
 }
 
 .auth-legal-links a:hover {
-  color: #0e7490;
-}
-
-:root[data-theme="dark"] .auth-legal-links a {
-  color: #8fa3b5;
+  color: var(--px-accent);
 }
 
 .auth-showcase {
@@ -2685,7 +2625,7 @@ a.auth-submit {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #67e8f9;
+  color: var(--auth-stage-accent-ink);
 }
 
 .auth-showcase h2 {
@@ -2706,14 +2646,14 @@ a.auth-submit {
 .auth-showcase__brand svg {
   flex: 0 0 auto;
   border-radius: 16px;
-  box-shadow: 0 18px 40px rgba(15, 8, 40, 0.35);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--px-scrim) 35%, transparent);
 }
 
 .auth-tagline {
   margin: 10px 0 18px;
   font-size: 16px;
   line-height: 1.45;
-  color: rgba(248, 245, 255, 0.78);
+  color: var(--auth-stage-ink-dim);
   max-width: 28ch;
 }
 
@@ -2731,8 +2671,8 @@ a.auth-submit {
   align-items: flex-start;
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--auth-stage-glass);
+  border: 1px solid var(--auth-stage-hairline);
   backdrop-filter: blur(12px);
 }
 
@@ -2742,8 +2682,8 @@ a.auth-submit {
   border-radius: 10px;
   display: grid;
   place-items: center;
-  background: rgba(14, 116, 144, 0.28);
-  color: #a5f3fc;
+  background: color-mix(in srgb, var(--auth-brand-deep) 38%, transparent);
+  color: var(--px-teal-200);
   flex: 0 0 auto;
 }
 
@@ -2759,7 +2699,7 @@ a.auth-submit {
 
 .auth-highlight p {
   margin: 0;
-  color: rgba(248, 245, 255, 0.72);
+  color: color-mix(in srgb, var(--px-sand-50) 76%, transparent);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -2790,14 +2730,14 @@ a.auth-submit {
   background: var(--bg-elevated);
   color: var(--ink);
   border-color: transparent;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--px-elevation-1);
 }
 
 .brand-mark--xs {
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  box-shadow: 0 4px 10px rgba(14, 116, 144, 0.28);
+  box-shadow: var(--px-elevation-1);
 }
 
 .nav-badge {
@@ -2840,9 +2780,9 @@ a.auth-submit {
 }
 
 .banner-warn {
-  background: linear-gradient(90deg, #fff6df, #ffe8b5);
-  color: #7a4b00;
-  border: 1px solid rgba(180, 83, 9, 0.12);
+  background: var(--px-warning-subtle);
+  color: var(--px-warning-subtle-ink);
+  border: 1px solid var(--px-warning-subtle-border);
 }
 
 body.rzp-checkout-open .app-shell,
@@ -2868,8 +2808,8 @@ iframe.razorpay-checkout-frame,
   margin: 16px 32px 0;
   padding: 12px 16px;
   border-radius: 12px;
-  background: #111827;
-  color: #f8fafc;
+  background: var(--px-ink);
+  color: var(--px-ink-inverse);
   box-shadow: var(--shadow);
 }
 
@@ -2882,7 +2822,7 @@ iframe.razorpay-checkout-frame,
 
 .lock-bar p {
   margin: 3px 0 0;
-  color: rgba(248, 250, 252, 0.68);
+  color: color-mix(in srgb, var(--px-ink-inverse) 72%, transparent);
   font-size: 12px;
   font-weight: 500;
 }
@@ -2902,8 +2842,8 @@ iframe.razorpay-checkout-frame,
 }
 
 .lock-bar .btn.ghost {
-  color: #f8fafc;
-  border-color: rgba(248, 250, 252, 0.18);
+  color: var(--px-ink-inverse);
+  border-color: color-mix(in srgb, var(--px-ink-inverse) 22%, transparent);
 }
 
 @media (max-width: 720px) {
@@ -2937,7 +2877,7 @@ iframe.razorpay-checkout-frame,
 
 .legal-brand svg {
   border-radius: 8px;
-  box-shadow: 0 6px 14px rgba(14, 116, 144, 0.28);
+  box-shadow: var(--px-elevation-2);
 }
 
 .legal-doc {
@@ -2972,7 +2912,7 @@ iframe.razorpay-checkout-frame,
 }
 
 .auth-legal-links a {
-  color: #6b6574;
+  color: var(--px-ink-muted);
 }
 
 .muted { color: var(--ink-soft); }
@@ -3062,14 +3002,14 @@ iframe.razorpay-checkout-frame,
 }
 
 .header-select option {
-  color: #151826;
+  color: var(--px-ink);
 }
 
 .role-chip {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(14, 116, 144, 0.28);
-  color: #a5f3fc;
+  background: var(--px-accent-2-subtle);
+  color: var(--px-accent-2-subtle-ink);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -3082,8 +3022,8 @@ iframe.razorpay-checkout-frame,
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(160deg, #ef4444, #b91c1c);
-  color: #fff;
+  background-image: var(--px-gradient-brand);
+  color: var(--px-accent-ink);
   font-size: 12px;
   font-weight: 800;
 }
@@ -3096,8 +3036,8 @@ iframe.razorpay-checkout-frame,
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: #ef4444;
-  color: #fff;
+  background: var(--px-accent-2);
+  color: var(--px-accent-2-ink);
   font-size: 10px;
   font-weight: 800;
   display: grid;
@@ -3113,9 +3053,9 @@ iframe.razorpay-checkout-frame,
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #0e7490, #0f766e);
-  color: #fff;
-  box-shadow: 0 12px 28px rgba(14, 116, 144, 0.38);
+  background-image: var(--px-gradient-brand);
+  color: var(--px-accent-ink);
+  box-shadow: var(--px-elevation-4);
   z-index: 30;
   transition: transform 0.2s ease;
 }
@@ -3262,7 +3202,7 @@ iframe.razorpay-checkout-frame,
 
 .btn.danger {
   background: var(--bad);
-  color: #fff;
+  color: var(--px-danger-ink);
 }
 
 .btn.danger:hover:not(:disabled) {
@@ -3288,8 +3228,8 @@ iframe.razorpay-checkout-frame,
 .env-badge {
   padding: 4px 9px;
   border-radius: 8px;
-  background: var(--warn);
-  color: #241500;
+  background: var(--px-warning-subtle);
+  color: var(--px-warning-subtle-ink);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -3596,7 +3536,7 @@ iframe.razorpay-checkout-frame,
   display: grid;
   place-items: center;
   padding: 24px;
-  background: color-mix(in srgb, #05060c 62%, transparent);
+  background: color-mix(in srgb, var(--px-scrim) 62%, transparent);
   backdrop-filter: blur(3px);
   animation: fade 0.18s ease both;
 }
@@ -3614,7 +3554,7 @@ iframe.razorpay-checkout-frame,
   background: var(--bg-elevated);
   border: 1px solid var(--line);
   border-radius: 22px;
-  box-shadow: 0 30px 90px rgba(5, 6, 12, 0.4);
+  box-shadow: var(--px-elevation-5);
   outline: none;
   animation: lift 0.2s ease both;
 }
@@ -3902,7 +3842,7 @@ iframe.razorpay-checkout-frame,
 .tab--active {
   background: var(--bg-elevated);
   color: var(--ink);
-  box-shadow: 0 1px 3px rgba(21, 24, 38, 0.1);
+  box-shadow: var(--px-elevation-1);
 }
 
 .tab__badge {
@@ -3964,23 +3904,26 @@ iframe.razorpay-checkout-frame,
    Badge tints Ã¢â‚¬â€ badges use the same palette as the nav icons
    =========================================================================== */
 
-.badge.tint-rose { background: #ffe4e6; color: #be123c; }
-.badge.tint-green { background: #dcfce7; color: #15803d; }
-.badge.tint-amber { background: #ffedd5; color: #b45309; }
-.badge.tint-blue { background: #dbeafe; color: #1d4ed8; }
-.badge.tint-violet { background: #cffafe; color: #0e7490; }
-.badge.tint-cyan { background: #cffafe; color: #0e7490; }
-.badge.tint-slate { background: #e2e8f0; color: #334155; }
-.badge.tint-orange { background: #ffedd5; color: #c2410c; }
-
-:root[data-theme="dark"] .badge.tint-rose { background: #3f1d25; color: #fb7185; }
-:root[data-theme="dark"] .badge.tint-green { background: #163422; color: #4ade80; }
-:root[data-theme="dark"] .badge.tint-amber { background: #3a2c14; color: #fbbf24; }
-:root[data-theme="dark"] .badge.tint-blue { background: #172554; color: #60a5fa; }
-:root[data-theme="dark"] .badge.tint-violet { background: #164e63; color: #67e8f9; }
-:root[data-theme="dark"] .badge.tint-cyan { background: #164e63; color: #67e8f9; }
-:root[data-theme="dark"] .badge.tint-slate { background: #1e293b; color: #cbd5e1; }
-:root[data-theme="dark"] .badge.tint-orange { background: #3b1d0c; color: #fb923c; }
+/*
+  One rule per tint instead of two: the tag tokens already carry their own dark values, and
+  each bg/ink pair is asserted at 4.5:1 by the token build. `violet` used to be cyan and
+  `amber`/`orange` were two shades of the same hue, so both now resolve to distinct ramps.
+*/
+.badge.tint-rose { background: var(--px-tag-rose-bg); color: var(--px-tag-rose-ink); }
+.badge.tint-green { background: var(--px-tag-green-bg); color: var(--px-tag-green-ink); }
+.badge.tint-amber { background: var(--px-tag-yellow-bg); color: var(--px-tag-yellow-ink); }
+.badge.tint-blue { background: var(--px-tag-blue-bg); color: var(--px-tag-blue-ink); }
+.badge.tint-violet { background: var(--px-tag-violet-bg); color: var(--px-tag-violet-ink); }
+.badge.tint-cyan { background: var(--px-tag-cyan-bg); color: var(--px-tag-cyan-ink); }
+.badge.tint-slate { background: var(--px-tag-neutral-bg); color: var(--px-tag-neutral-ink); }
+.badge.tint-orange { background: var(--px-tag-ochre-bg); color: var(--px-tag-ochre-ink); }
+.badge.tint-teal { background: var(--px-tag-teal-bg); color: var(--px-tag-teal-ink); }
+.badge.tint-fuchsia { background: var(--px-tag-fuchsia-bg); color: var(--px-tag-fuchsia-ink); }
+.badge.tint-indigo { background: var(--px-tag-indigo-bg); color: var(--px-tag-indigo-ink); }
+.badge.tint-lime { background: var(--px-tag-lime-bg); color: var(--px-tag-lime-ink); }
+.badge.tint-clay { background: var(--px-tag-clay-bg); color: var(--px-tag-clay-ink); }
+.badge.tint-pink { background: var(--px-tag-pink-bg); color: var(--px-tag-pink-ink); }
+.badge.tint-red { background: var(--px-tag-red-bg); color: var(--px-tag-red-ink); }
 
 .role-badge {
   font-size: 11px;
@@ -4944,7 +4887,7 @@ iframe.razorpay-checkout-frame,
 .notify-check input:checked + .notify-check__box {
   border-color: var(--accent);
   background: var(--accent);
-  box-shadow: inset 0 0 0 3px color-mix(in srgb, #fff 35%, transparent);
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--px-accent-ink) 40%, transparent);
 }
 
 .notify-check__mobile { display: none; }
@@ -5030,7 +4973,7 @@ iframe.razorpay-checkout-frame,
   inset: calc(var(--header-h) + var(--safe-top)) 0 0;
   border: 0;
   padding: 0;
-  background: color-mix(in srgb, #05060c 46%, transparent);
+  background: color-mix(in srgb, var(--px-scrim) 46%, transparent);
 }
 
 .app-shell--drawer .nav-link__label,
@@ -5588,7 +5531,7 @@ a.metric-card:hover {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: color-mix(in srgb, #111318 36%, transparent);
+  background: color-mix(in srgb, var(--px-scrim) 42%, transparent);
   display: grid;
   align-content: start;
   justify-items: center;
@@ -5800,4 +5743,36 @@ a.metric-card:hover {
   .job-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* --- Route dead ends -------------------------------------------------------
+   The 404/403 page. Centred in whatever space it is given, because it appears
+   both inside the app shell and on its own at the top level.                  */
+.route-error {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+  padding: 24px;
+}
+
+.route-error__path {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--px-surface-sunken);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.route-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 12px;
 }

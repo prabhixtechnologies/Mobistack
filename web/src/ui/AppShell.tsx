@@ -7,6 +7,7 @@ import { NAV_SECTIONS, type NavItem } from "../lib/navigation";
 import { selectedWorkspaceId } from "../lib/types";
 import { api } from "../lib/api";
 import { usePresence } from "../lib/presence";
+import { GlobalSearch } from "./GlobalSearch";
 import { BrandFooter, BrandMark } from "./BrandMark";
 import { ThemeToggle } from "./ThemeToggle";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -50,7 +51,11 @@ export function AppShell() {
   const [navOpen, setNavOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
-  usePresence(false);
+  // Seat enforcement was switched off here while Settings went on reporting seat counts
+  // as if it were running, so the numbers a shop owner saw were not the numbers the
+  // backend held. Heartbeat only once there is a signed-in user in a workspace: an
+  // anonymous or workspace-less shell has no seat to claim.
+  usePresence(Boolean(user && currentWorkspace));
   const localUnlock = Boolean(user?.localActivationAvailable);
   const canBill = access.has("WORKSPACE_BILLING");
 
@@ -144,6 +149,14 @@ export function AppShell() {
   return (
     <div className={shellClass}>
       <SkipLink />
+      {/*
+        The palette listens for Ctrl+K and for the event `openCommandPalette()` fires. It
+        was written, exported and never mounted, so both the shortcut and the dashboard's
+        "Search / Scan" and "Scan barcode" buttons dispatched into nothing. It belongs in
+        the shell rather than on a page: a shortcut that only works on the dashboard is not
+        a global shortcut.
+      */}
+      <GlobalSearch />
       <header className="app-header" role="banner">
         <button
           className="icon-btn header-icon sidebar-toggle"
