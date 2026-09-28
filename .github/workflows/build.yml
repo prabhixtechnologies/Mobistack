@@ -60,7 +60,7 @@ env:
   # value a stale pin fails at the gate, where the message names the missing token.
   #
   # Bumping it is deliberate, and deliberately manual. See DEPLOY.md, "What a push builds".
-  WEBKIT_REF: db9d1918bb1552d35d7808022944fee30fe7f787
+  WEBKIT_REF: ebcaed7c9c96bf360a427bb7f8376917d6c1a846
 
 jobs:
   # Cheap guards for mistakes that only surface on the server, where the cost of
