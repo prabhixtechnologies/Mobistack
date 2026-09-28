@@ -44,6 +44,24 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The one web-kit commit this workflow uses, in both places it is needed: the job below clones
+  # it so the token and literal gates run against it, and the image build vendors it as the
+  # `webkit` build context because package.json file:-depends on it.
+  #
+  # A full commit SHA, never a branch — Infra/docs/DEPLOY.md requires it, so that two builds of
+  # the same application commit cannot embed different versions of the shared OIDC client.
+  #
+  # One value because these were two values and they disagreed. The gate cloned the default
+  # branch while the build context pinned a SHA, so once the pin went stale the gates were
+  # passing against a web-kit that was not the one being shipped. That is how it broke: the apps
+  # began importing toneFor and TAG_TONES, the pinned tree had neither, and the image build
+  # failed on an import the job above it had just verified against a newer checkout. With one
+  # value a stale pin fails at the gate, where the message names the missing token.
+  #
+  # Bumping it is deliberate, and deliberately manual. See DEPLOY.md, "What a push builds".
+  WEBKIT_REF: ca1b0a30b64d485e65381a4a0d4470df4a22b7c3
+
 jobs:
   # Cheap guards for mistakes that only surface on the server, where the cost of
   # finding them is a broken deploy rather than a red build.
@@ -429,7 +447,12 @@ jobs:
         run: |
           # package.json points at ../../web-kit, which is the sibling checkout on a laptop
           # and is not inside this repository.
-          git clone --depth 1 https://github.com/prabhixtechnologies/web-kit.git "$GITHUB_WORKSPACE/../web-kit"
+          # A SHA, not a branch, so --branch and --depth-1-clone cannot fetch it directly.
+          WEBKIT="$GITHUB_WORKSPACE/../web-kit"
+          git init -q "$WEBKIT"
+          git -C "$WEBKIT" remote add origin https://github.com/prabhixtechnologies/web-kit.git
+          git -C "$WEBKIT" fetch -q --depth 1 origin "$WEBKIT_REF"
+          git -c advice.detachedHead=false -C "$WEBKIT" checkout -q FETCH_HEAD
           npm ci
           npm run build
 
@@ -534,7 +557,7 @@ jobs:
         with:
           context: ./web
           build-contexts: |
-            webkit=https://github.com/prabhixtechnologies/web-kit.git#6841e45aab52e52d4fb970ee08f4540e71c6c447
+            webkit=https://github.com/prabhixtechnologies/web-kit.git#${{ env.WEBKIT_REF }}
           build-args: |
             VITE_IDENTITY_ISSUER=https://api.prabhixtechnologies.com
             VITE_STORE_URL=https://store.prabhixtechnologies.com
