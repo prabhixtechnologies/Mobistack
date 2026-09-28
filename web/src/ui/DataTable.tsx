@@ -92,8 +92,8 @@ function DataRow<T>({
 }
 
 /**
- * One table that owns all four states â€” loading, error, empty and populated â€” so
- * pages stop hand-rolling `{loading ? "Loadingâ€¦" : ...}` chains that each look
+ * One table that owns all four states — loading, error, empty and populated — so
+ * pages stop hand-rolling `{loading ? "Loading…" : ...}` chains that each look
  * slightly different.
  *
  * Columns carrying sensitive data (cost price, margin) can declare `need` and
@@ -214,7 +214,7 @@ export function LoadMore({
       </span>
       {hasMore && (
         <button className="btn ghost" type="button" onClick={onLoadMore} disabled={loadingMore}>
-          {loadingMore ? "Loadingâ€¦" : "Load more"}
+          {loadingMore ? "Loading…" : "Load more"}
         </button>
       )}
     </div>

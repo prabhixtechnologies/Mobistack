@@ -7,6 +7,8 @@ import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
 import { SelectField, TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import type { RowAction } from "../ui/RowActions";
+import { useRowVerbs, verbs } from "../ui/rowVerbs";
 import { humanLabel } from "../lib/labels";
 
 interface Customer {
@@ -22,6 +24,7 @@ interface Customer {
 
 export function CustomersPage() {
   const access = useAccess();
+  const rowVerbs = useRowVerbs();
   const canWrite = access.has("CUSTOMER_WRITE");
   const [search, setSearch] = useState("");
   const settled = useDebounced(search);
@@ -75,6 +78,16 @@ export function CustomersPage() {
     },
   ];
 
+  // A regular's phone number is how they are looked up on every other screen, so it is the one
+  // field worth putting a keystroke away.
+  const customerActions = (customer: Customer): RowAction[] =>
+    verbs(
+      rowVerbs.filterBy("name", "Show only this customer", customer.name, setSearch),
+      rowVerbs.copy("phone", "Copy phone", customer.phone),
+      rowVerbs.copy("email", "Copy email", customer.email),
+      rowVerbs.copy("name", "Copy name", customer.name),
+    );
+
   return (
     <div className="page">
       <PageHeader
@@ -117,6 +130,8 @@ export function CustomersPage() {
           loading={customers.loading}
           error={customers.error}
           onRetry={customers.reload}
+          rowActions={customerActions}
+          rowLabel={(customer) => customer.name}
           skeletonRows={8}
           empty={{
             icon: "users",

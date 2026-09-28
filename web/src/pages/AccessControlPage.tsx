@@ -13,6 +13,8 @@ import { Tabs, TabPanel } from "../ui/Tabs";
 import { PermissionGate } from "../ui/PermissionGate";
 import { useToast } from "../ui/Toast";
 import { Icon } from "../ui/navIcons";
+import type { RowAction } from "../ui/RowActions";
+import { useRowVerbs, verbs } from "../ui/rowVerbs";
 
 interface UserDraft {
   id?: string;
@@ -49,6 +51,8 @@ function relativeDate(iso: string | undefined): string {
 export function AccessControlPage() {
   const access = useAccess();
   const toast = useToast();
+  const rowVerbs = useRowVerbs();
+  const canWrite = access.has("USER_WRITE");
   const [tab, setTab] = useState("users");
 
   const users = useResource<PageResponse<WorkspaceUser>>("/api/v1/mobistack/users?size=100");
@@ -140,6 +144,32 @@ export function AccessControlPage() {
     }
   };
 
+  // The only list in this app whose rows have real verbs behind them, so the menu carries them
+  // rather than only the copies. Disabling someone gets the confirmation: it signs them out of
+  // a till mid-shift, and it is one item away from Edit in a menu that opens under the pointer.
+  const userActions = (user: WorkspaceUser): RowAction[] =>
+    verbs(
+      canWrite && { id: "edit", label: "Edit person", icon: <Icon name="edit" />, onSelect: () => openEdit(user) },
+      canWrite &&
+        !user.active && { id: "enable", label: "Enable account", onSelect: () => void setActive(user, true) },
+      rowVerbs.copy("email", "Copy email", user.email),
+      rowVerbs.copy("phone", "Copy phone", user.phone),
+      canWrite && user.active
+        ? {
+            id: "disable",
+            label: "Disable account",
+            danger: true,
+            onSelect: () => void setActive(user, false),
+            confirm: {
+              title: `Disable ${user.fullName}?`,
+              message:
+                "They are signed out everywhere and cannot take a sale until someone enables them again. Nothing they have already done is removed.",
+              confirmLabel: "Disable",
+            },
+          }
+        : null,
+    );
+
   const columns: Column<WorkspaceUser>[] = [
     {
       key: "name",
@@ -229,8 +259,10 @@ export function AccessControlPage() {
             rowKey={(user) => user.id}
             loading={users.loading}
             error={users.error}
-            onRetry={users.reload}
-            empty={{
+              onRetry={users.reload}
+              rowActions={userActions}
+              rowLabel={(user) => user.fullName}
+              empty={{
               icon: "people",
               title: "No accounts yet",
               hint: "Add the people who work this counter so each one signs in as themselves.",

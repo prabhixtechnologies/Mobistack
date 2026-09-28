@@ -212,7 +212,7 @@ export function SalesPage() {
             className="field"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Part, SKU, barcodeâ€¦"
+            placeholder="Part, SKU, barcode…"
             aria-label="Find a part to sell"
             autoComplete="off"
           />
@@ -235,7 +235,7 @@ export function SalesPage() {
                         ...current,
                         {
                           variantId: hit.variantId,
-                          name: `${hit.productName} Â· ${hit.variantName}`,
+                          name: `${hit.productName} · ${hit.variantName}`,
                           quantity: 1,
                           unitPrice: hit.price,
                         },
@@ -248,7 +248,7 @@ export function SalesPage() {
                   <div>
                     <div style={{ fontWeight: 650 }}>{hit.productName}</div>
                     <div className="faint">
-                      {hit.sku} Â· {hit.availableQty} in stock
+                      {hit.sku} · {hit.availableQty} in stock
                     </div>
                   </div>
                   <span>{money.format(hit.price)}</span>
@@ -297,12 +297,12 @@ export function SalesPage() {
             <strong>{money.format(total)}</strong>
           </div>
           <button className="btn" disabled={checkout.busy || lines.length === 0}>
-            {checkout.busy ? "Savingâ€¦" : "Complete sale"}
+            {checkout.busy ? "Saving…" : "Complete sale"}
           </button>
         </form>
       ) : (
         <div className="pos__ticket faint">
-          Your role can read invoices but not raise them. Ask an owner for the â€œTake salesâ€ permission.
+          Your role can read invoices but not raise them. Ask an owner for the “Take sales” permission.
         </div>
       )}
 

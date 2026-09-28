@@ -9,10 +9,13 @@ import { DataTable, type Column } from "../ui/DataTable";
 import { TextField } from "../ui/Field";
 import { Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
+import type { RowAction } from "../ui/RowActions";
+import { useRowVerbs, verbs } from "../ui/rowVerbs";
 import type { ProductVariant } from "../lib/types";
 
 export function InventoryPage() {
   const access = useAccess();
+  const rowVerbs = useRowVerbs();
   const canReceive = access.has("INVENTORY_WRITE");
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
@@ -83,8 +86,23 @@ export function InventoryPage() {
             ),
           },
         ]
-      : []),
+        : []),
   ];
+
+  // The same "Add stock" the actions column renders, plus the two things a counter hand does
+  // with a part that has no button anywhere: narrow the list to it, and get the SKU into
+  // whatever they are typing it into.
+  const partActions = (variant: ProductVariant): RowAction[] =>
+    verbs(
+      canReceive && {
+        id: "receive",
+        label: "Add stock",
+        onSelect: () => setReceiveFor(variant),
+      },
+      rowVerbs.filterBy("sku", "Show only this part", variant.sku, setQuery),
+      rowVerbs.copy("sku", "Copy SKU", variant.sku),
+      rowVerbs.copy("name", "Copy part name", `${variant.productName} ${variant.variantName}`.trim()),
+    );
 
   return (
     <div className="page">
@@ -120,6 +138,8 @@ export function InventoryPage() {
           loading={parts.loading}
           error={parts.error}
           onRetry={parts.reload}
+          rowActions={partActions}
+          rowLabel={(variant) => `${variant.productName} ${variant.variantName}`.trim()}
           skeletonRows={8}
           empty={{
             icon: "box",

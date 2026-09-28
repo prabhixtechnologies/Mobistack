@@ -6,6 +6,8 @@ import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
 import { SelectField, TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import type { RowAction } from "../ui/RowActions";
+import { useRowVerbs, verbs } from "../ui/rowVerbs";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
 interface Supplier {
@@ -25,6 +27,7 @@ interface Purchase {
 
 export function PurchasesPage() {
   const access = useAccess();
+  const rowVerbs = useRowVerbs();
   const canWrite = access.has("PURCHASE_WRITE");
   const purchases = usePagedList<Purchase>("/api/v1/mobistack/purchases", { size: 25 });
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -75,6 +78,14 @@ export function PurchasesPage() {
     event.preventDefault();
     void receive.run();
   }
+
+  // A purchase row is a receipt: the two things anyone wants off it are who it was from and
+  // the reference to quote when the amount is queried.
+  const purchaseActions = (purchase: Purchase): RowAction[] =>
+    verbs(
+      rowVerbs.copy("supplier", "Copy supplier name", purchase.supplierName),
+      rowVerbs.copy("ref", "Copy reference", purchase.id),
+    );
 
   const columns: Column<Purchase>[] = [
     {
@@ -159,6 +170,8 @@ export function PurchasesPage() {
           loading={purchases.loading}
           error={purchases.error}
           onRetry={purchases.reload}
+          rowActions={purchaseActions}
+          rowLabel={(purchase) => `Purchase from ${purchase.supplierName}`}
           skeletonRows={8}
           empty={{
             icon: "truck",

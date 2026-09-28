@@ -1,6 +1,8 @@
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
+import type { RowAction } from "../ui/RowActions";
+import { useRowVerbs, verbs } from "../ui/rowVerbs";
 
 interface AuditRow {
   id: string;
@@ -11,7 +13,29 @@ interface AuditRow {
 }
 
 export function AuditPage() {
+  const rowVerbs = useRowVerbs();
   const trail = usePagedList<AuditRow>("/api/v1/mobistack/audit", { size: 40 });
+
+  // An audit line is evidence, and evidence gets pasted into a message to somebody. Copying the
+  // whole entry keeps the timestamp and the actor attached to it, which is the part that gets
+  // dropped when it is retyped.
+  const entryActions = (entry: AuditRow): RowAction[] =>
+    verbs(
+      rowVerbs.copy(
+        "entry",
+        "Copy this entry",
+        [
+          new Date(entry.createdAt).toLocaleString("en-IN"),
+          entry.action.replaceAll("_", " "),
+          entry.actorName,
+          entry.summary,
+        ]
+          .filter(Boolean)
+          .join(" \u00b7 "),
+      ),
+      rowVerbs.copy("actor", "Copy who did it", entry.actorName),
+      rowVerbs.copy("ref", "Copy reference", entry.id),
+    );
 
   const columns: Column<AuditRow>[] = [
     {
@@ -47,8 +71,10 @@ export function AuditPage() {
           rowKey={(row) => row.id}
           loading={trail.loading}
           error={trail.error}
-          onRetry={trail.reload}
-          skeletonRows={10}
+            onRetry={trail.reload}
+            rowActions={entryActions}
+            rowLabel={(entry) => entry.action.replaceAll("_", " ")}
+            skeletonRows={10}
           empty={{
             icon: "shield",
             title: "Nothing recorded yet",

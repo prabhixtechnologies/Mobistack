@@ -3117,7 +3117,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ---------------------------------------------------------------------------
-   Collapsed sidebar Ã¢â‚¬â€ driven by the header toggle (Ctrl+B) and by narrow
+   Collapsed sidebar — driven by the header toggle (Ctrl+B) and by narrow
    viewports. Only the text label collapses; the tinted icon is what makes the
    rail usable, so it deliberately stays visible.
    --------------------------------------------------------------------------- */
@@ -3189,7 +3189,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Buttons Ã¢â‚¬â€ size and intent variants layered onto the existing .btn
+   Buttons — size and intent variants layered onto the existing .btn
    =========================================================================== */
 
 .btn {
@@ -3229,7 +3229,7 @@ iframe.razorpay-checkout-frame,
 .row--end { justify-content: flex-end; }
 
 /* ===========================================================================
-   Header additions Ã¢â‚¬â€ environment badge, sidebar toggle, account chip
+   Header additions — environment badge, sidebar toggle, account chip
    =========================================================================== */
 
 .sidebar-toggle {
@@ -3292,7 +3292,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Menu Ã¢â‚¬â€ popover used by the account chip and row actions
+   Menu — popover used by the account chip and row actions
    =========================================================================== */
 
 .menu { position: relative; }
@@ -3874,7 +3874,7 @@ iframe.razorpay-checkout-frame,
 .tab-panel { display: grid; gap: 22px; }
 
 /* ===========================================================================
-   Tables Ã¢â‚¬â€ states layered onto the existing .table
+   Tables — states layered onto the existing .table
    =========================================================================== */
 
 .table--refreshing { opacity: 0.72; transition: opacity 0.2s ease; }
@@ -3912,7 +3912,7 @@ iframe.razorpay-checkout-frame,
 .cell-identity .faint { font-size: 12px; }
 
 /* ===========================================================================
-   Badge tints Ã¢â‚¬â€ badges use the same palette as the nav icons
+   Badge tints — badges use the same palette as the nav icons
    =========================================================================== */
 
 /*
@@ -3944,7 +3944,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Access control Ã¢â‚¬â€ role cards and the permission matrix
+   Access control — role cards and the permission matrix
    =========================================================================== */
 
 .role-grid {
@@ -4291,7 +4291,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   My workspaces Ã¢â‚¬â€ one board: shops + join/create/invite
+   My workspaces — one board: shops + join/create/invite
    =========================================================================== */
 
 .workspaces-shell {
@@ -4631,7 +4631,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Notifications Ã¢â‚¬â€ inbox + channel matrix
+   Notifications — inbox + channel matrix
    =========================================================================== */
 
 .notify-page {
@@ -4946,7 +4946,7 @@ iframe.razorpay-checkout-frame,
 }
 
 /* ===========================================================================
-   Responsive shell Ã¢â‚¬â€ tablet, phablet, phone, and rotated (landscape)
+   Responsive shell — tablet, phablet, phone, and rotated (landscape)
    =========================================================================== */
 
 .sidebar-scrim {
@@ -5341,7 +5341,7 @@ iframe.razorpay-checkout-frame,
   }
 }
 
-/* Rotated phone / short landscape Ã¢â‚¬â€ keep chrome thin so the page is usable */
+/* Rotated phone / short landscape — keep chrome thin so the page is usable */
 @media (max-height: 540px) and (orientation: landscape) {
   :root {
     --header-h: 48px;

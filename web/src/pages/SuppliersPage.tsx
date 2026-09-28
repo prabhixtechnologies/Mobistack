@@ -7,6 +7,8 @@ import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
 import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import type { RowAction } from "../ui/RowActions";
+import { useRowVerbs, verbs } from "../ui/rowVerbs";
 
 interface Supplier {
   id: string;
@@ -19,6 +21,7 @@ interface Supplier {
 
 export function SuppliersPage() {
   const access = useAccess();
+  const rowVerbs = useRowVerbs();
   const canWrite = access.has("SUPPLIER_WRITE");
   const [search, setSearch] = useState("");
   const settled = useDebounced(search);
@@ -67,6 +70,16 @@ export function SuppliersPage() {
     },
   ];
 
+  // A phone number on this screen exists to be dialled or pasted somewhere else, which until
+  // now meant selecting it by hand off a table cell.
+  const supplierActions = (supplier: Supplier): RowAction[] =>
+    verbs(
+      rowVerbs.filterBy("name", "Show only this supplier", supplier.name, setSearch),
+      rowVerbs.copy("name", "Copy name", supplier.name),
+      rowVerbs.copy("phone", "Copy phone", supplier.phone),
+      rowVerbs.copy("contact", "Copy contact person", supplier.contactPerson),
+    );
+
   return (
     <div className="page">
       <PageHeader
@@ -104,6 +117,8 @@ export function SuppliersPage() {
           loading={suppliers.loading}
           error={suppliers.error}
           onRetry={suppliers.reload}
+          rowActions={supplierActions}
+          rowLabel={(supplier) => supplier.name}
           skeletonRows={8}
           empty={{
             icon: "truck",

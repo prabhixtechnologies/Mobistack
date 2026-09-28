@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MenuItem, MenuSeparator } from "./Menu";
 import { Modal } from "./Modal";
@@ -30,6 +30,12 @@ export interface RowAction {
   disabled?: boolean;
   /** Draws the item in the danger colour and separates it from the ordinary verbs. */
   danger?: boolean;
+  /**
+   * Groups render in order, separated by a rule; ungrouped verbs come first and anything
+   * marked `danger` comes last regardless. Matches the `group` on `@prabhix/ui`'s `RowAction`,
+   * so the two menus read the same way even though this app cannot use that implementation.
+   */
+  group?: string;
   /** Required for anything that cannot be undone. */
   confirm?: {
     title: string;
@@ -161,8 +167,26 @@ export function useRowMenu(actions: RowAction[], label: string) {
     onPointerMove: cancelLongPress,
   };
 
-  const ordinary = actions.filter((action) => !action.danger);
   const dangerous = actions.filter((action) => action.danger);
+  // Ungrouped verbs lead, so a row's primary actions stay where the pointer lands first, then
+  // each named group in the order it was first mentioned. Danger is handled separately below
+  // and always sits at the bottom, whatever group it was given.
+  const groups = (() => {
+    const order: string[] = [];
+    const byGroup = new Map<string, RowAction[]>();
+    for (const action of actions) {
+      if (action.danger) continue;
+      const key = action.group ?? "";
+      if (!byGroup.has(key)) {
+        byGroup.set(key, []);
+        order.push(key);
+      }
+      byGroup.get(key)!.push(action);
+    }
+    order.sort((a, b) => (a === "" ? -1 : b === "" ? 1 : 0));
+    return order.map((key) => byGroup.get(key)!);
+  })();
+  const ordinary = groups.flat();
 
   // Portalled, because a `position: fixed` panel inside a `.table-scroll` with its own
   // transform or overflow would be clipped by it.
@@ -181,10 +205,15 @@ export function useRowMenu(actions: RowAction[], label: string) {
             }}
           >
             <p className="row-menu__label">{label}</p>
-            {ordinary.map((action) => (
-              <MenuItem key={action.id} icon={action.icon} onClick={() => run(action)}>
-                {action.label}
-              </MenuItem>
+            {groups.map((items, index) => (
+              <Fragment key={items[0]?.group ?? index}>
+                {index > 0 && <MenuSeparator />}
+                {items.map((action) => (
+                  <MenuItem key={action.id} icon={action.icon} onClick={() => run(action)}>
+                    {action.label}
+                  </MenuItem>
+                ))}
+              </Fragment>
             ))}
             {dangerous.length > 0 && ordinary.length > 0 && <MenuSeparator />}
             {dangerous.map((action) => (
