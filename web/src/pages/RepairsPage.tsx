@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { api, money } from "../lib/api";
 import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
@@ -33,6 +33,7 @@ export function RepairsPage() {
   const access = useAccess();
   const canWrite = access.has("REPAIR_WRITE");
   const [filter, setFilter] = useState("");
+  const problemRef = useRef<HTMLInputElement>(null);
   const [problem, setProblem] = useState("");
   const [imei, setImei] = useState("");
   const [labor, setLabor] = useState(500);
@@ -138,6 +139,7 @@ export function RepairsPage() {
         <form className="toolbar" onSubmit={submitJob}>
           <strong className="visually-hidden">New job</strong>
           <input
+            ref={problemRef}
             className="field"
             value={problem}
             onChange={(e) => setProblem(e.target.value)}
@@ -196,6 +198,29 @@ export function RepairsPage() {
             filter
               ? "Clear the filter to see everything on the bench."
               : "Open a job above and it will show here until it is delivered."
+          }
+          /*
+            The hint named the way out and then made the reader go and find it. A filtered
+            list clears; an empty one puts the cursor in the form that fills it. The form is
+            only rendered for someone who can write, so the button follows it.
+          */
+          action={
+            filter ? (
+              <button className="btn ghost" type="button" onClick={() => setFilter("")}>
+                Clear the filter
+              </button>
+            ) : canWrite ? (
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => {
+                  problemRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+                  problemRef.current?.focus();
+                }}
+              >
+                Open the first job
+              </button>
+            ) : undefined
           }
         />
       ) : (
