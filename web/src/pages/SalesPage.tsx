@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, apiText, money } from "../lib/api";
 import { openHtmlDocument } from "../lib/printHtml";
@@ -6,6 +6,7 @@ import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
+import { useScanner } from "../lib/useScanner";
 import { DataTable, type Column } from "../ui/DataTable";
 import type { RowAction } from "../ui/RowActions";
 import { ConfirmDialog } from "../ui/Modal";
@@ -46,6 +47,10 @@ export function SalesPage() {
   const [method, setMethod] = useState("CASH");
   const [searchError, setSearchError] = useState<string | null>(null);
   const [voidTarget, setVoidTarget] = useState<Sale | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // Announced rather than shown as an error, because a scan that misses is a normal event at a
+  // counter - an unlabelled part, a damaged code - and the till should say so without stopping.
+  const [scanNote, setScanNote] = useState<string | null>(null);
 
   useEffect(() => {
     const fromUrl = params.get("q");
@@ -82,6 +87,79 @@ export function SalesPage() {
   }, [settled]);
 
   const total = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+
+  /** One more of this part on the ticket, or a new line if it is not on it yet. */
+  const addHit = useCallback((hit: PartSearchHit) => {
+    setLines((current) => {
+      const existing = current.find((line) => line.variantId === hit.variantId);
+      if (existing) {
+        return current.map((line) =>
+          line.variantId === hit.variantId ? { ...line, quantity: line.quantity + 1 } : line,
+        );
+      }
+      return [
+        ...current,
+        {
+          variantId: hit.variantId,
+          name: `${hit.productName} · ${hit.variantName}`,
+          quantity: 1,
+          unitPrice: hit.price,
+        },
+      ];
+    });
+    setQuery("");
+    setHits([]);
+  }, []);
+
+  /**
+   * A scanned code goes straight onto the ticket.
+   *
+   * <p>Only on an exact barcode or SKU match. The search endpoint is fuzzy, and a scan that
+   * quietly adds the nearest-looking part is worse than one that adds nothing - nobody
+   * re-reads a line they did not type.
+   */
+  const addByCode = useCallback(
+    async (code: string) => {
+      setScanNote(null);
+      try {
+        const result = await api<GlobalSearchResponse>(
+          `/api/v1/mobistack/search?q=${encodeURIComponent(code)}`,
+        );
+        const wanted = code.trim().toLowerCase();
+        const exact = result.parts.find(
+          (part) =>
+            part.barcode?.trim().toLowerCase() === wanted ||
+            part.sku.trim().toLowerCase() === wanted,
+        );
+        if (!exact) {
+          setQuery(code);
+          setHits(result.parts);
+          setScanNote(
+            result.parts.length > 0
+              ? `Nothing matches ${code} exactly. Pick from the list below.`
+              : `Nothing matches ${code}.`,
+          );
+          return;
+        }
+        if (exact.availableQty <= 0) {
+          // Added anyway: a counter sells the part in its hand, and refusing here means the
+          // sale goes through untracked. Saying so is the useful part.
+          setScanNote(`${exact.productName} shows no stock. Added — count it when you can.`);
+        } else {
+          setScanNote(`Added ${exact.productName}.`);
+        }
+        addHit(exact);
+      } catch (err) {
+        setScanNote(err instanceof Error ? err.message : "Could not look that code up.");
+      }
+    },
+    [addHit],
+  );
+
+  // A USB scanner is a keyboard, and its Enter used to submit this form - which, with items on
+  // the ticket, completed the sale. It is recognised by typing speed now and never reaches the
+  // form. See lib/useScanner.ts.
+  useScanner((code) => void addByCode(code), { enabled: canSell });
 
   const openInvoice = useCallback(async (id: string) => {
     const html = await apiText(`/api/v1/mobistack/sales/invoice?id=${id}`);
@@ -120,10 +198,56 @@ export function SalesPage() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    // Only the Complete sale button may take money. Enter from anywhere inside this form used
+    // to land here, so a hand-typed SKU followed by Enter charged the customer for whatever
+    // was already on the ticket.
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    if (submitter?.getAttribute("data-checkout") !== "true") return;
     if (lines.length > 0) {
       void checkout.run();
     }
   }
+
+  /*
+    The counter keyboard.
+
+    F2 to the search box and F9 to take payment are what till software has used for thirty
+    years, and the people on this counter have used till software. Escape clears a
+    half-finished ticket, which is the other thing that happens constantly: wrong customer,
+    start again.
+
+    Function keys rather than letters because the search box holds focus almost all the time
+    and a letter shortcut would either be swallowed or eat a keystroke.
+  */
+  useEffect(() => {
+    if (!canSell) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "F2") {
+        event.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
+      if (event.key === "F9") {
+        event.preventDefault();
+        if (lines.length > 0 && !checkout.busy) void checkout.run();
+        return;
+      }
+      if (event.key === "Escape" && document.activeElement === searchRef.current) {
+        // Clears the search first and the ticket only on a second press, so one stray Escape
+        // cannot throw away a ticket someone spent a minute building.
+        if (query) {
+          setQuery("");
+          setHits([]);
+        } else if (lines.length > 0) {
+          setLines([]);
+          setScanNote("Ticket cleared.");
+        }
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [canSell, lines.length, checkout, query]);
 
   // The same verbs the actions column renders as buttons, reachable by right-click on the
   // counter PC, by long-press on the tablet, and by Shift+F10 without a mouse. Defined here
@@ -209,13 +333,32 @@ export function SalesPage() {
         <form className="pos__ticket" onSubmit={submit}>
           <h2>This ticket</h2>
           <input
+            ref={searchRef}
             className="field"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter takes the only hit. With several it does nothing, because guessing which
+              // part someone meant is how the wrong one gets sold.
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (hits.length === 1) addHit(hits[0]);
+              }
+            }}
             placeholder="Part, SKU, barcode…"
             aria-label="Find a part to sell"
+            aria-describedby="pos-keys"
             autoComplete="off"
           />
+          {/* Announced, not just shown: at a counter nobody is watching this corner of the
+              screen while holding a part and a scanner. */}
+          <p className="faint" role="status" aria-live="polite">
+            {scanNote}
+          </p>
+          <p className="faint" id="pos-keys">
+            Scan a barcode to add it. <kbd>F2</kbd> search · <kbd>F9</kbd> take payment ·{" "}
+            <kbd>Esc</kbd> clear
+          </p>
           {hits.length > 0 && (
             <div className="pos__hits">
               {hits.map((hit) => (
@@ -223,27 +366,7 @@ export function SalesPage() {
                   key={hit.variantId}
                   className="category-row"
                   type="button"
-                  onClick={() => {
-                    setLines((current) => {
-                      const existing = current.find((line) => line.variantId === hit.variantId);
-                      if (existing) {
-                        return current.map((line) =>
-                          line.variantId === hit.variantId ? { ...line, quantity: line.quantity + 1 } : line,
-                        );
-                      }
-                      return [
-                        ...current,
-                        {
-                          variantId: hit.variantId,
-                          name: `${hit.productName} · ${hit.variantName}`,
-                          quantity: 1,
-                          unitPrice: hit.price,
-                        },
-                      ];
-                    });
-                    setQuery("");
-                    setHits([]);
-                  }}
+                  onClick={() => addHit(hit)}
                 >
                   <div>
                     <div style={{ fontWeight: 650 }}>{hit.productName}</div>
@@ -272,9 +395,15 @@ export function SalesPage() {
                   type="number"
                   min={1}
                   value={line.quantity}
+                  aria-label={`Quantity of ${line.name}`}
                   onChange={(e) => {
-                    const quantity = Number(e.target.value);
-                    setLines((current) => current.map((row, i) => (i === index ? { ...row, quantity } : row)));
+                    // Clearing the box gives an empty string, and Number("") is 0 - which sold
+                    // the part for nothing and left a zero-quantity line on the invoice.
+                    const parsed = Number.parseInt(e.target.value, 10);
+                    const quantity = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+                    setLines((current) =>
+                      current.map((row, i) => (i === index ? { ...row, quantity } : row)),
+                    );
                   }}
                 />
                 <button
@@ -296,7 +425,8 @@ export function SalesPage() {
             </select>
             <strong>{money.format(total)}</strong>
           </div>
-          <button className="btn" disabled={checkout.busy || lines.length === 0}>
+          {/* The marker the submit handler checks. Nothing else in this form may take money. */}
+          <button className="btn" data-checkout="true" disabled={checkout.busy || lines.length === 0}>
             {checkout.busy ? "Saving…" : "Complete sale"}
           </button>
         </form>
