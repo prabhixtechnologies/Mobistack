@@ -159,11 +159,10 @@ export function CommonsBrowsePage() {
                 <span />
               </div>
               {devices.rows.map((device) => {
-                const tone = brandTone(device.brandName);
-                return (
-                  <Link key={device.id} className="catalog-row" to={`/commons/devices/${device.id}`}>
-                    <div className="catalog-row__device">
-                      <span className="catalog-row__mark" style={{ background: tone.bg, color: tone.fg }}>
+                  return (
+                    <Link key={device.id} className="catalog-row" to={`/commons/devices/${device.id}`}>
+                      <div className="catalog-row__device">
+                        <span className="catalog-row__mark" style={brandTone(device.brandName)}>
                         {brandMark(device.brandName)}
                       </span>
                       <div>
@@ -210,11 +209,10 @@ export function CommonsBrowsePage() {
                 <span />
               </div>
               {components.rows.map((component) => {
-                const tone = brandTone(component.categoryCode);
-                return (
-                  <Link key={component.id} className="catalog-row" to={`/commons/components/${component.id}`}>
-                    <div className="catalog-row__device">
-                      <span className="catalog-row__mark" style={{ background: tone.bg, color: tone.fg }}>
+                  return (
+                    <Link key={component.id} className="catalog-row" to={`/commons/components/${component.id}`}>
+                      <div className="catalog-row__device">
+                        <span className="catalog-row__mark" style={brandTone(component.categoryCode)}>
                         {brandMark(component.name)}
                       </span>
                       <div>

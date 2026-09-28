@@ -66,7 +66,6 @@ export function CommonsDevicePage() {
   }
 
   const title = [device.data.name, device.data.variant].filter(Boolean).join(" ");
-  const tone = brandTone(device.data.brandName);
 
   return (
     <div className="page">
@@ -78,7 +77,7 @@ export function CommonsDevicePage() {
         current={fitment.current}
       />
       <div className="device-hero">
-        <span className="device-hero__mark" style={{ background: tone.bg, color: tone.fg }}>
+          <span className="device-hero__mark" style={brandTone(device.data.brandName)}>
           {brandMark(device.data.brandName)}
         </span>
         <PageHeader

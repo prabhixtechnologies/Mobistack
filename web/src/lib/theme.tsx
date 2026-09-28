@@ -16,7 +16,11 @@ function applyTheme(theme: Theme): void {
   document.documentElement.style.colorScheme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute("content", theme === "dark" ? "#071018" : "#0e7490");
+    // px-allow-literal: the browser paints the address bar from this attribute before any
+    // stylesheet is consulted, so it cannot be var(). These were the house cyan and its dark
+    // navy, left behind when MobiStack moved to its own ochre theme — the one surface still
+    // announcing the old brand. They now mirror --px-accent and --px-bg for mobistack.
+    meta.setAttribute("content", theme === "dark" ? "#12100e" : "#b45309");
   }
   storeSet("theme", theme);
 }

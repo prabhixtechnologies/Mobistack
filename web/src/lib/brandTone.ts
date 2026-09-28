@@ -1,21 +1,25 @@
-const BRAND_TONES = [
-  { bg: "#ecfeff", fg: "#0e7490" },
-  { bg: "#eff6ff", fg: "#1d4ed8" },
-  { bg: "#f5f3ff", fg: "#6d28d9" },
-  { bg: "#fff1f2", fg: "#be123c" },
-  { bg: "#fff7ed", fg: "#c2410c" },
-  { bg: "#ecfdf5", fg: "#047857" },
-  { bg: "#fefce8", fg: "#a16207" },
-  { bg: "#f1f5f9", fg: "#334155" },
-];
+import { toneFor } from "@prabhix/brand";
+import type { CSSProperties } from "react";
 
-export function brandTone(name?: string | null): { bg: string; fg: string } {
-  const key = (name ?? "?").toUpperCase();
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-  }
-  return BRAND_TONES[hash % BRAND_TONES.length];
+/**
+ * The swatch for a catalog mark — a phone brand, a component category.
+ *
+ * This used to be eight hand-picked light-mode hex pairs and a hash of its own. Two problems
+ * with that: none of the pairs had ever been through the contrast gate, and there was only one
+ * set, so in dark mode a pale `#ecfeff` chip sat glaring on a dark surface. It was also a second
+ * implementation of something `@prabhix/brand` already does, which is how the same brand ended
+ * up a different colour here than anywhere else in the portfolio.
+ *
+ * Now it returns the shared swatch variables. Those are generated from tokens.json, have a light
+ * and a dark value, and every one is asserted AA against its own background by the contrast gate.
+ * Samsung is the same colour here as it would be on a chip in any other product.
+ */
+export function brandTone(name?: string | null): CSSProperties {
+  const tone = toneFor(name ?? "?");
+  return {
+    background: `var(--px-tag-${tone}-bg)`,
+    color: `var(--px-tag-${tone}-ink)`,
+  };
 }
 
 export function brandMark(name?: string | null): string {

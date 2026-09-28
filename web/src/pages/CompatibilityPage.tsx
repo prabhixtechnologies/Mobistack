@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
+import { TAG_TONES, toneFor } from "@prabhix/brand";
 import { api } from "../lib/api";
 import { highlightText, groupLine, phoneLabel } from "../lib/compatibility";
 import { useAccess } from "../lib/access";
@@ -7,6 +9,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import { Icon } from "../ui/navIcons";
 import type {
+  CategoryOverview,
   CommonsSearchHit,
   CompatibilityGroup,
   CompatibilityOverview,
@@ -14,6 +17,25 @@ import type {
   GlobalSearchResponse,
   PageResponse,
 } from "../lib/types";
+
+/**
+ * The swatch for a category card, as a background and ink pair.
+ *
+ * `category.color` has been in the API schema all along. It was read here as a raw value with a
+ * hard-coded cyan fallback, which meant an arbitrary stored string went straight onto the page
+ * without ever passing the contrast gate, and every theme got the same cyan when the field was
+ * empty. It is now honoured only when it names one of our swatches; anything else is seeded from
+ * the id, so a category keeps its colour when it is renamed.
+ */
+function categoryTone(category: CategoryOverview): CSSProperties {
+  const stored = category.color?.trim().toLowerCase();
+  const tone =
+    stored && (TAG_TONES as readonly string[]).includes(stored) ? stored : toneFor(category.id);
+  return {
+    ["--card-bg" as string]: `var(--px-tag-${tone}-bg)`,
+    ["--card-ink" as string]: `var(--px-tag-${tone}-ink)`,
+  };
+}
 
 interface ChangeRequest {
   id: string;
@@ -242,7 +264,7 @@ export function CompatibilityPage() {
               key={category.id}
               to={`/compatibility/${category.id}`}
               className="universal-card"
-              style={{ ["--card-accent" as string]: category.color || "#0E7490" }}
+              style={categoryTone(category)}
             >
               <span className="universal-card__n">{index + 1}</span>
               <strong>{category.name}</strong>

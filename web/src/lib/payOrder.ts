@@ -60,7 +60,10 @@ export async function captureCheckoutOrder(
       method: testMode
         ? { card: true, netbanking: true, wallet: true, upi: false, emi: false, paylater: false }
         : undefined,
-      theme: { color: "#0e7490" },
+      // px-allow-literal: Razorpay's checkout runs in its own iframe and takes a hex string in
+      // its options object, so it cannot read our stylesheet. Mirrors --px-accent for mobistack,
+      // which it did not before — the payment sheet wore the house cyan.
+      theme: { color: "#b45309" },
       handler: (response) => {
         void api("/api/v1/mobistack/billing/verify", {
           method: "POST",
@@ -138,7 +141,10 @@ export async function collectJoinPayment(
       method: testMode
         ? { card: true, netbanking: true, wallet: true, upi: false, emi: false, paylater: false }
         : undefined,
-      theme: { color: "#0e7490" },
+      // px-allow-literal: Razorpay's checkout runs in its own iframe and takes a hex string in
+      // its options object, so it cannot read our stylesheet. Mirrors --px-accent for mobistack,
+      // which it did not before — the payment sheet wore the house cyan.
+      theme: { color: "#b45309" },
       handler: (response) => {
         settled = true;
         resolve({

@@ -67,11 +67,17 @@
   --line-strong: var(--px-border-strong);
   --accent: var(--px-accent);
   --accent-ink: var(--px-accent-ink);
+  /* Accent-coloured type on a plain surface: a link, a kicker, a count. Not --accent, which is
+     a fill and only has to clear 3:1 behind --accent-ink. MobiStack is the theme where that
+     distinction bites hardest — ochre-700 measures 4.45:1 on this app's own light background,
+     so every accent-coloured label in here was a hair under AA. */
+  --accent-text: var(--px-accent-text);
   --accent-soft: var(--px-accent-subtle);
   --accent-soft-ink: var(--px-accent-subtle-ink);
   /* The teal partner accent — gives the counter a second hue for totals, links and charts. */
   --accent-2: var(--px-accent-2);
   --accent-2-ink: var(--px-accent-2-ink);
+  --accent-2-text: var(--px-accent-2-text);
   --accent-2-soft: var(--px-accent-2-subtle);
   --accent-2-soft-ink: var(--px-accent-2-subtle-ink);
   --header: var(--px-surface);
@@ -277,7 +283,7 @@ button {
   display: grid;
   place-items: center;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-soft-ink);
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0;
@@ -519,7 +525,7 @@ button {
 
 .page-kicker {
   margin: 0 0 6px;
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.08em;
@@ -1717,7 +1723,7 @@ button {
 
 .catalog-row__go {
   justify-self: end;
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -1760,7 +1766,7 @@ button {
   display: grid;
   place-items: center;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-soft-ink);
   font-weight: 750;
   font-size: 13px;
   letter-spacing: 0.02em;
@@ -1897,9 +1903,14 @@ button {
 }
 
 .universal-card:hover {
-  border-color: color-mix(in srgb, var(--card-accent, var(--accent)) 45%, var(--line));
+  border-color: color-mix(in srgb, var(--card-bg, var(--accent)) 45%, var(--line));
 }
 
+/* The numbered badge takes a per-category swatch, set as a pair by the component.
+   A pair, not one colour: the badge used to be --px-accent-ink on --card-accent, which only
+   worked while --card-accent was a dark cyan. Every tag swatch's ink is light in dark mode —
+   white on it measures as low as 1.31:1 — so the background and the ink have to come from the
+   same swatch, which is the combination the contrast gate actually asserts. */
 .universal-card__n {
   width: 28px;
   height: 28px;
@@ -1908,8 +1919,8 @@ button {
   place-items: center;
   font-size: 13px;
   font-weight: 800;
-  color: var(--px-accent-ink);
-  background: var(--card-accent, var(--accent));
+  background: var(--card-bg, var(--accent));
+  color: var(--card-ink, var(--px-accent-ink));
 }
 
 .universal-card strong {
@@ -1945,7 +1956,7 @@ a.universal-row:hover {
 
 .universal-row__n {
   font-weight: 800;
-  color: var(--accent);
+  color: var(--accent-text);
   min-width: 1.5rem;
   padding-top: 2px;
 }
@@ -2352,7 +2363,7 @@ body:has(.auth-screen),
 .auth-link {
   border: 0;
   background: transparent;
-  color: var(--px-accent);
+  color: var(--px-accent-text);
   font-weight: 650;
   font-size: 13px;
   padding: 0;
@@ -2409,7 +2420,7 @@ body:has(.auth-screen),
 .auth-text {
   border: 0;
   background: transparent;
-  color: var(--px-accent);
+  color: var(--px-accent-text);
   font: inherit;
   font-weight: 650;
   cursor: pointer;
@@ -2611,7 +2622,7 @@ a.auth-submit {
 }
 
 .auth-legal-links a:hover {
-  color: var(--px-accent);
+  color: var(--px-accent-text);
 }
 
 .auth-showcase {
@@ -2898,7 +2909,7 @@ iframe.razorpay-checkout-frame,
 }
 
 .legal-doc a {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .legal-nav {
@@ -3385,7 +3396,7 @@ iframe.razorpay-checkout-frame,
 }
 
 .crumbs a { color: var(--ink-faint); }
-.crumbs a:hover { color: var(--accent); }
+.crumbs a:hover { color: var(--accent-text); }
 .crumbs [aria-current="page"] { color: var(--ink); font-weight: 600; }
 
 .crumbs__sep {
@@ -3655,7 +3666,7 @@ iframe.razorpay-checkout-frame,
 
 .toast--success .toast__icon { background: var(--good-soft); color: var(--good); }
 .toast--error .toast__icon { background: var(--bad-soft); color: var(--bad); }
-.toast--info .toast__icon { background: var(--accent-soft); color: var(--accent); }
+.toast--info .toast__icon { background: var(--accent-soft); color: var(--accent-soft-ink); }
 
 .toast--success { border-left: 3px solid var(--good); }
 .toast--error { border-left: 3px solid var(--bad); }
@@ -3857,7 +3868,7 @@ iframe.razorpay-checkout-frame,
 
 .tab--active .tab__badge {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-soft-ink);
 }
 
 .tab-panel { display: grid; gap: 22px; }
@@ -4267,7 +4278,7 @@ iframe.razorpay-checkout-frame,
   height: 54px;
   border-radius: 17px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-soft-ink);
 }
 
 .forced-pw__mark svg { width: 24px; height: 24px; }
@@ -4352,7 +4363,7 @@ iframe.razorpay-checkout-frame,
   border-radius: 999px;
   padding: 6px 12px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-soft-ink);
   font-size: 13px;
   font-weight: 700;
 }
@@ -4420,7 +4431,7 @@ iframe.razorpay-checkout-frame,
   width: 18px;
   height: 18px;
   margin-top: 1px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .workspace-board__panel {
@@ -4574,7 +4585,7 @@ iframe.razorpay-checkout-frame,
   display: grid;
   place-items: center;
   background: var(--bg-elevated);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .workspace-path__icon svg { width: 15px; height: 15px; }
@@ -4668,7 +4679,7 @@ iframe.razorpay-checkout-frame,
 
 .notify-count--hot {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-soft-ink);
 }
 
 .notify-panel {
@@ -4715,7 +4726,7 @@ iframe.razorpay-checkout-frame,
   display: grid;
   place-items: center;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-soft-ink);
   margin-bottom: 4px;
 }
 
@@ -4754,7 +4765,7 @@ iframe.razorpay-checkout-frame,
   display: grid;
   place-items: center;
   background: var(--bg-muted);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .notify-item__icon svg { width: 18px; height: 18px; }
@@ -4777,7 +4788,7 @@ iframe.razorpay-checkout-frame,
 }
 
 .notify-item__link {
-  color: var(--accent);
+  color: var(--accent-text);
   font-size: 13px;
   font-weight: 700;
   width: fit-content;
@@ -5735,7 +5746,7 @@ a.metric-card:hover {
 
 .status-chip--ready { background: var(--good-soft); color: var(--good); }
 .status-chip--warn { background: var(--warn-soft); color: var(--warn); }
-.status-chip--open { background: var(--accent-soft); color: var(--accent); }
+.status-chip--open { background: var(--accent-soft); color: var(--accent-soft-ink); }
 
 @media (max-width: 980px) {
   .pos {

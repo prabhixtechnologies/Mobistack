@@ -433,6 +433,19 @@ jobs:
           npm ci
           npm run build
 
+      # Colours come from the generated tokens or they do not ship. The checker lives in web-kit
+      # beside the tokens it enforces and is cloned by the step above, so there is one
+      # implementation and adding an escape hatch does not mean a pull request per repository.
+      # It scans whichever known source trees are present, which here is web/src and the four
+      # Flutter trees when this runs in the Mobile repository.
+      #
+      # This app is the reason the rule is worth having. It carried 197 hex literals before the
+      # tokens existed, and two of the three that survived were still the retired house cyan: the
+      # address-bar colour and the Razorpay sheet, both showing the wrong brand at the till.
+      - name: No hard-coded colours
+        working-directory: ${{ github.workspace }}/../web-kit/packages/brand
+        run: node scripts/check-literals.mjs
+
   push:
     needs: [checks, migrations, test, openapi]
     runs-on: ubuntu-latest
