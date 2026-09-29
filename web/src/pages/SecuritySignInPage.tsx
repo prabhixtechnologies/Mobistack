@@ -1,4 +1,4 @@
-import { beginLogin } from "@prabhix/oidc-client";
+import { beginLogin } from "@prabhixtechnologies/oidc-client";
 import { useAuth } from "../lib/auth";
 import { AuthGate } from "./LoginPage";
 

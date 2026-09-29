@@ -1,4 +1,4 @@
-import { configureOidc } from "@prabhix/oidc-client";
+import { configureOidc } from "@prabhixtechnologies/oidc-client";
 import { IDENTITY_ISSUER } from "./config";
 import { safeAppPath } from "./safePath";
 

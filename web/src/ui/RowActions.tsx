@@ -6,7 +6,7 @@ import { Modal } from "./Modal";
 /*
   The row interaction contract, in MobiStack's own vocabulary.
 
-  Deliberately not the `RowActions` from @prabhix/ui: that one is built entirely from
+  Deliberately not the `RowActions` from @prabhixtechnologies/ui: that one is built entirely from
   Tailwind utility classes and this app has no Tailwind, so importing it would put an
   unstyled button and a transparent panel on every row — something that builds and
   typechecks perfectly and looks broken. This version reuses this app's own `MenuItem`,
@@ -32,7 +32,7 @@ export interface RowAction {
   danger?: boolean;
   /**
    * Groups render in order, separated by a rule; ungrouped verbs come first and anything
-   * marked `danger` comes last regardless. Matches the `group` on `@prabhix/ui`'s `RowAction`,
+   * marked `danger` comes last regardless. Matches the `group` on `@prabhixtechnologies/ui`'s `RowAction`,
    * so the two menus read the same way even though this app cannot use that implementation.
    */
   group?: string;

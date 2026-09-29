@@ -7,7 +7,7 @@ import { fileURLToPath, URL } from "node:url";
 /**
  * Directories Vite may read outside this project.
  *
- * `@prabhix/brand` is a `file:` dependency on a sibling checkout, so node_modules/@prabhix/brand
+ * `@prabhixtechnologies/brand` is a `file:` dependency on a sibling checkout, so node_modules/@prabhixtechnologies/brand
  * is a link that leaves this repository, and Vite resolves links to their real path before
  * checking `server.fs.allow`. Its entry point builds mark URLs with
  * `new URL("../marks/...", import.meta.url)`, which Vite rewrites into asset imports resolving
@@ -17,7 +17,7 @@ import { fileURLToPath, URL } from "node:url";
  *
  * Absent before `npm install`, in which case there is nothing to allow.
  */
-const linkedPackages = ["@prabhix/brand"]
+const linkedPackages = ["@prabhixtechnologies/brand"]
   .map((name) => path.resolve(import.meta.dirname, "node_modules", name))
   .filter((dir) => fs.existsSync(dir))
   .map((dir) => fs.realpathSync(dir));
@@ -31,7 +31,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
   },
   optimizeDeps: {
-    include: ["@prabhix/oidc-client"],
+    include: ["@prabhixtechnologies/oidc-client"],
   },
   server: {
     // Local Identity redirect is :5176; compose publishes API on :8082.

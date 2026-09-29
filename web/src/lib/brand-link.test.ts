@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { TAG_TONES, marks, toneFor } from "@prabhix/brand";
+import { TAG_TONES, marks, toneFor } from "@prabhixtechnologies/brand";
 
 /**
  * That the linked brand package can be imported at all.
  *
- * `@prabhix/brand` is a `file:` dependency on a sibling checkout, which makes its node_modules
+ * `@prabhixtechnologies/brand` is a `file:` dependency on a sibling checkout, which makes its node_modules
  * entry a link out of this repository, and Vite checks `server.fs.allow` against the real path.
  * Get that wrong and every import of the package fails with "Denied ID", not a missing file — a
  * whole-suite error with nothing in it naming the config line responsible. That is what happened

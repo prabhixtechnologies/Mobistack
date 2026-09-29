@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState, type ReactNode } from "react";
-import { beginLogin, beginSignup, beginSilentLogin, isOidcEnabled } from "@prabhix/oidc-client";
+import { beginLogin, beginSignup, beginSilentLogin, isOidcEnabled } from "@prabhixtechnologies/oidc-client";
 import "../lib/oidc-config";
 import { LogoMark } from "../ui/LogoMark";
 import { ThemeToggle } from "../ui/ThemeToggle";

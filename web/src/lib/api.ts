@@ -3,7 +3,7 @@ import { isAbortError } from "./abort";
 import { getDeviceId } from "./device";
 import { storeGet, storeRemove, storeSet } from "./storage";
 import { IDENTITY_ISSUER } from "./config";
-import { isOidcEnabled } from "@prabhix/oidc-client";
+import { isOidcEnabled } from "@prabhixtechnologies/oidc-client";
 import "./oidc-config";
 
 /**

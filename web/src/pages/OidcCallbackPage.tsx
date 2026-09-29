@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { completeLogin, isSilentLoginError, rememberIdToken } from "@prabhix/oidc-client";
+import { completeLogin, isSilentLoginError, rememberIdToken } from "@prabhixtechnologies/oidc-client";
 import "../lib/oidc-config";
 import { useAuth } from "../lib/auth";
 import { AuthGate, AuthGateLink } from "./LoginPage";

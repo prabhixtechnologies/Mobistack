@@ -1,5 +1,5 @@
 {
-  "name": "@prabhix/mobistack-api",
+  "name": "@prabhixtechnologies/mobistack-api",
   "version": "0.1.0",
   "private": true,
   "description": "Generated TypeScript types for the MobiStack API.",

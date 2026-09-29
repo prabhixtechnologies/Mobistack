@@ -1,4 +1,4 @@
-# @prabhix/mobistack-api
+# @prabhixtechnologies/mobistack-api
 
 TypeScript client types for the MobiStack API, generated with openapi-typescript from
 `../../backend/apidocs.json`.

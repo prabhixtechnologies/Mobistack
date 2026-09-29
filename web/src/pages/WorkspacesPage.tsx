@@ -1,4 +1,4 @@
-import { toneFor } from "@prabhix/brand";
+import { toneFor } from "@prabhixtechnologies/brand";
 import { FormEvent, useEffect, useState, type CSSProperties } from "react";
 import { useAuth } from "../lib/auth";
 import { api, money } from "../lib/api";

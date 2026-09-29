@@ -16,7 +16,7 @@ This repository is a monorepo:
 | `backend/` | Java 25, Spring Boot 4.1, PostgreSQL, Flyway | API, domain, pricing, inventory ledger |
 | `web/` | React 19, TypeScript, Vite | Owner / manager console |
 | `mobile/` | React Native, Expo, TypeScript | Native Android + iOS counter app with SQLite offline cache |
-| `packages/mobistack-api` | TypeScript | `@prabhix/mobistack-api` types from `backend/apidocs.json` |
+| `packages/mobistack-api` | TypeScript | `@prabhixtechnologies/mobistack-api` types from `backend/apidocs.json` |
 | `docs/` | Markdown | API notes |
 
 ## What you can do today
@@ -151,4 +151,4 @@ mvn test "-Djava.version=17"
 
 Integration tests that need Docker are tagged `integration` and skipped unless you pass `-Pintegration`.
 
-`packages/mobistack-api` (`@prabhix/mobistack-api`) is generated from `backend/apidocs.json`. CI regenerates it and fails on drift. Refresh the snapshot with `SWAGGER_ENABLED=true` and `backend/scripts/export-openapi.ps1`, or `mvn -Pgenerate-openapi springdoc-openapi:generate`.
+`packages/mobistack-api` (`@prabhixtechnologies/mobistack-api`) is generated from `backend/apidocs.json`. CI regenerates it and fails on drift. Refresh the snapshot with `SWAGGER_ENABLED=true` and `backend/scripts/export-openapi.ps1`, or `mvn -Pgenerate-openapi springdoc-openapi:generate`.

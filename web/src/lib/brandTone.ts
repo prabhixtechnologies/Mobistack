@@ -1,4 +1,4 @@
-import { toneFor } from "@prabhix/brand";
+import { toneFor } from "@prabhixtechnologies/brand";
 import type { CSSProperties } from "react";
 
 /**
@@ -7,7 +7,7 @@ import type { CSSProperties } from "react";
  * This used to be eight hand-picked light-mode hex pairs and a hash of its own. Two problems
  * with that: none of the pairs had ever been through the contrast gate, and there was only one
  * set, so in dark mode a pale `#ecfeff` chip sat glaring on a dark surface. It was also a second
- * implementation of something `@prabhix/brand` already does, which is how the same brand ended
+ * implementation of something `@prabhixtechnologies/brand` already does, which is how the same brand ended
  * up a different colour here than anywhere else in the portfolio.
  *
  * Now it returns the shared swatch variables. Those are generated from tokens.json, have a light

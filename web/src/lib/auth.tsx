@@ -13,7 +13,7 @@ import {
   refreshSession,
 } from "./api";
 import { afterAuthPath } from "./plan";
-import { beginLogout, isOidcEnabled } from "@prabhix/oidc-client";
+import { beginLogout, isOidcEnabled } from "@prabhixtechnologies/oidc-client";
 import "./oidc-config";
 import type { AuthResponse, AuthenticatedUser, MyWorkspacesResponse, WorkspaceCard } from "./types";
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { TAG_TONES, toneFor } from "@prabhix/brand";
+import { TAG_TONES, toneFor } from "@prabhixtechnologies/brand";
 import { api } from "../lib/api";
 import { highlightText, groupLine, phoneLabel } from "../lib/compatibility";
 import { useAccess } from "../lib/access";
