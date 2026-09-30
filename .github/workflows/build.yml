@@ -44,23 +44,16 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  # The one web-kit commit this workflow uses, in both places it is needed: the job below clones
-  # it so the token and literal gates run against it, and the image build vendors it as the
-  # `webkit` build context because package.json file:-depends on it.
-  #
-  # A full commit SHA, never a branch — Infra/docs/DEPLOY.md requires it, so that two builds of
-  # the same application commit cannot embed different versions of the shared OIDC client.
-  #
-  # One value because these were two values and they disagreed. The gate cloned the default
-  # branch while the build context pinned a SHA, so once the pin went stale the gates were
-  # passing against a web-kit that was not the one being shipped. That is how it broke: the apps
-  # began importing toneFor and TAG_TONES, the pinned tree had neither, and the image build
-  # failed on an import the job above it had just verified against a newer checkout. With one
-  # value a stale pin fails at the gate, where the message names the missing token.
-  #
-  # Bumping it is deliberate, and deliberately manual. See DEPLOY.md, "What a push builds".
-  WEBKIT_REF: 231658a2b4e535b167d5365f227cc4096cc66cf7
+# web-kit used to be pinned here as WEBKIT_REF, a commit SHA that the web job cloned so the gates
+# could run against it and that the web image build vendored as a `webkit` build context, because
+# web/package.json file:-depended on it. The pin existed because those were once two separate
+# values that disagreed: the gate cloned the default branch while the build context named a SHA,
+# so a stale pin meant the gates were passing against a web-kit that was not the one being
+# shipped.
+#
+# web/package-lock.json is that pin now. brand and oidc-client are ordinary versioned
+# dependencies resolved from GitHub Packages, so the lockfile fixes one exact tarball of each for
+# the gates, the tests and the image alike, and Dependabot can move it.
 
 jobs:
   # Cheap guards for mistakes that only surface on the server, where the cost of
@@ -439,52 +432,50 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
+          # Writes a runner-local .npmrc carrying NODE_AUTH_TOKEN. The committed web/.npmrc maps
+          # the scope; this supplies the credential. The job already has packages: read for the
+          # Identity Maven client, which is the same permission npm needs.
+          registry-url: https://npm.pkg.github.com
+          scope: "@prabhixtechnologies"
 
       # `npm run build` is tsc plus a real Vite bundle: an import that only
       # resolves in dev fails here rather than after the image is pushed.
+      #
+      # This used to clone web-kit into a sibling directory first, because package.json pointed at
+      # ../../web-kit with a file: link. brand and oidc-client come from GitHub Packages now.
       - name: Web typecheck and build
         working-directory: web
-        run: |
-          # package.json points at ../../web-kit, which is the sibling checkout on a laptop
-          # and is not inside this repository.
-          # A SHA, not a branch, so --branch and --depth-1-clone cannot fetch it directly.
-          WEBKIT="$GITHUB_WORKSPACE/../web-kit"
-          git init -q "$WEBKIT"
-          git -C "$WEBKIT" remote add origin https://github.com/prabhixtechnologies/web-kit.git
-          git -C "$WEBKIT" fetch -q --depth 1 origin "$WEBKIT_REF"
-          git -c advice.detachedHead=false -C "$WEBKIT" checkout -q FETCH_HEAD
-          npm ci
-          npm run build
+        run: npm ci && npm run build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Colours come from the generated tokens or they do not ship. The checker lives in web-kit
-      # beside the tokens it enforces and is cloned by the step above, so there is one
-      # implementation and adding an escape hatch does not mean a pull request per repository.
-      # It scans whichever known source trees are present, which here is web/src and the four
-      # Flutter trees when this runs in the Mobile repository.
+      # Colours come from the generated tokens or they do not ship. The checker ships inside
+      # @prabhixtechnologies/brand as a bin, so it arrives with the dependency and runs against
+      # the same version the bundle is built from. There is one implementation, so adding an
+      # escape hatch does not mean a pull request per repository.
       #
       # This app is the reason the rule is worth having. It carried 197 hex literals before the
       # tokens existed, and two of the three that survived were still the retired house cyan: the
       # address-bar colour and the Razorpay sheet, both showing the wrong brand at the till.
       - name: No hard-coded colours
-        working-directory: ${{ github.workspace }}/../web-kit/packages/brand
-        run: node scripts/check-literals.mjs
+        working-directory: web
+        run: npx prabhix-check-colours src
 
       - name: No double-encoded text
-        working-directory: ${{ github.workspace }}/../web-kit/packages/brand
-        run: node scripts/check-mojibake.mjs
+        working-directory: web
+        run: npx prabhix-check-mojibake src
 
-      # Apps link @prabhixtechnologies/ui with `file:`, and npm does not install a linked package's own
-      # dependencies into the consumer. A missing one resolves at build time through the symlink
-      # and fails under Vitest in whichever unrelated file imports the barrel first, so it is
-      # worth catching here rather than there.
-      - name: "@prabhixtechnologies/ui peers declared by every app"
-        working-directory: ${{ github.workspace }}/../web-kit/packages/brand
-        run: node scripts/check-peers.mjs
+      # The peer-dependency gate that used to run here is gone with the `file:` link it existed
+      # for. npm does not install a linked package's own dependencies into the consumer, so every
+      # app had to redeclare @prabhixtechnologies/ui's peers by hand; a registry install resolves
+      # them normally. This app never consumed the UI package anyway — it has no Tailwind.
   push:
     needs: [checks, migrations, test, openapi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # The web image build installs @prabhixtechnologies/* from GitHub Packages.
+      packages: read
       # Mints the OIDC token AWS exchanges for temporary credentials.
       id-token: write
     steps:
@@ -567,8 +558,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./web
-          build-contexts: |
-            webkit=https://github.com/prabhixtechnologies/web-kit.git#${{ env.WEBKIT_REF }}
+          # GitHub Packages wants a token even for a public package. A BuildKit secret rather than
+          # a build-arg: a build-arg is recorded in the image history and this image is pushed to
+          # ECR. The Dockerfile writes and deletes the credential inside one RUN.
+          secrets: |
+            gh_token=${{ secrets.GITHUB_TOKEN }}
           build-args: |
             VITE_IDENTITY_ISSUER=https://api.prabhixtechnologies.com
             VITE_STORE_URL=https://store.prabhixtechnologies.com

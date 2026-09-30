@@ -10,8 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@prabhixtechnologies/brand": "file:../../web-kit/packages/brand",
-    "@prabhixtechnologies/oidc-client": "file:../../web-kit/packages/oidc-client",
+    "@prabhixtechnologies/brand": "^1.1.1",
+    "@prabhixtechnologies/oidc-client": "^1.0.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.3"

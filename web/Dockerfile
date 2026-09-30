@@ -5,15 +5,27 @@
 # nothing to do with the change being built.
 FROM public.ecr.aws/docker/library/node:22-alpine AS build
 WORKDIR /app
-# Vendor file: packages under /app so Vite can resolve their peer deps from /app/node_modules.
-COPY --from=webkit packages ./vendor/web-kit/packages
-COPY package.json ./
-# Host lockfiles are npm 8 / lockfileVersion 2. node:22-alpine ships npm 10, which
-# rejects those on `npm ci` and crashes on `npm install` if the old lock is present.
-RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const m={'@prabhixtechnologies/brand':'file:./vendor/web-kit/packages/brand','@prabhixtechnologies/oidc-client':'file:./vendor/web-kit/packages/oidc-client'};for (const [k,v] of Object.entries(m)){if(p.dependencies?.[k]?.startsWith('file:'))p.dependencies[k]=v;}fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
-RUN npm install --no-audit --no-fund
+# web-kit used to be vendored here as `COPY --from=webkit packages ./vendor/web-kit/packages`,
+# followed by two `node -e` scripts that rewrote package.json to point the file: links at the
+# vendored copy. brand and oidc-client are versioned dependencies now, so the lockfile resolves
+# them and none of that is needed.
+#
+# .npmrc maps the @prabhixtechnologies scope to GitHub Packages. It holds no credential; see the
+# file itself.
+COPY package.json package-lock.json .npmrc ./
+# `npm ci` rather than `npm install`, which is what this was — against no lockfile at all, because
+# the committed lock was lockfileVersion 2 from the npm 8 on the development machine and recorded
+# neither a resolved URL nor an integrity hash. Regenerated with npm 11 it is v3 and complete, so
+# the image installs exactly the tree the tests ran against.
+#
+# The token is mounted for this layer only. GitHub Packages demands one even though the packages
+# are public, and writing it into the image would put a credential in a layer that gets pushed to
+# ECR, so the file is created and deleted inside a single RUN.
+RUN --mount=type=secret,id=gh_token \
+    printf '//npm.pkg.github.com/:_authToken=%s\n' "$(cat /run/secrets/gh_token)" > /root/.npmrc \
+ && npm ci --no-audit --no-fund \
+ && rm -f /root/.npmrc
 COPY . .
-RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const m={'@prabhixtechnologies/brand':'file:./vendor/web-kit/packages/brand','@prabhixtechnologies/oidc-client':'file:./vendor/web-kit/packages/oidc-client'};for (const [k,v] of Object.entries(m)){if(p.dependencies?.[k]?.startsWith('file:'))p.dependencies[k]=v;}fs.writeFileSync('package.json',JSON.stringify(p,null,2));"
 ARG VITE_RAZORPAY_KEY_ID
 ENV VITE_RAZORPAY_KEY_ID=$VITE_RAZORPAY_KEY_ID
 # Blank API origin → same-origin /api via nginx (docker). Set for Vite-dev against a remote API.
