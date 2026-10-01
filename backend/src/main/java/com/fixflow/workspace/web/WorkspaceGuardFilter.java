@@ -118,7 +118,7 @@ public class WorkspaceGuardFilter extends OncePerRequestFilter {
                 return;
             }
         }
-        if (billingService.paymentRequired(workspaceId)) {
+        if (billingService.paymentRequired(workspaceId) && !billingService.callerIsSystemAdmin()) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "This shop has no active plan, so changes cannot be saved. "
                             + "Open Billing and complete payment to start working.");

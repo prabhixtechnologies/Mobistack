@@ -73,6 +73,21 @@ class CatalogOnlyFilterTest {
     }
 
     @Test
+    void systemAdminsReachShopApisOnCatalogOnlyPlans() throws Exception {
+        UUID shopId = UUID.randomUUID();
+        signIn(shopId);
+        when(billingService.catalogOnly(shopId)).thenReturn(true);
+        when(billingService.callerIsSystemAdmin()).thenReturn(true);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/inventory");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
     void anonymousRequestsPassThrough() throws Exception {
         filter.doFilterInternal(new MockHttpServletRequest("GET", "/api/v1/mobistack/public/brand"), new MockHttpServletResponse(), chain);
         verify(chain).doFilter(any(), any());

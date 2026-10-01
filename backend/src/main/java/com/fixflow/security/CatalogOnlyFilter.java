@@ -41,7 +41,7 @@ public class CatalogOnlyFilter extends OncePerRequestFilter {
         }
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         UUID shopId = principal.getShopId();
-        if (shopId == null || !billingService.catalogOnly(shopId)) {
+        if (shopId == null || !billingService.catalogOnly(shopId) || billingService.callerIsSystemAdmin()) {
             filterChain.doFilter(request, response);
             return;
         }

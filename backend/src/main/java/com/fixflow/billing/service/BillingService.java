@@ -242,15 +242,26 @@ public class BillingService {
         return markCaptured(order, "dev-pay-" + UUID.randomUUID());
     }
 
+    /**
+     * System admins are told by /auth/me that every feature is on, so every gate below has to
+     * agree — otherwise the app shows Stock and Sales and the server then refuses each call.
+     */
+    public boolean callerIsSystemAdmin() {
+        return CurrentUser.find()
+                .flatMap(principal -> userRepository.findById(principal.getId()))
+                .map(user -> user.isSystemAdmin())
+                .orElse(false);
+    }
+
     public void require(UUID workspaceId, String entitlement) {
-        if (!hasLive(workspaceId, entitlement)) {
+        if (!hasLive(workspaceId, entitlement) && !callerIsSystemAdmin()) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "This workspace needs an active MobiStack plan. Open Billing and complete payment.");
         }
     }
 
     public void requireCatalog(UUID workspaceId) {
-        if (!hasCatalog(workspaceId)) {
+        if (!hasCatalog(workspaceId) && !callerIsSystemAdmin()) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "This workspace needs an active plan that includes compatibility. Open Billing and pay.");
         }
@@ -265,7 +276,7 @@ public class BillingService {
      * accepted weeks after the plan lapsed.
      */
     public void requireMemberSeat(UUID workspaceId) {
-        if (!hasLive(workspaceId, "MEMBER_ADD")) {
+        if (!hasLive(workspaceId, "MEMBER_ADD") && !callerIsSystemAdmin()) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "Adding people to this shop needs an active plan. "
                             + "Open Billing, complete payment, then add your team.");
@@ -726,6 +737,22 @@ public class BillingService {
      * A failed payment used to be silent, so a shop whose card was declined only
      * found out when the plan lapsed and the app stopped taking sales.
      */
+    /** {@code WORKSPACE_ACTIVATION} → {@code Workspace activation}, for text a shop owner reads. */
+    static String readableCode(String code) {
+        if (code == null || code.isBlank()) {
+            return "your plan";
+        }
+        String words = code.trim().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+        return Character.toUpperCase(words.charAt(0)) + words.substring(1);
+    }
+
+    /** Shops are in India, so the day they read is the IST day: {@code 14 Oct 2026}. */
+    static String readableDate(Instant instant) {
+        return java.time.format.DateTimeFormatter.ofPattern("d MMM uuuu", java.util.Locale.ENGLISH)
+                .withZone(java.time.ZoneId.of("Asia/Kolkata"))
+                .format(instant);
+    }
+
     private void notifyPaymentFailed(BillingOrder order) {
         if (order.getWorkspaceId() == null) {
             return;
@@ -733,7 +760,7 @@ public class BillingService {
         notifier.broadcast(order.getWorkspaceId(), Permission.WORKSPACE_BILLING, "PAYMENT_FAILED",
                 "Payment did not go through",
                 "The %s payment was declined. Open Billing to try again before the plan lapses."
-                        .formatted(order.getPriceCode() == null ? "plan" : order.getPriceCode()),
+                        .formatted(order.getPriceCode() == null ? "plan" : readableCode(order.getPriceCode())),
                 "/billing");
     }
 
@@ -773,8 +800,8 @@ public class BillingService {
                 "Captured billing order " + order.getPriceCode());
         notifyOwner(workspaceId, "PAYMENT_RECEIVED",
                 "Payment received",
-                "MobiStack recorded payment for " + order.getPriceCode().replace('_', ' ')
-                        + ". This period stays on until " + periodEnd + ".");
+                "MobiStack recorded payment for " + readableCode(order.getPriceCode())
+                        + ". It stays on until " + readableDate(periodEnd) + ".");
         return order;
     }
 
