@@ -5,7 +5,7 @@
   and the compact density a counter tool wants. Set here rather than from React so the first
   paint is already the right colour.
 -->
-<html lang="en" data-brand="mobistack" data-density="compact">
+<html lang="en" data-brand="mobistack" data-density="compact" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -23,9 +23,7 @@
       (function () {
         try {
           var stored = localStorage.getItem("mobistack.theme") || localStorage.getItem("fixflow.theme");
-          var theme = stored === "light" || stored === "dark"
-            ? stored
-            : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+          var theme = stored === "dark" ? "dark" : "light";
           document.documentElement.dataset.theme = theme;
           document.documentElement.style.colorScheme = theme;
           var meta = document.querySelector('meta[name="theme-color"]');

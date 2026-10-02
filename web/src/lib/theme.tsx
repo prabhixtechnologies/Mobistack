@@ -4,11 +4,7 @@ import { storeGet, storeSet } from "./storage";
 export type Theme = "light" | "dark";
 
 function readTheme(): Theme {
-  const stored = storeGet("theme");
-  if (stored === "light" || stored === "dark") {
-    return stored;
-  }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return storeGet("theme") === "dark" ? "dark" : "light";
 }
 
 function applyTheme(theme: Theme): void {
