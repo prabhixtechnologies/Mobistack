@@ -8,7 +8,7 @@ export function usePresence(enabled: boolean): void {
       return;
     }
     const beat = () => {
-      if (document.hidden) {
+      if (document.hidden || !navigator.onLine) {
         return;
       }
       void api("/api/v1/mobistack/presence/heartbeat", {

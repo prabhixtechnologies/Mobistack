@@ -91,6 +91,11 @@ const OFFLINE_API: ApiError = {
     : "The API is not reachable. Check that mobistack-backend is healthy, then try again.",
 };
 
+const SIGN_IN_UNREACHABLE: ApiError = {
+  code: "UNAVAILABLE",
+  message: "You are still signed in, but MobiStack could not reach the network. Check the connection and try again.",
+};
+
 async function parseError(response: Response): Promise<never> {
   const fallback = response.statusText?.trim() || `Request failed (${response.status})`;
   let payload: ApiError = { code: "HTTP_" + response.status, message: fallback };
@@ -151,62 +156,157 @@ function endSession(reason: "session" | "expired", message?: string): void {
 }
 
 /**
- * Shared refresh, so a page whose requests all expire together performs one
- * rotation instead of one per request.
+ * `signed-out` is the only answer that ends a session: the server looked at the credential and
+ * refused it. A network that is still waking up, a deploy, or a rate limit is `unavailable`, and
+ * the 30-day sign-in survives it — the same way a Google tab does not log out when Wi-Fi drops.
  */
-let refreshInFlight: Promise<boolean> | null = null;
+export type RenewResult = "ok" | "signed-out" | "unavailable";
 
-export function refreshSession(): Promise<boolean> {
-  if (!refreshInFlight) {
-    refreshInFlight = (async () => {
-      if (isOidcEnabled()) {
-        try {
-          const response = await fetch(`${IDENTITY_ISSUER}/api/v1/identity/auth/session/token`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-          });
-          if (!response.ok) {
-            return false;
-          }
-          const payload = (await response.json()) as {
-            accessToken?: string;
-            access_token?: string;
-          };
-          const access = payload.accessToken ?? payload.access_token;
-          if (!access) {
-            return false;
-          }
-          persistAccessToken(access);
-          return true;
-        } catch {
-          return false;
-        }
-      }
+const RETRY_DELAYS_MS = [0, 1500, 4000, 8000];
 
-      const refreshToken = getRefreshToken();
-      if (!refreshToken) {
-        return false;
-      }
-      try {
-        const response = await fetch(`${API_ORIGIN}/api/v1/mobistack/auth/refresh`, {
+function refusedCredential(status: number): boolean {
+  return status === 400 || status === 401 || status === 403;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function waitForNetwork(limitMs: number): Promise<void> {
+  if (typeof navigator === "undefined" || navigator.onLine) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const done = () => {
+      window.removeEventListener("online", done);
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(done, limitMs);
+    window.addEventListener("online", done);
+  });
+}
+
+async function renewOnce(): Promise<RenewResult> {
+  let response: Response;
+  try {
+    response = isOidcEnabled()
+      ? await fetch(`${IDENTITY_ISSUER}/api/v1/identity/auth/session/token`, {
           method: "POST",
-          headers: withDevice(new Headers({ "Content-Type": "application/json" })),
-          body: JSON.stringify({ refreshToken, deviceId: getDeviceId() }),
-        });
-        if (!response.ok) {
-          return false;
-        }
-        persistSession((await response.json()) as AuthResponse);
-        return true;
-      } catch {
-        return false;
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        })
+      : await (async () => {
+          const refreshToken = getRefreshToken();
+          if (!refreshToken) {
+            return new Response(null, { status: 401 });
+          }
+          return fetch(`${API_ORIGIN}/api/v1/mobistack/auth/refresh`, {
+            method: "POST",
+            headers: withDevice(new Headers({ "Content-Type": "application/json" })),
+            body: JSON.stringify({ refreshToken, deviceId: getDeviceId() }),
+          });
+        })();
+  } catch {
+    return "unavailable";
+  }
+  if (refusedCredential(response.status)) {
+    return "signed-out";
+  }
+  if (!response.ok) {
+    return "unavailable";
+  }
+  try {
+    if (isOidcEnabled()) {
+      const payload = (await response.json()) as { accessToken?: string; access_token?: string };
+      const access = payload.accessToken ?? payload.access_token;
+      if (!access) {
+        return "unavailable";
       }
+      persistAccessToken(access);
+    } else {
+      persistSession((await response.json()) as AuthResponse);
+    }
+    return "ok";
+  } catch {
+    return "unavailable";
+  }
+}
+
+/**
+ * Shared renewal, so a page whose requests all expire together performs one
+ * exchange instead of one per request.
+ */
+let renewInFlight: Promise<RenewResult> | null = null;
+
+export function renewSession(): Promise<RenewResult> {
+  if (!renewInFlight) {
+    renewInFlight = (async () => {
+      let result: RenewResult = "unavailable";
+      for (const delay of RETRY_DELAYS_MS) {
+        if (delay > 0) {
+          await sleep(delay);
+        }
+        await waitForNetwork(15000);
+        result = await renewOnce();
+        if (result !== "unavailable") {
+          return result;
+        }
+      }
+      return result;
     })().finally(() => {
-      refreshInFlight = null;
+      renewInFlight = null;
     });
   }
-  return refreshInFlight;
+  return renewInFlight;
+}
+
+function tokenExpiresAt(token: string | null): number | null {
+  if (!token) {
+    return null;
+  }
+  try {
+    const part = token.split(".")[1];
+    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return typeof json.exp === "number" ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Renews the short access token before it lapses and as soon as a sleeping tab wakes, so coming
+ * back to the laptop never starts with a refused request.
+ */
+export function startSessionKeepAlive(): () => void {
+  const check = () => {
+    if (document.hidden) {
+      return;
+    }
+    const token = getAccessToken();
+    if (!token) {
+      return;
+    }
+    const expires = tokenExpiresAt(token);
+    if (expires !== null && expires - Date.now() > 120_000) {
+      return;
+    }
+    void renewSession().then((result) => {
+      if (result === "signed-out") {
+        endSession("expired");
+      }
+    });
+  };
+  const timer = window.setInterval(check, 60_000);
+  document.addEventListener("visibilitychange", check);
+  window.addEventListener("online", check);
+  window.addEventListener("focus", check);
+  return () => {
+    window.clearInterval(timer);
+    document.removeEventListener("visibilitychange", check);
+    window.removeEventListener("online", check);
+    window.removeEventListener("focus", check);
+  };
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -253,13 +353,22 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       await parseError(response);
     }
     const current = getAccessToken();
-    const refreshed = current && current !== token ? true : await refreshSession();
-    if (refreshed) {
+    const renewed: RenewResult = current && current !== token ? "ok" : await renewSession();
+    if (renewed === "ok") {
       headers.set("Authorization", `Bearer ${getAccessToken()}`);
-      response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
-    } else {
+      try {
+        response = await fetch(`${API_ORIGIN}${path}`, { ...init, headers });
+      } catch (error) {
+        if (isAbortError(error)) {
+          throw error;
+        }
+        throw Object.assign(new Error(OFFLINE_API.message), OFFLINE_API);
+      }
+    } else if (renewed === "signed-out") {
       endSession("expired", expiryMessage);
       await parseError(response);
+    } else {
+      throw Object.assign(new Error(SIGN_IN_UNREACHABLE.message), SIGN_IN_UNREACHABLE);
     }
   }
 

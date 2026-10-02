@@ -10,7 +10,8 @@ import {
   persistSession,
   persistUser,
   persistWorkspaces,
-  refreshSession,
+  renewSession,
+  startSessionKeepAlive,
 } from "./api";
 import { afterAuthPath } from "./plan";
 import { beginLogout, isOidcEnabled } from "@prabhixtechnologies/oidc-client";
@@ -89,12 +90,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (isOidcEnabled() && !getAccessToken()) {
-        const restored = await refreshSession();
-        if (!restored) {
+        const restored = await renewSession();
+        if (restored === "signed-out") {
           clearSession();
           if (!cancelled) {
             setUser(null);
             setWorkspaces([]);
+            setReady(true);
+          }
+          return;
+        }
+        if (restored === "unavailable") {
+          // The cookie was not refused, only unreachable. Keep the saved account on screen;
+          // the next request renews again once the network is back.
+          if (!cancelled) {
             setReady(true);
           }
           return;
@@ -136,8 +145,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     void boot();
+    const stopKeepAlive = startSessionKeepAlive();
     return () => {
       cancelled = true;
+      stopKeepAlive();
     };
   }, []);
 
