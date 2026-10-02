@@ -65,6 +65,8 @@ public class CatalogOnlyFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/v1/mobistack/admin")
                 || path.startsWith("/api/v1/mobistack/groups")
                 || path.startsWith("/api/v1/mobistack/commons")
+                // SearchController strips shop stock/SKU data for catalog-only plans.
+                || path.startsWith("/api/v1/mobistack/search")
                 || path.startsWith("/api/v1/mobistack/workspaces")
                 || path.startsWith("/api/v1/mobistack/notifications")
                 || path.startsWith("/api/v1/mobistack/support")

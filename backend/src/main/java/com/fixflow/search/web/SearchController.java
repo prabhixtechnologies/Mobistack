@@ -1,6 +1,7 @@
 package com.fixflow.search.web;
 
 import com.fixflow.pricing.domain.PricingFlag;
+import com.fixflow.billing.service.BillingService;
 import com.fixflow.search.dto.SearchDtos.GlobalSearchResponse;
 import com.fixflow.search.service.SearchService;
 import com.fixflow.security.Authorize;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SearchController {
 
     private final SearchService searchService;
+    private final BillingService billingService;
 
     @GetMapping
     @PreAuthorize(Authorize.CATALOG_READ)
@@ -31,6 +33,9 @@ public class SearchController {
     public GlobalSearchResponse search(
             @RequestParam(name = "q", required = false, defaultValue = "") String query,
             @RequestParam(defaultValue = "NORMAL") PricingFlag flag) {
-        return searchService.search(CurrentUser.shopId(), query, flag);
+        var shopId = CurrentUser.shopId();
+        return billingService.catalogOnly(shopId)
+                ? searchService.searchCommonsOnly(query)
+                : searchService.search(shopId, query, flag);
     }
 }

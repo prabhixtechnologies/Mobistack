@@ -89,6 +89,25 @@ public class SearchService {
     }
 
     /**
+     * Compatibility plans may search the shared fitment catalog without receiving private stock,
+     * SKU, barcode, price, customer, sale or repair data from the shop search response.
+     */
+    @Transactional(readOnly = true)
+    public GlobalSearchResponse searchCommonsOnly(String rawQuery) {
+        long startedAt = System.nanoTime();
+        String trimmed = rawQuery == null ? "" : rawQuery.trim();
+        if (trimmed.length() < MIN_QUERY_LENGTH) {
+            return new GlobalSearchResponse(trimmed, List.of(), List.of(), List.of(), null, 0,
+                    elapsedMillis(startedAt), List.of(), List.of());
+        }
+        List<CommonsSearchHit> commonsDevices = searchCommonsDevices(trimmed);
+        List<CommonsSearchHit> commonsComponents = searchCommonsComponents(trimmed);
+        return new GlobalSearchResponse(trimmed, List.of(), List.of(), List.of(), null,
+                commonsDevices.size() + commonsComponents.size(), elapsedMillis(startedAt),
+                commonsDevices, commonsComponents);
+    }
+
+    /**
      * A scanned barcode or a typed SKU identifies exactly one variant, so the
      * client can skip the results list entirely.
      */

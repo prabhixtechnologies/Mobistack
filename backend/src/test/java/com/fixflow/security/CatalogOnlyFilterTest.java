@@ -70,6 +70,12 @@ class CatalogOnlyFilterTest {
         MockHttpServletResponse commons = new MockHttpServletResponse();
         filter.doFilterInternal(new MockHttpServletRequest("GET", "/api/v1/mobistack/commons/brands"), commons, chain);
         verify(chain).doFilter(any(), any());
+
+        MockHttpServletRequest searchRequest =
+                new MockHttpServletRequest("GET", "/api/v1/mobistack/search");
+        MockHttpServletResponse search = new MockHttpServletResponse();
+        filter.doFilterInternal(searchRequest, search, chain);
+        verify(chain).doFilter(searchRequest, search);
     }
 
     @Test
