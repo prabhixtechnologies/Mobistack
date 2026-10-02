@@ -217,22 +217,42 @@ export function AppShell() {
   const canNotify = access.has("NOTIFICATION_READ");
   const canSupport = access.has("SUPPORT_READ");
 
-  const destinationLink = (destination: NavDestination) => {
+  const destinationLink = (destination: NavDestination, nest: boolean) => {
     const active = current?.id === destination.id;
+    const nested = nest && destination.tabs.length > 1 ? destination.tabs.slice(1) : [];
     return (
-      <NavLink
-        key={destination.id}
-        to={destination.tabs[0].to}
-        end={destination.tabs[0].to === "/"}
-        title={destination.label}
-        className={`nav-link tint-${destination.tint}${active ? " active" : ""}`}
-        aria-current={active ? "page" : undefined}
-      >
-        <span className="nav-ico">
-          <Icon name={destination.icon} />
-        </span>
-        <span className="nav-link__label">{destination.label}</span>
-      </NavLink>
+      <div className="nav-destination" key={destination.id}>
+        <NavLink
+          to={destination.tabs[0].to}
+          end={destination.tabs[0].to === "/"}
+          title={destination.label}
+          className={`nav-link tint-${destination.tint}${active ? " active" : ""}`}
+        >
+          <span className="nav-ico">
+            <Icon name={destination.icon} />
+          </span>
+          <span className="nav-link__label">{destination.label}</span>
+        </NavLink>
+        {nested.length > 0 && (
+          <div className="nav-sub">
+            {nested.map((tab) => {
+              const end =
+                tab.to === "/" ||
+                destination.tabs.some((other) => other.to !== tab.to && other.to.startsWith(`${tab.to}/`));
+              return (
+                <NavLink
+                  key={tab.to}
+                  to={tab.to}
+                  end={end}
+                  className={({ isActive }) => `nav-sub__link${isActive ? " active" : ""}`}
+                >
+                  {tab.label}
+                </NavLink>
+              );
+            })}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -439,11 +459,13 @@ export function AppShell() {
           </div>
 
           <nav className="nav-group">
-            <div className="nav-section">{destinations.map(destinationLink)}</div>
+            <div className="nav-section">
+              {destinations.map((destination) => destinationLink(destination, true))}
+              {settings.tabs.length > 0 && destinationLink(settings, current?.id === settings.id)}
+            </div>
           </nav>
 
           <div className="sidebar-foot">
-            {settings.tabs.length > 0 && destinationLink(settings)}
             <div className="sidebar-plan">
               <span className="sidebar-plan__signal" aria-hidden />
               <div>
