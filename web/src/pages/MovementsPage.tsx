@@ -54,7 +54,7 @@ export function MovementsPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Insights"
+        kicker="Inventory"
         title="Stock movements"
         subtitle="Every change is a row. Nothing is overwritten."
       />

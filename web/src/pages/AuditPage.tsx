@@ -60,7 +60,7 @@ export function AuditPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Insights"
+        kicker="Settings"
         title="Audit"
         subtitle="Who changed stock, people, or prices. The ledger of decisions."
       />

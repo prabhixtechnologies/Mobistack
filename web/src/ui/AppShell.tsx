@@ -3,7 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { useAccess } from "../lib/access";
 import { DRAWER_QUERY, TABLET_QUERY, useMediaQuery } from "../lib/media";
-import { NAV_SECTIONS, routeContext, type NavItem } from "../lib/navigation";
+import {
+  NAV_DESTINATIONS,
+  SETTINGS_DESTINATION,
+  activeTab,
+  destinationFor,
+  routeContext,
+  type NavDestination,
+  type NavTab,
+} from "../lib/navigation";
 import { selectedWorkspaceId } from "../lib/types";
 import { api } from "../lib/api";
 import { allowedOnPlan } from "../lib/plan";
@@ -177,30 +185,56 @@ export function AppShell() {
   }, [access, drawer, features, navOpen, navigate]);
 
   /**
-   * A nav entry survives when the shop's plan includes it, the viewer holds its
-   * capability, and an unpaid workspace hasn't locked it away. A platform admin
-   * follows the same plan inside the shop. Empty sections are dropped.
+   * A tab survives when the shop's plan includes it, the viewer holds its capability,
+   * and an unpaid workspace hasn't locked it away. A platform admin follows the same
+   * plan inside the shop. Home is always open.
    */
-  const visible = (item: NavItem): boolean => {
-    if (item.platformAdmin) {
-      return access.isPlatformAdmin && !unpaid;
+  const visible = (tab: NavTab): boolean => {
+    if (tab.to === "/") {
+      return !unpaid;
     }
-    if (unpaid && !item.allowUnpaid) {
+    if (unpaid && !tab.allowUnpaid) {
       return false;
     }
-    if (item.commonsReviewer && !user?.commonsReviewer) {
+    if (tab.commonsReviewer && !user?.commonsReviewer) {
       return false;
     }
-    if (item.feature && !features.includes(item.feature)) {
+    if (tab.feature && !features.includes(tab.feature)) {
       return false;
     }
-    return !item.need || access.has(item.need);
+    return !tab.need || access.has(tab.need);
   };
 
-  const sections = NAV_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter(visible),
-  })).filter((section) => section.items.length > 0);
+  const withVisibleTabs = (destination: NavDestination) => ({
+    ...destination,
+    tabs: destination.tabs.filter(visible),
+  });
+  const destinations = NAV_DESTINATIONS.map(withVisibleTabs).filter((destination) => destination.tabs.length > 0);
+  const settings = withVisibleTabs(SETTINGS_DESTINATION);
+  const current = destinationFor(pathname);
+  const currentTabs = current ? withVisibleTabs(current).tabs : [];
+  const currentTab = current ? activeTab(current, pathname) : undefined;
+  const canNotify = access.has("NOTIFICATION_READ");
+  const canSupport = access.has("SUPPORT_READ");
+
+  const destinationLink = (destination: NavDestination) => {
+    const active = current?.id === destination.id;
+    return (
+      <NavLink
+        key={destination.id}
+        to={destination.tabs[0].to}
+        end={destination.tabs[0].to === "/"}
+        title={destination.label}
+        className={`nav-link tint-${destination.tint}${active ? " active" : ""}`}
+        aria-current={active ? "page" : undefined}
+      >
+        <span className="nav-ico">
+          <Icon name={destination.icon} />
+        </span>
+        <span className="nav-link__label">{destination.label}</span>
+      </NavLink>
+    );
+  };
 
   const shellClass = [
     "app-shell",
@@ -296,6 +330,29 @@ export function AppShell() {
                 >
                   My profile
                 </MenuItem>
+                {canNotify && (
+                  <MenuItem
+                    icon={<Icon name="bell" />}
+                    onClick={() => {
+                      close();
+                      navigate("/notifications");
+                    }}
+                  >
+                    Notifications
+                  </MenuItem>
+                )}
+                {canSupport && (
+                  <MenuItem
+                    icon={<Icon name="chat" />}
+                    onClick={() => {
+                      close();
+                      navigate("/support");
+                    }}
+                  >
+                    Support
+                  </MenuItem>
+                )}
+                <MenuSeparator />
                 {access.has("SETTINGS_READ") && (
                   <MenuItem
                     icon={<Icon name="settings" />}
@@ -316,6 +373,17 @@ export function AppShell() {
                     }}
                   >
                     Billing
+                  </MenuItem>
+                )}
+                {access.isPlatformAdmin && !unpaid && (
+                  <MenuItem
+                    icon={<Icon name="crown" />}
+                    onClick={() => {
+                      close();
+                      navigate("/admin");
+                    }}
+                  >
+                    Platform console
                   </MenuItem>
                 )}
                 <MenuSeparator />
@@ -371,31 +439,11 @@ export function AppShell() {
           </div>
 
           <nav className="nav-group">
-            {sections.map((section) => (
-              <div className="nav-section" key={section.label}>
-                <div className="nav-section__label">
-                  <span>{section.label}</span>
-                  {section.hint && <small>{section.hint}</small>}
-                </div>
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    title={item.label}
-                    className={({ isActive }) => `nav-link tint-${item.tint}${isActive ? " active" : ""}`}
-                  >
-                    <span className="nav-ico">
-                      <Icon name={item.icon} />
-                    </span>
-                    <span className="nav-link__label">{item.label}</span>
-                  </NavLink>
-                ))}
-              </div>
-            ))}
+            <div className="nav-section">{destinations.map(destinationLink)}</div>
           </nav>
 
           <div className="sidebar-foot">
+            {settings.tabs.length > 0 && destinationLink(settings)}
             <div className="sidebar-plan">
               <span className="sidebar-plan__signal" aria-hidden />
               <div>
@@ -403,19 +451,6 @@ export function AppShell() {
                 <span>{features.includes("DASHBOARD") ? "Shop operations enabled" : "Shared catalog enabled"}</span>
               </div>
             </div>
-            <button
-              className="nav-link tint-slate"
-              type="button"
-              onClick={async () => {
-                await logout();
-                navigate("/login");
-              }}
-            >
-              <span className="nav-ico">
-                <Icon name="logout" />
-              </span>
-              <span className="nav-link__label">Sign out</span>
-            </button>
           </div>
         </aside>
 
@@ -458,6 +493,20 @@ export function AppShell() {
               <div className="main__crumbs">
                 <Breadcrumbs />
               </div>
+            )}
+            {current && currentTab && currentTabs.length > 1 && (
+              <nav className="section-tabs" aria-label={`${current.label} sections`}>
+                {currentTabs.map((tab) => (
+                  <Link
+                    key={tab.to}
+                    to={tab.to}
+                    className={`section-tabs__tab${tab.to === currentTab.to ? " section-tabs__tab--on" : ""}`}
+                    aria-current={tab.to === currentTab.to ? "page" : undefined}
+                  >
+                    {tab.label}
+                  </Link>
+                ))}
+              </nav>
             )}
             <ErrorBoundary resetKey={pathname}>
               <Outlet />

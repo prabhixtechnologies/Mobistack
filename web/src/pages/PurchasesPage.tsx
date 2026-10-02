@@ -108,7 +108,7 @@ export function PurchasesPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Shop"
+        kicker="Inventory"
         title="Purchases"
         subtitle="A purchase is stock in plus a supplier ledger row. Not a spreadsheet paste."
       />

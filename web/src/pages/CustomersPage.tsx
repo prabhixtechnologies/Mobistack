@@ -91,7 +91,7 @@ export function CustomersPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Shop"
+        kicker="Sell"
         title="Customers"
         subtitle="Walk-ins stay unnamed. Regulars keep a phone and an outstanding balance."
       />
