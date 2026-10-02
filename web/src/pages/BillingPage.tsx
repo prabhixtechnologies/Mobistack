@@ -177,7 +177,7 @@ export function BillingPage() {
       {data && (
         <>
           <div className="grid-2">
-            {data.plans.filter((plan) => plan.code !== "FULL_SHOP").map((plan) => (
+            {data.plans.map((plan) => (
               <article className="card stack" key={plan.id}>
                 <strong>{plan.name}</strong>
                 <div className="metric-value">{money.format(plan.amount)}</div>

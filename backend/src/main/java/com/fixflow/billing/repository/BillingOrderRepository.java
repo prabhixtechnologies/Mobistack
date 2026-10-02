@@ -34,6 +34,9 @@ public interface BillingOrderRepository extends JpaRepository<BillingOrder, UUID
     Optional<BillingOrder> findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
             UUID workspaceId, UUID userId, String priceCode, PaymentStatus status, String purpose);
 
+    Optional<BillingOrder> findFirstByWorkspaceIdAndUserIdAndStatusAndPurposeOrderByCreatedAtDesc(
+            UUID workspaceId, UUID userId, PaymentStatus status, String purpose);
+
     @Query("""
             select o.status, coalesce(sum(o.amount), 0), count(o)
             from BillingOrder o

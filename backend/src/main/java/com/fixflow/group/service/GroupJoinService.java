@@ -65,7 +65,7 @@ public class GroupJoinService {
     }
 
     @Transactional
-    public JoinCheckoutResponse checkout(UUID userId, String rawCode) {
+    public JoinCheckoutResponse checkout(UUID userId, String rawCode, String planCode) {
         SharingGroup group = requireGroup(rawCode);
         UUID shopId = ownedShop(userId);
         if (members.findByGroupIdAndWorkspaceId(group.getId(), shopId).isPresent()) {
@@ -82,7 +82,7 @@ public class GroupJoinService {
             savePending(userId, shopId, group.getId());
             return JoinCheckoutResponse.alreadyPaid(group.getName());
         }
-        var order = billing.createGroupJoinOrder(userId, shopId, group.getId());
+        var order = billing.createGroupJoinOrder(userId, shopId, group.getId(), planCode);
         return new JoinCheckoutResponse(order.id(), order.orderId(), order.amount(), order.currency(),
                 order.keyId(), order.priceCode(), order.gateway(), group.getName(), false);
     }
@@ -108,11 +108,12 @@ public class GroupJoinService {
                 billing.confirmJoinPayment(userId, request.orderId());
             } else {
                 throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
-                        "Pay ₹50 to ask to join this group.");
+                        "Choose a plan and complete payment to join this fitment group.");
             }
         }
         if (!billing.consumeGroupJoin(userId, shopId, group.getId())) {
-            throw new ApiException(ErrorCode.ENTITLEMENT_DENIED, "Pay ₹50 to ask to join this group.");
+            throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
+                    "Choose a plan and complete payment to join this fitment group.");
         }
         GroupJoinRequest row = savePending(userId, shopId, group.getId());
         return new JoinState(GroupJoinRequest.PENDING, row.getId(), group.getId(), group.getName());

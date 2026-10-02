@@ -3,6 +3,7 @@ package com.fixflow.billing.service;
 import tools.jackson.databind.ObjectMapper;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.billing.domain.BillingOrder;
+import com.fixflow.billing.domain.BillingPrice;
 import com.fixflow.billing.razorpay.RazorpayGateway;
 import com.fixflow.billing.repository.BillingOrderRepository;
 import com.fixflow.billing.repository.BillingPriceRepository;
@@ -19,11 +20,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -76,17 +79,42 @@ class BillingServiceTest {
     }
 
     @Test
-    void withheldPlansCannotBePurchased() {
+    void addOnPlansCannotBePurchasedFromMainCheckout() {
         UUID workspaceId = UUID.randomUUID();
-        assertThatThrownBy(() -> billingService.createOrder(workspaceId, "FULL_SHOP"))
-                .isInstanceOf(ApiException.class)
-                .extracting(ex -> ((ApiException) ex).getCode())
-                .isEqualTo(ErrorCode.FORBIDDEN);
-        assertThatThrownBy(() -> billingService.createOrder(workspaceId, "WORKSPACE_MONTHLY"))
-                .isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> billingService.createOrder(workspaceId, "EXTRA_SCREEN"))
                 .isInstanceOf(ApiException.class);
         verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void groupJoinPaymentIsTheSelectedCompatibilityPlan() {
+        UUID workspaceId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
+        BillingPrice price = new BillingPrice();
+        price.setId(UUID.randomUUID());
+        price.setPlanId(UUID.randomUUID());
+        price.setCode("WORKSPACE_ACTIVATION");
+        price.setAmount(new BigDecimal("50.00"));
+        price.setCurrency("INR");
+        price.setInterval("MONTHLY");
+        price.setEntitlement("CATALOG");
+        when(planService.listSellable()).thenReturn(List.of(
+                new PlanService.PlanCard(price.getPlanId(), "COMPATIBILITY", "Compatibility", "",
+                        new BigDecimal("50.00"), "INR", "MONTHLY", 10, true,
+                        List.of("COMPATIBILITY"), price.getCode())));
+        when(priceRepository.findByCodeAndActiveTrue("COMPATIBILITY")).thenReturn(Optional.empty());
+        when(priceRepository.findByCodeAndActiveTrue(price.getCode())).thenReturn(Optional.of(price));
+        when(environment.acceptsProfiles(any(Profiles.class))).thenReturn(false);
+
+        BillingService.CheckoutOrderResponse response =
+                billingService.createGroupJoinOrder(userId, workspaceId, groupId, "COMPATIBILITY");
+
+        assertThat(response.amount()).isEqualTo(5000);
+        ArgumentCaptor<BillingOrder> saved = ArgumentCaptor.forClass(BillingOrder.class);
+        verify(orderRepository).save(saved.capture());
+        assertThat(saved.getValue().getPriceCode()).isEqualTo("WORKSPACE_ACTIVATION");
+        assertThat(saved.getValue().getPurpose()).isEqualTo(BillingService.groupJoinPurpose(groupId));
     }
 
     @Test

@@ -12,9 +12,10 @@ Bihar mobile union is one fitment group. A fitment row (this part fits this phon
 4. **Create shop** — name and city. No payment. Then **Join the union**.
 5. **Join a shop** — the existing shop's code. A recognized code opens payment.
 6. **Join the union** — the union code, shown after their own shop exists. A recognized code opens payment.
-7. **Payment** — Razorpay, ₹50 once, price `WORKSPACE_JOIN`, only after the code on that screen is accepted.
-8. **Waiting** — payment is captured, and the owner or a union admin has not approved yet.
-9. **Compatibility** — the union's phones and parts.
+7. **Choose a plan** — Compatibility ₹50/month, or Full Inventory Management ₹499/month.
+8. **Payment** — Razorpay opens only after the code and plan are selected. This is the plan payment, not a separate joining fee.
+9. **Waiting** — payment is captured, and the owner or a union admin has not approved yet.
+10. **Compatibility** — the union's phones and parts.
 
 | After Identity returns | Next screen |
 |---|---|
@@ -32,7 +33,7 @@ The catalog does not open until an active shop in the union is selected. Creatin
 
 ## 1. Account
 
-Create account opens Identity with `prompt=create`. The form is name, email, and one password of at least 10 characters. It does not ask for a workspace name. That field would create an OneOps organization, which is neither this shop nor the union.
+Create account opens Identity with `prompt=create`. The form is name, email, and one password of at least 10 characters. It does not ask for a workspace name. That field would create an OneOps organization, which is neither this shop nor the union. Identity then sends a six-digit email code; no account session is issued until the code is verified.
 
 | What they submit | What happens |
 |---|---|
@@ -40,7 +41,9 @@ Create account opens Identity with `prompt=create`. The form is name, email, and
 | Password shorter than 10 characters | Stay. Keep name and email. |
 | They dismiss the hosted page | Welcome. No shop. |
 | Identity cannot finish provisioning | Stay. Say nothing was saved and they can try again. The account is withdrawn. |
-| Success | Back in the app. **Shop start**. |
+| Details accepted | **Check your email**. Enter the six-digit OTP. |
+| OTP wrong or expired | Stay. Count the failed attempt and offer Send a new code. |
+| OTP verified | Back in the app. **Shop start**. |
 
 Login uses the same return and the table above. A wrong password stays on Identity. Someone who already has an active shop in the union goes to Compatibility and does not see Shop start.
 
@@ -112,14 +115,14 @@ Shown only once their own shop exists and is not in Bihar mobile union yet. The 
 | Shop is already a member | **Compatibility**. |
 | A request is already waiting | **Waiting** for the union. Do not charge again. |
 | An unused captured payment already exists for this shop and this group | Skip Razorpay. **Waiting**. |
-| Code matches | **Payment**, same ₹50 `WORKSPACE_JOIN`. |
+| Code matches | Show **Compatibility ₹50/month** and **Full Inventory Management ₹499/month**. The selected plan opens payment. |
 
 | After payment | Next |
 |---|---|
 | They close the sheet | Back here. The code stays. Nothing is captured. |
 | Razorpay reports a failure | Back here. Say the payment did not go through and nothing was charged. |
 | Signature does not match | Stay. "Payment signature did not match." |
-| Razorpay is not configured | No charge. The request is pending. **Waiting** for a union admin. |
+| Razorpay is not configured | Stay. Payment is unavailable; do not create an unpaid request. |
 | Captured | **Waiting** for a union admin. It checks again every 30 seconds, on Check again, and when the app comes back to the front. |
 | They cancel while waiting | Withdraw the request. Put the ₹50 back. Return here. |
 | Union admin admits the shop | The shop is a `MEMBER`. Next refresh opens **Compatibility**. |
@@ -147,7 +150,8 @@ A union admin sees the group's code on the members screen and admits a paid requ
 | Shop start | No |
 | Create shop | No |
 | Join a shop, or Join the union, code empty or wrong | No |
-| Either join screen, code matches | Yes. ₹50 once. `WORKSPACE_JOIN`. |
+| Join a shop, code matches | Yes. ₹50 once for that shop membership. |
+| Join the union, code matches | Choose Compatibility ₹50/month or Full Inventory Management ₹499/month. No separate joining fee. |
 | Owner invite | No |
 | Already paid, and they cancelled that request | No. The same ₹50 is reused for that shop. |
 | Waiting, or already in the union | No |

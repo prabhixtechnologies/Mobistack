@@ -29,7 +29,8 @@ public final class WorkspaceDtos {
 
     @Schema(name = "JoinWorkspaceRequest")
     public record JoinWorkspaceRequest(
-            @NotBlank @Size(max = 16) String joinCode
+            @NotBlank @Size(max = 16) String joinCode,
+            @Size(max = 32) String planCode
     ) {
     }
 

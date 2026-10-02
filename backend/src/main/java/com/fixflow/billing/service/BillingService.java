@@ -99,16 +99,16 @@ public class BillingService {
     public static final String CATALOG = "CATALOG";
     public static final String SALES = "SALES";
 
-    /** ₹50 activation: look up which parts fit a phone. */
+    /** ₹50 monthly: look up which parts fit a phone. */
     public static final List<String> CATALOG_PLAN = List.of("WORKSPACE_CREATE", CATALOG);
 
-    /** ₹199 monthly: the full shop counter. */
+    /** ₹499 monthly: the full shop counter. */
     public static final List<String> OPERATIONAL = List.of(
             "WORKSPACE_CREATE", "MEMBER_ADD", "INVENTORY", SALES, "REPAIRS", "MULTI_USER", CATALOG);
 
-    /** Checkout codes that stay off the billing page while the shop category is closed. */
+    /** Add-on checkout codes that stay off the main plan list. */
     private static final java.util.Set<String> WITHHELD_CHECKOUT = java.util.Set.of(
-            "FULL_SHOP", "WORKSPACE_MONTHLY", "EXTRA_SCREEN", "EXTRA_SCREEN_RENEW");
+            "EXTRA_SCREEN", "EXTRA_SCREEN_RENEW");
 
     @Transactional(readOnly = true)
     public BillingOverview overview(UUID workspaceId) {
@@ -404,10 +404,20 @@ public class BillingService {
         return razorpayGateway.configured();
     }
 
-    /** Same ₹50 price as a shop join. The purpose names the fitment group so the two fees do not mix. */
-    public CheckoutOrderResponse createGroupJoinOrder(UUID userId, UUID workspaceId, UUID groupId) {
-        BillingPrice price = priceRepository.findByCodeAndActiveTrue(JOIN_PRICE)
-                .orElseThrow(() -> ApiException.notFound("Price", JOIN_PRICE));
+    /**
+     * Starts the plan selected while joining a fitment group.
+     *
+     * <p>The payment is both the shop's plan and its paid join request. Compatibility therefore is
+     * not charged once here and a second time on Billing. FULL_SHOP includes compatibility too.
+     */
+    public CheckoutOrderResponse createGroupJoinOrder(
+            UUID userId, UUID workspaceId, UUID groupId, String planCode) {
+        String selected = planCode == null || planCode.isBlank() ? "COMPATIBILITY" : planCode.trim();
+        if (!"COMPATIBILITY".equalsIgnoreCase(selected) && !"FULL_SHOP".equalsIgnoreCase(selected)) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "Choose Compatibility or Full Inventory Management.");
+        }
+        BillingPrice price = resolvePrice(selected);
         long amountPaise = RazorpayMoney.requireMinimum(RazorpayMoney.toPaise(price.getAmount()));
 
         BillingOrder order = new BillingOrder();
@@ -446,13 +456,13 @@ public class BillingService {
     }
 
     public boolean hasUnspentGroupJoin(UUID userId, UUID workspaceId, UUID groupId) {
-        return orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
-                workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, groupJoinPurpose(groupId)).isPresent();
+        return orderRepository.findFirstByWorkspaceIdAndUserIdAndStatusAndPurposeOrderByCreatedAtDesc(
+                workspaceId, userId, PaymentStatus.CAPTURED, groupJoinPurpose(groupId)).isPresent();
     }
 
     public boolean consumeGroupJoin(UUID userId, UUID workspaceId, UUID groupId) {
-        return orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
-                        workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, groupJoinPurpose(groupId))
+        return orderRepository.findFirstByWorkspaceIdAndUserIdAndStatusAndPurposeOrderByCreatedAtDesc(
+                        workspaceId, userId, PaymentStatus.CAPTURED, groupJoinPurpose(groupId))
                 .map(order -> {
                     order.setPurpose(groupJoinUsedPurpose(groupId));
                     order.setUpdatedAt(Instant.now());
@@ -465,8 +475,8 @@ public class BillingService {
         if (userId == null || workspaceId == null || groupId == null) {
             return;
         }
-        orderRepository.findFirstByWorkspaceIdAndUserIdAndPriceCodeAndStatusAndPurposeOrderByCreatedAtDesc(
-                        workspaceId, userId, JOIN_PRICE, PaymentStatus.CAPTURED, groupJoinUsedPurpose(groupId))
+        orderRepository.findFirstByWorkspaceIdAndUserIdAndStatusAndPurposeOrderByCreatedAtDesc(
+                        workspaceId, userId, PaymentStatus.CAPTURED, groupJoinUsedPurpose(groupId))
                 .ifPresent(order -> {
                     order.setPurpose(groupJoinPurpose(groupId));
                     order.setUpdatedAt(Instant.now());
@@ -483,8 +493,9 @@ public class BillingService {
         BillingOrder order = orderRepository
                 .findByGatewayOrderIdAndUserId(request.razorpayOrderId().trim(), userId)
                 .orElseThrow(() -> ApiException.notFound("Billing order", request.razorpayOrderId()));
-        if (!JOIN_PRICE.equals(order.getPriceCode())) {
-            throw new ApiException(ErrorCode.VALIDATION_FAILED, "This payment is not a workspace join fee.");
+        if (order.getPurpose() == null || !order.getPurpose().startsWith(GROUP_JOIN_PREFIX)) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "This payment does not belong to a fitment-group join.");
         }
         if (order.getStatus() == PaymentStatus.CAPTURED) {
             return order;
@@ -500,8 +511,9 @@ public class BillingService {
     public BillingOrder confirmJoinPayment(UUID userId, UUID orderId) {
         BillingOrder order = orderRepository.findByIdAndUserId(orderId, userId)
                 .orElseThrow(() -> ApiException.notFound("Billing order", orderId));
-        if (!JOIN_PRICE.equals(order.getPriceCode())) {
-            throw new ApiException(ErrorCode.VALIDATION_FAILED, "This payment is not a workspace join fee.");
+        if (order.getPurpose() == null || !order.getPurpose().startsWith(GROUP_JOIN_PREFIX)) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                    "This payment does not belong to a fitment-group join.");
         }
         if ("RAZORPAY".equalsIgnoreCase(order.getGateway())) {
             throw new ApiException(ErrorCode.FORBIDDEN,
@@ -535,9 +547,13 @@ public class BillingService {
                 .orElse(null);
     }
 
-    /** The union join fee is the ₹50 that opens compatibility for a shop that had no plan. */
+    /** Gives legacy paid join requests catalog access when they predate selectable plans. */
     public void grantCatalog(UUID workspaceId) {
-        grantOne(workspaceId, CATALOG, null, null);
+        // New join payments already activated the selected monthly plan. Do not overwrite its
+        // expiry with a permanent entitlement when the group admin admits the shop.
+        if (!hasLive(workspaceId, CATALOG)) {
+            grantOne(workspaceId, CATALOG, null, null);
+        }
     }
 
     public boolean hasLive(UUID workspaceId, String entitlement) {
@@ -865,7 +881,7 @@ public class BillingService {
     private PaymentReceipt toReceipt(BillingOrder order) {
         String purpose = order.getPurpose() == null ? "" : order.getPurpose();
         // WORKSPACE_JOIN is priced under the Pilot plan; its name says nothing about what was bought.
-        String planName = purpose.startsWith("GROUP_JOIN")
+        String planName = purpose.startsWith("GROUP_JOIN") && JOIN_PRICE.equals(order.getPriceCode())
                 ? "Fitment group join"
                 : JOIN_PRICE.equals(order.getPriceCode())
                 ? "Shop join"

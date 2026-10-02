@@ -35,7 +35,7 @@ public class GroupJoinController {
 
     @PostMapping("/join/checkout")
     public JoinCheckoutResponse checkout(@Valid @RequestBody JoinWorkspaceRequest request) {
-        return joins.checkout(CurrentUser.userId(), request.joinCode());
+        return joins.checkout(CurrentUser.userId(), request.joinCode(), request.planCode());
     }
 
     @PostMapping("/join/complete")
