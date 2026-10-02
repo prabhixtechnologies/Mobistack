@@ -220,8 +220,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 <BoxIcon />
               </span>
               <div>
-                <strong>Pay after the code</strong>
-                <p>₹50 opens only when the shop code or the union code is recognized.</p>
+                <strong>Choose what you need</strong>
+                <p>Compatibility is ₹50/month. The complete inventory counter is ₹499/month.</p>
               </div>
             </li>
             <li className="auth-highlight">
