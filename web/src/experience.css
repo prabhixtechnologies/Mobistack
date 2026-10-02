@@ -2053,3 +2053,479 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/*
+ * Wide-screen density.
+ * A 1080px-tall counter display shows the complete Compatibility home without page scrolling.
+ */
+@media (min-width: 1200px) and (min-height: 760px) {
+  .catalog-home.page--floor {
+    gap: 12px;
+    padding: 16px 20px 20px;
+  }
+
+  .catalog-home .floor-mast {
+    padding: 18px 22px 20px;
+  }
+
+  .catalog-home__hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 19rem);
+    gap: 18px;
+  }
+
+  .catalog-home .floor-greet {
+    font-size: clamp(28px, 2.35vw, 36px);
+  }
+
+  .catalog-home .floor-sit {
+    margin-top: 4px;
+    font-size: 15.5px;
+  }
+
+  .catalog-home .catalog-home__search {
+    min-height: 46px;
+    margin-top: 12px;
+  }
+
+  .catalog-home__trust {
+    margin-top: 10px;
+  }
+
+  .fitment-visual {
+    height: 166px;
+  }
+
+  .fitment-visual__orbit--one {
+    width: 160px;
+    height: 160px;
+  }
+
+  .fitment-visual__orbit--two {
+    width: 236px;
+    height: 118px;
+  }
+
+  .fitment-device {
+    width: 82px;
+    height: 150px;
+    border-radius: 20px;
+  }
+
+  .fitment-device__screen {
+    border-radius: 14px;
+  }
+
+  .fitment-chip {
+    padding: 5px 9px;
+    font-size: 11.5px;
+  }
+
+  .fitment-chip--screen { top: 8px; }
+  .fitment-chip--battery { top: 66px; }
+  .fitment-chip--camera { bottom: 6px; }
+
+  .catalog-home__section-head {
+    min-height: 44px;
+    margin-top: 0;
+  }
+
+  .catalog-home__section-head h2 {
+    font-size: 21px;
+  }
+
+  .catalog-home__tiles {
+    gap: 12px;
+  }
+
+  .catalog-tile {
+    min-height: 138px;
+    gap: 5px;
+    padding: 14px 16px;
+    border-radius: 15px;
+  }
+
+  .catalog-tile__icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 0;
+    border-radius: 10px;
+  }
+
+  .catalog-tile__icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .catalog-tile strong {
+    font-size: 17px;
+  }
+
+  .catalog-tile > span:not(.catalog-tile__top) {
+    font-size: 13.5px;
+    line-height: 1.35;
+  }
+
+  .catalog-tile em {
+    font-size: 13px;
+  }
+
+  .catalog-home__lower {
+    display: grid;
+    grid-template-columns: minmax(22rem, 0.8fr) minmax(38rem, 1.45fr);
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .catalog-home__lower .catalog-upgrade,
+  .catalog-home__lower .catalog-guide {
+    height: 100%;
+    padding: 18px;
+    border-radius: 15px;
+  }
+
+  .catalog-home__lower .catalog-upgrade {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .catalog-home__lower .catalog-upgrade h2,
+  .catalog-home__lower .catalog-guide h2 {
+    font-size: 19px;
+  }
+
+  .catalog-home__lower .catalog-upgrade p,
+  .catalog-home__lower .catalog-guide__intro > span {
+    margin-top: 4px;
+    font-size: 13.5px;
+  }
+
+  .catalog-home__lower .catalog-upgrade ul {
+    gap: 7px 12px;
+  }
+
+  .catalog-home__lower .catalog-upgrade li {
+    font-size: 13px;
+  }
+
+  .catalog-home__lower .catalog-upgrade .btn {
+    justify-self: start;
+    min-height: 38px;
+  }
+
+  .catalog-home__lower .catalog-guide {
+    grid-template-columns: minmax(11rem, 0.65fr) minmax(0, 1.8fr);
+    gap: 16px;
+  }
+
+  .catalog-home__lower .catalog-guide ol {
+    gap: 8px;
+  }
+
+  .catalog-home__lower .catalog-guide li {
+    padding: 12px;
+  }
+
+  .catalog-home__lower .catalog-guide li > span {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 7px;
+  }
+
+  .catalog-home__lower .catalog-guide li strong {
+    font-size: 14px;
+  }
+
+  .catalog-home__lower .catalog-guide li p {
+    margin-top: 4px;
+    font-size: 12.5px;
+    line-height: 1.35;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar {
+    padding-top: 10px;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar .sidebar-workspace {
+    grid-template-columns: 38px minmax(0, 1fr) 26px;
+    margin-bottom: 4px;
+    padding: 8px 9px;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar .sidebar-workspace__mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar .nav-section__label {
+    margin-top: 10px;
+    padding-bottom: 4px;
+    font-size: 10px;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar .nav-link {
+    min-height: 38px;
+    gap: 10px;
+    padding-block: 4px;
+    font-size: 14px;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar .nav-link .nav-ico {
+    width: 28px;
+    height: 28px;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar .sidebar-foot {
+    gap: 5px;
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+
+  .app-shell:not(.app-shell--collapsed) .sidebar-plan {
+    padding: 7px 10px;
+  }
+}
+
+/* Billing: a production checkout page, not a configuration screen. */
+.billing-page {
+  width: 100%;
+  max-width: 80rem;
+}
+
+.billing-page .billing-hero {
+  grid-template-columns: minmax(0, 1.45fr) minmax(17rem, 0.55fr);
+  gap: 32px;
+  align-items: center;
+  padding: clamp(26px, 4vw, 44px);
+  border: 0;
+  border-radius: 24px;
+  background:
+    radial-gradient(28rem 20rem at 100% 0%, color-mix(in oklab, var(--px-ochre-500) 48%, transparent), transparent 70%),
+    linear-gradient(125deg, var(--px-sand-950), var(--px-ochre-950));
+  color: var(--px-sand-50);
+  box-shadow: var(--px-elevation-3);
+}
+
+.billing-page .billing-hero::after {
+  display: none;
+}
+
+.billing-hero__copy {
+  min-width: 0;
+}
+
+.billing-hero__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.billing-page .billing-hero .page-kicker {
+  margin: 0;
+  color: var(--px-ochre-300);
+}
+
+.billing-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in oklab, var(--px-sand-50) 18%, transparent);
+  border-radius: 999px;
+  color: var(--px-sand-300);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.billing-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--px-sand-400);
+}
+
+.billing-live--on {
+  color: var(--px-green-200);
+}
+
+.billing-live--on i {
+  background: var(--px-green-400);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--px-green-400) 18%, transparent);
+}
+
+.billing-page .billing-hero h1 {
+  max-width: 16ch;
+  color: var(--px-sand-50);
+  font-family: var(--font);
+  font-size: clamp(36px, 4vw, 54px);
+  font-weight: 720;
+  line-height: 1.02;
+}
+
+.billing-page .billing-hero p:not(.page-kicker) {
+  margin-top: 12px;
+  color: var(--px-sand-200);
+  line-height: 1.5;
+}
+
+.billing-page .billing-hero__trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 20px;
+}
+
+.billing-page .billing-hero__trust span {
+  color: var(--px-sand-200);
+}
+
+.billing-page .billing-hero__trust span::before {
+  width: 18px;
+  height: 18px;
+  background: color-mix(in oklab, var(--px-green-400) 18%, transparent);
+  color: var(--px-green-200);
+  font-size: 11px;
+}
+
+.billing-hero__visual {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: start;
+  gap: 7px;
+  padding: 20px;
+  border: 1px solid color-mix(in oklab, var(--px-sand-50) 16%, transparent);
+  border-radius: 18px;
+  background: color-mix(in oklab, var(--px-sand-50) 8%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.billing-shield {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  margin-bottom: 3px;
+  border-radius: 13px;
+  background: color-mix(in oklab, var(--px-teal-500) 24%, transparent);
+  color: var(--px-teal-100);
+}
+
+.billing-shield svg {
+  width: 22px;
+  height: 22px;
+}
+
+.billing-hero__visual strong {
+  font-size: 18px;
+}
+
+.billing-page .billing-hero .billing-hero__visual p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.billing-hero__provider {
+  margin-top: 6px;
+  color: var(--px-ochre-300);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.billing-page .billing-plans {
+  gap: 16px;
+}
+
+.billing-page .plan-card {
+  overflow: hidden;
+  padding: 26px;
+  border-radius: 20px;
+  box-shadow: var(--px-elevation-2);
+}
+
+.billing-page .plan-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--px-teal-600);
+  content: "";
+}
+
+.billing-page .plan-card--recommended::before {
+  background: linear-gradient(90deg, var(--px-ochre-500), var(--px-teal-600));
+}
+
+.billing-page .plan-card--current {
+  border-color: color-mix(in oklab, var(--px-green-500) 42%, var(--line));
+}
+
+.plan-card__recommended--current {
+  background: var(--good-soft);
+  color: var(--good-soft-ink);
+}
+
+.billing-page .plan-card__top {
+  min-height: 52px;
+}
+
+.billing-page .plan-card__price {
+  margin-top: 16px;
+}
+
+.billing-page .plan-card__description {
+  min-height: 42px;
+  margin-top: 12px;
+}
+
+.billing-page .plan-card__rule {
+  margin: 18px 0;
+}
+
+.billing-page .plan-card__features {
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.billing-page .plan-card--recommended .plan-card__features {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.billing-page .plan-card__features li {
+  font-size: 14px;
+}
+
+.billing-page .billing-history {
+  border-radius: 18px;
+  box-shadow: var(--px-elevation-2);
+}
+
+@media (max-width: 900px) {
+  .billing-page .billing-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .billing-hero__visual {
+    display: none;
+  }
+
+  .billing-page .plan-card--recommended .plan-card__features {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .billing-page .billing-hero {
+    padding: 26px 20px;
+  }
+
+  .billing-page .billing-hero h1 {
+    font-size: clamp(34px, 10vw, 44px);
+  }
+
+  .billing-page .billing-hero__trust {
+    grid-template-columns: 1fr;
+  }
+}

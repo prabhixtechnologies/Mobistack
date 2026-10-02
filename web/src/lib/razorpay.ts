@@ -47,24 +47,6 @@ export interface RazorpayCheckoutOptions {
   handler: (response: RazorpaySuccessResponse) => void;
 }
 
-/** Razorpay wants E.164, for example +91XXXXXXXXXX. */
-export function checkoutContact(phone?: string | null): string | undefined {
-  if (!phone) {
-    return undefined;
-  }
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 10) {
-    return `+91${digits}`;
-  }
-  if (digits.length === 12 && digits.startsWith("91")) {
-    return `+${digits}`;
-  }
-  if (phone.trim().startsWith("+") && digits.length >= 10) {
-    return `+${digits}`;
-  }
-  return phone.trim() || undefined;
-}
-
 interface RazorpayInstance {
   open: () => void;
   on: (event: "payment.failed", handler: (response: RazorpayFailureResponse) => void) => void;

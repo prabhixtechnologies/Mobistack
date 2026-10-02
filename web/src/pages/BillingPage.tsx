@@ -4,6 +4,7 @@ import { api, money } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { captureCheckoutOrder, type CheckoutOrder } from "../lib/payOrder";
 import { EmptyState } from "../ui/EmptyState";
+import { Icon } from "../ui/navIcons";
 
 interface PlanCard {
   id: string;
@@ -104,10 +105,13 @@ export function BillingPage() {
     load().catch((err: Error) => setError(err.message));
   }, []);
 
+  // The backend owns the active Razorpay environment. Prefer its current key so a web image
+  // built before a Test -> Live switch cannot keep presenting the stale checkout mode.
   const publishableKey =
-    (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined)?.trim()
-    || data?.razorpayKeyId
+    data?.razorpayKeyId?.trim()
+    || (import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined)?.trim()
     || "";
+  const liveCheckout = Boolean(data?.razorpayEnabled && publishableKey.startsWith("rzp_live_"));
 
   async function activateLocal() {
     setError(null);
@@ -151,18 +155,30 @@ export function BillingPage() {
   return (
     <div className="page billing-page">
       <section className="billing-hero">
-        <div>
-          <p className="page-kicker">Choose your MobiStack</p>
-          <h1>Start with compatibility. Grow into the complete counter.</h1>
+        <div className="billing-hero__copy">
+          <div className="billing-hero__meta">
+            <p className="page-kicker">MobiStack plans</p>
+            <span className={`billing-live${liveCheckout ? " billing-live--on" : ""}`}>
+              <i aria-hidden />
+              {liveCheckout ? "Live payments" : "Secure checkout"}
+            </span>
+          </div>
+          <h1>Choose what your shop needs now.</h1>
           <p>
-            Pick what your shop needs today. Both plans are monthly, transparent, and can be renewed
-            without a separate joining charge.
+            Start with reliable fitment or run the entire counter. Switch plans without losing your
+            catalog, private notes, or shop history.
           </p>
+          <div className="billing-hero__trust" aria-label="Plan assurances">
+            <span>Razorpay protected</span>
+            <span>No joining fee</span>
+            <span>Monthly access</span>
+          </div>
         </div>
-        <div className="billing-hero__trust" aria-label="Plan assurances">
-          <span>Secure Razorpay checkout</span>
-          <span>No joining fee</span>
-          <span>Monthly access</span>
+        <div className="billing-hero__visual" aria-hidden>
+          <span className="billing-shield"><Icon name="shield" /></span>
+          <strong>Safe checkout</strong>
+          <p>MobiStack does not prefill your stored email or mobile number. Razorpay handles the payment details.</p>
+          <span className="billing-hero__provider">Powered by Razorpay</span>
         </div>
       </section>
       {activating && (
@@ -195,7 +211,7 @@ export function BillingPage() {
           {current.planName} lapsed. Pay this month to restore the features on that plan.
         </div>
       )}
-      {(publishableKey.startsWith("rzp_test_") || data?.razorpayKeyId?.startsWith("rzp_test_")) && (
+      {publishableKey.startsWith("rzp_test_") && (
         <div className="banner">
           Razorpay Test Mode: use card <strong>4111 1111 1111 1111</strong>, any future expiry, CVV
           123, OTP <strong>1234</strong>.
@@ -206,16 +222,21 @@ export function BillingPage() {
       {data && (
         <>
           <div className="billing-plans" aria-label="MobiStack plans">
-            {data.plans.map((plan) => {
+            {data.plans.map((plan, index) => {
               const recommended = plan.code === "FULL_SHOP";
+              const selected = current?.status === "ACTIVE" && current.planCode === plan.code;
               return (
-              <article className={`plan-card${recommended ? " plan-card--recommended" : ""}`} key={plan.id}>
+              <article className={`plan-card${recommended ? " plan-card--recommended" : ""}${selected ? " plan-card--current" : ""}`} key={plan.id}>
                 <div className="plan-card__top">
                   <div>
-                    <p className="plan-card__eyebrow">{recommended ? "Complete shop" : "Essential lookup"}</p>
+                    <p className="plan-card__eyebrow">0{index + 1} · {recommended ? "Complete shop" : "Essential lookup"}</p>
                     <h2>{plan.name}</h2>
                   </div>
-                  {recommended ? <span className="plan-card__recommended">Recommended</span> : null}
+                  {selected ? (
+                    <span className="plan-card__recommended plan-card__recommended--current">Current plan</span>
+                  ) : recommended ? (
+                    <span className="plan-card__recommended">Recommended</span>
+                  ) : null}
                 </div>
                 <div className="plan-card__price">
                   <strong>{money.format(plan.amount)}</strong>
@@ -241,10 +262,12 @@ export function BillingPage() {
                 <button
                   className={`btn plan-card__action${recommended ? "" : " secondary"}`}
                   type="button"
-                  disabled={paying !== null}
+                  disabled={paying !== null || selected}
                   onClick={() => void buy(plan)}
                 >
-                  {paying === plan.code
+                  {selected
+                    ? `Active until ${when(current?.periodEnd)}`
+                    : paying === plan.code
                     ? "Opening secure checkout…"
                     : recommended
                       ? `Choose full shop · ${money.format(plan.amount)}`

@@ -366,45 +366,47 @@ function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canB
         ))}
       </div>
 
-      <section className="catalog-upgrade" aria-labelledby="catalog-upgrade-title">
-        <div>
-          <p className="catalog-upgrade__kicker">Full Inventory Management</p>
-          <h2 id="catalog-upgrade-title">Run the whole counter from here</h2>
-          <p>Sales, repairs and stock stay off on the Compatibility plan. Switching keeps your catalog and notes.</p>
-        </div>
-        <ul>
-          {FULL_PLAN.map((item) => (
-            <li key={item.label}>
-              <Icon name={item.icon} />
-              {item.label}
-            </li>
-          ))}
-        </ul>
-        {canBill ? (
-          <Link className="btn" to="/billing">
-            See plans
-          </Link>
-        ) : (
-          <p className="catalog-upgrade__ask">Ask the shop owner to switch plans.</p>
-        )}
-      </section>
+      <div className="catalog-home__lower">
+        <section className="catalog-upgrade" aria-labelledby="catalog-upgrade-title">
+          <div>
+            <p className="catalog-upgrade__kicker">Full Inventory Management</p>
+            <h2 id="catalog-upgrade-title">Run the whole counter from here</h2>
+            <p>Sales, repairs and stock stay off on the Compatibility plan. Switching keeps your catalog and notes.</p>
+          </div>
+          <ul>
+            {FULL_PLAN.map((item) => (
+              <li key={item.label}>
+                <Icon name={item.icon} />
+                {item.label}
+              </li>
+            ))}
+          </ul>
+          {canBill ? (
+            <Link className="btn" to="/billing">
+              See plans
+            </Link>
+          ) : (
+            <p className="catalog-upgrade__ask">Ask the shop owner to switch plans.</p>
+          )}
+        </section>
 
-      <section className="catalog-guide" aria-labelledby="catalog-guide-title">
-        <div className="catalog-guide__intro">
-          <p>From phone to part</p>
-          <h2 id="catalog-guide-title">A faster compatibility check</h2>
-          <span>No spreadsheets. No guessing from a similar model.</span>
-        </div>
-        <ol>
-          {CATALOG_STEPS.map((step) => (
-            <li key={step.number}>
-              <span>{step.number}</span>
-              <strong>{step.title}</strong>
-              <p>{step.body}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+        <section className="catalog-guide" aria-labelledby="catalog-guide-title">
+          <div className="catalog-guide__intro">
+            <p>From phone to part</p>
+            <h2 id="catalog-guide-title">A faster compatibility check</h2>
+            <span>No spreadsheets. No guessing from a similar model.</span>
+          </div>
+          <ol>
+            {CATALOG_STEPS.map((step) => (
+              <li key={step.number}>
+                <span>{step.number}</span>
+                <strong>{step.title}</strong>
+                <p>{step.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
     </div>
   );
 }

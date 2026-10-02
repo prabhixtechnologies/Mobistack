@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { BRAND } from "./brand";
-import { checkoutContact, loadRazorpayCheckout, openRazorpayCheckout } from "./razorpay";
+import { loadRazorpayCheckout, openRazorpayCheckout } from "./razorpay";
 
 export interface CheckoutOrder {
   id: string;
@@ -19,7 +19,7 @@ export function razorpayOrderId(order: CheckoutOrder): string {
 
 export async function captureCheckoutOrder(
   order: CheckoutOrder,
-  user?: { fullName?: string; email?: string; phone?: string },
+  user?: { fullName?: string },
   description?: string,
   publishableKey?: string,
 ): Promise<void> {
@@ -53,8 +53,6 @@ export async function captureCheckoutOrder(
       retry: { enabled: true, max_count: 3 },
       prefill: {
         name: user?.fullName,
-        email: user?.email,
-        contact: checkoutContact(user?.phone),
         method: testMode ? "card" : undefined,
       },
       method: testMode
@@ -101,7 +99,7 @@ export async function captureCheckoutOrder(
 export async function collectJoinPayment(
   order: CheckoutOrder,
   joinCode: string,
-  user?: { fullName?: string; email?: string; phone?: string },
+  user?: { fullName?: string },
   shopName?: string,
   publishableKey?: string,
 ): Promise<{ razorpay_order_id?: string; razorpay_payment_id?: string; razorpay_signature?: string; orderId?: string }> {
@@ -134,8 +132,6 @@ export async function collectJoinPayment(
       retry: { enabled: true, max_count: 3 },
       prefill: {
         name: user?.fullName,
-        email: user?.email,
-        contact: checkoutContact(user?.phone),
         method: testMode ? "card" : undefined,
       },
       method: testMode
