@@ -26,7 +26,7 @@ export function hasFeature(
   user: Pick<AuthenticatedUser, "features" | "systemAdmin"> | null | undefined,
   feature: string,
 ): boolean {
-  return Boolean(user?.systemAdmin || user?.features?.includes(feature));
+  return Boolean(user?.features?.includes(feature));
 }
 
 export function afterAuthPath(

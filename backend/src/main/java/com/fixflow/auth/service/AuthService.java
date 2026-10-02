@@ -74,13 +74,14 @@ public class AuthService {
         UUID workspaceId = shop == null ? null : shop.getId();
         String workspaceName = shop == null ? null : shop.getName();
         boolean admin = user.isSystemAdmin();
-        boolean paymentRequired = workspaceId != null && !admin && billingService.paymentRequired(workspaceId);
-        boolean catalogOnly = workspaceId != null && !admin && billingService.catalogOnly(workspaceId);
-        List<String> features = admin
-                ? List.copyOf(PlanCatalog.CODES)
+        // Inside a shop an admin sees exactly what that shop paid for; admin powers live on /admin.
+        boolean paymentRequired = workspaceId != null && billingService.paymentRequired(workspaceId);
+        boolean catalogOnly = workspaceId != null && billingService.catalogOnly(workspaceId);
+        List<String> features = workspaceId == null
+                ? (admin ? List.copyOf(PlanCatalog.CODES) : List.of())
                 : List.copyOf(billingService.features(workspaceId));
-        var plan = workspaceId == null || admin ? null : billingService.currentPlan(workspaceId);
-        var sub = workspaceId == null || admin ? null : billingService.subscription(workspaceId);
+        var plan = workspaceId == null ? null : billingService.currentPlan(workspaceId);
+        var sub = workspaceId == null ? null : billingService.subscription(workspaceId);
         return new AuthenticatedUser(user.getId(), workspaceId, workspaceName, workspaceId, workspaceName,
                 user.getFullName(), user.getEmail(), user.getPhone(), user.getAvatarUrl(),
                 principal.getRoles(), permissions, admin,

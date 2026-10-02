@@ -40,8 +40,10 @@ public class CatalogPlanFilter extends OncePerRequestFilter {
             return;
         }
         UserPrincipal principal = (UserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        if ((principal.getShopId() != null && billingService.hasCatalog(principal.getShopId()))
-                || billingService.callerIsSystemAdmin()) {
+        boolean allowed = principal.getShopId() == null
+                ? billingService.callerIsSystemAdmin()
+                : billingService.hasCatalog(principal.getShopId());
+        if (allowed) {
             filterChain.doFilter(request, response);
             return;
         }

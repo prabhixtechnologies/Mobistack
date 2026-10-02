@@ -73,18 +73,18 @@ class CatalogOnlyFilterTest {
     }
 
     @Test
-    void systemAdminsReachShopApisOnCatalogOnlyPlans() throws Exception {
+    void systemAdminsAreHeldToTheShopsCatalogOnlyPlan() throws Exception {
         UUID shopId = UUID.randomUUID();
         signIn(shopId);
         when(billingService.catalogOnly(shopId)).thenReturn(true);
-        when(billingService.callerIsSystemAdmin()).thenReturn(true);
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobistack/inventory");
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilterInternal(request, response, chain);
 
-        verify(chain).doFilter(request, response);
-        assertThat(response.getStatus()).isEqualTo(200);
+        verify(chain, never()).doFilter(request, response);
+        verify(billingService, never()).callerIsSystemAdmin();
+        assertThat(response.getStatus()).isEqualTo(402);
     }
 
     @Test

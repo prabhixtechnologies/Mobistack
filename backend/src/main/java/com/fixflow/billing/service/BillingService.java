@@ -243,8 +243,8 @@ public class BillingService {
     }
 
     /**
-     * System admins are told by /auth/me that every feature is on, so every gate below has to
-     * agree — otherwise the app shows Stock and Sales and the server then refuses each call.
+     * Not a bypass for shop gates: inside a shop an admin is held to that shop's plan, the same
+     * plan /auth/me reports, so the app and the server agree on what is open.
      */
     public boolean callerIsSystemAdmin() {
         return CurrentUser.find()
@@ -254,14 +254,14 @@ public class BillingService {
     }
 
     public void require(UUID workspaceId, String entitlement) {
-        if (!hasLive(workspaceId, entitlement) && !callerIsSystemAdmin()) {
+        if (!hasLive(workspaceId, entitlement)) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "This workspace needs an active MobiStack plan. Open Billing and complete payment.");
         }
     }
 
     public void requireCatalog(UUID workspaceId) {
-        if (!hasCatalog(workspaceId) && !callerIsSystemAdmin()) {
+        if (!hasCatalog(workspaceId)) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "This workspace needs an active plan that includes compatibility. Open Billing and pay.");
         }
@@ -276,7 +276,7 @@ public class BillingService {
      * accepted weeks after the plan lapsed.
      */
     public void requireMemberSeat(UUID workspaceId) {
-        if (!hasLive(workspaceId, "MEMBER_ADD") && !callerIsSystemAdmin()) {
+        if (!hasLive(workspaceId, "MEMBER_ADD")) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "Adding people to this shop needs an active plan. "
                             + "Open Billing, complete payment, then add your team.");
