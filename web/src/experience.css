@@ -2548,16 +2548,17 @@ body {
   --finish-r-lg: 18px;
   --finish-r-xl: 22px;
   --finish-hairline: color-mix(in oklab, var(--ink) 9%, transparent);
-  --finish-shadow-1: 0 1px 2px rgba(28, 20, 10, 0.05), 0 1px 1px rgba(28, 20, 10, 0.03);
-  --finish-shadow-2: 0 1px 2px rgba(28, 20, 10, 0.04), 0 6px 20px -6px rgba(28, 20, 10, 0.12);
-  --finish-shadow-3: 0 2px 4px rgba(28, 20, 10, 0.05), 0 16px 36px -12px rgba(28, 20, 10, 0.22);
+  --finish-shadow-1: 0 1px 2px color-mix(in oklab, var(--px-sand-950) 8%, transparent);
+  --finish-shadow-2: 0 1px 2px color-mix(in oklab, var(--px-sand-950) 6%, transparent), 0 6px 20px -6px color-mix(in oklab, var(--px-sand-950) 16%, transparent);
+  --finish-shadow-3: 0 2px 4px color-mix(in oklab, var(--px-sand-950) 8%, transparent), 0 16px 36px -12px color-mix(in oklab, var(--px-sand-950) 28%, transparent);
+  --finish-sheen: color-mix(in oklab, var(--px-sand-50) 22%, transparent);
 }
 
 :root[data-theme="dark"] {
   --finish-hairline: color-mix(in oklab, var(--ink) 12%, transparent);
-  --finish-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --finish-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.6);
-  --finish-shadow-3: 0 2px 4px rgba(0, 0, 0, 0.4), 0 18px 40px -12px rgba(0, 0, 0, 0.7);
+  --finish-shadow-1: 0 1px 2px color-mix(in oklab, var(--px-sand-950) 55%, transparent);
+  --finish-shadow-2: 0 1px 2px color-mix(in oklab, var(--px-sand-950) 45%, transparent), 0 8px 24px -8px color-mix(in oklab, var(--px-sand-950) 70%, transparent);
+  --finish-shadow-3: 0 2px 4px color-mix(in oklab, var(--px-sand-950) 50%, transparent), 0 18px 40px -12px color-mix(in oklab, var(--px-sand-950) 78%, transparent);
 }
 
 html {
@@ -2617,13 +2618,13 @@ kbd,
 }
 
 .btn:not(.ghost):not(.secondary) {
-  background-image: linear-gradient(180deg, color-mix(in oklab, #fff 14%, transparent), transparent);
-  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent), 0 1px 2px rgba(28, 20, 10, 0.18);
+  background-image: linear-gradient(180deg, var(--finish-sheen), transparent);
+  box-shadow: inset 0 1px 0 var(--finish-sheen), var(--finish-shadow-1);
 }
 
 .btn:hover:not(:disabled) {
   transform: none;
-  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent), 0 4px 12px -4px rgba(28, 20, 10, 0.35);
+  box-shadow: inset 0 1px 0 var(--finish-sheen), var(--finish-shadow-2);
 }
 
 .btn.ghost,
@@ -2728,7 +2729,7 @@ kbd,
 
 .page--floor .floor-mast__cmd .btn:not(.ghost) {
   background-image: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--finish-shadow-1);
 }
 
 .catalog-home .catalog-home__search {
@@ -2836,7 +2837,7 @@ kbd,
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
-  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent);
+  box-shadow: inset 0 1px 0 var(--finish-sheen);
 }
 
 .catalog-guide li strong {
