@@ -287,6 +287,12 @@ const FULL_PLAN: { icon: NavIconName; label: string }[] = [
   { icon: "chart", label: "Reports" },
 ];
 
+const CATALOG_STEPS: { number: string; title: string; body: string }[] = [
+  { number: "01", title: "Choose the phone", body: "Search by model name, code, or the name printed on the device." },
+  { number: "02", title: "Check every fit", body: "Compare shared screens, batteries, cameras, and other compatible parts." },
+  { number: "03", title: "Keep shop knowledge", body: "Add a private note when your team learns something the union should not see." },
+];
+
 function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canBill: boolean }) {
   return (
     <div className="page page--floor catalog-home">
@@ -302,28 +308,60 @@ function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canB
             </Link>
           </div>
         </div>
-        <div className="floor-mast__copy">
-          <p className="floor-greet">
-            {greeting()}, {name}.
-          </p>
-          <p className="floor-sit">Compatibility is on. Find the part that fits before the customer leaves.</p>
+        <div className="catalog-home__hero-grid">
+          <div className="catalog-home__hero-copy">
+            <div className="floor-mast__copy">
+              <h1 className="floor-greet">
+                {greeting()}, {name}.
+              </h1>
+              <p className="floor-sit">Find the right part before the customer leaves the counter.</p>
+            </div>
+            <button className="catalog-home__search" type="button" onClick={() => openCommandPalette()}>
+              <Icon name="search" />
+              <span>Search a phone, model code or part</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+            <p className="catalog-home__trust">
+              <Icon name="check" />
+              Shared fitment is active for this shop
+            </p>
+          </div>
+          <div className="fitment-visual" aria-hidden>
+            <span className="fitment-visual__orbit fitment-visual__orbit--one" />
+            <span className="fitment-visual__orbit fitment-visual__orbit--two" />
+            <div className="fitment-device">
+              <span className="fitment-device__speaker" />
+              <div className="fitment-device__screen">
+                <span>M</span>
+                <small>FIT CONFIRMED</small>
+              </div>
+            </div>
+            <span className="fitment-chip fitment-chip--screen"><Icon name="check" /> Screen</span>
+            <span className="fitment-chip fitment-chip--battery"><Icon name="check" /> Battery</span>
+            <span className="fitment-chip fitment-chip--camera"><Icon name="check" /> Camera</span>
+          </div>
         </div>
-        <button className="catalog-home__search" type="button" onClick={() => openCommandPalette()}>
-          <Icon name="search" />
-          <span>Search a phone, model code or part</span>
-          <kbd>Ctrl K</kbd>
-        </button>
       </header>
 
+      <div className="catalog-home__section-head">
+        <div>
+          <p>Catalog workspace</p>
+          <h2>Start with what you need</h2>
+        </div>
+        <span>Three tools included in your plan</span>
+      </div>
       <div className="catalog-home__tiles">
-        {CATALOG_TILES.map((tile) => (
+        {CATALOG_TILES.map((tile, index) => (
           <Link key={tile.to} className={`catalog-tile catalog-tile--${tile.tone}`} to={tile.to}>
-            <span className="catalog-tile__icon" aria-hidden>
-              <Icon name={tile.icon} />
+            <span className="catalog-tile__top">
+              <span className="catalog-tile__icon" aria-hidden>
+                <Icon name={tile.icon} />
+              </span>
+              <small>0{index + 1}</small>
             </span>
             <strong>{tile.title}</strong>
             <span>{tile.body}</span>
-            <em>Open →</em>
+            <em>Open <Icon name="chevronRight" /></em>
           </Link>
         ))}
       </div>
@@ -349,6 +387,23 @@ function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canB
         ) : (
           <p className="catalog-upgrade__ask">Ask the shop owner to switch plans.</p>
         )}
+      </section>
+
+      <section className="catalog-guide" aria-labelledby="catalog-guide-title">
+        <div className="catalog-guide__intro">
+          <p>From phone to part</p>
+          <h2 id="catalog-guide-title">A faster compatibility check</h2>
+          <span>No spreadsheets. No guessing from a similar model.</span>
+        </div>
+        <ol>
+          {CATALOG_STEPS.map((step) => (
+            <li key={step.number}>
+              <span>{step.number}</span>
+              <strong>{step.title}</strong>
+              <p>{step.body}</p>
+            </li>
+          ))}
+        </ol>
       </section>
     </div>
   );

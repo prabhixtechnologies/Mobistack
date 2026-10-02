@@ -69,6 +69,7 @@ export function AppShell() {
   const localUnlock = Boolean(user?.localActivationAvailable);
   const canBill = access.has("WORKSPACE_BILLING");
   const canSales = access.has("SALES_READ") && features.includes("SALES");
+  const planLabel = features.includes("DASHBOARD") ? "Full Inventory" : "Compatibility";
   const context = routeContext(pathname);
 
   async function activateLocalShop() {
@@ -359,10 +360,13 @@ export function AppShell() {
             <span className="sidebar-workspace__mark" aria-hidden>
               {(user?.workspaceName ?? user?.shopName ?? "W").trim().charAt(0).toUpperCase()}
             </span>
-            <div>
+            <div className="sidebar-workspace__copy">
               <strong>{user?.workspaceName ?? user?.shopName ?? "Workspace"}</strong>
-              <span>{access.roleLabel}</span>
+              <span>{access.roleLabel} · {planLabel}</span>
             </div>
+            <Link className="sidebar-workspace__open" to="/workspaces" aria-label="Open workspaces">
+              <Icon name="chevronRight" />
+            </Link>
           </div>
 
           <nav className="nav-group">
@@ -391,6 +395,13 @@ export function AppShell() {
           </nav>
 
           <div className="sidebar-foot">
+            <div className="sidebar-plan">
+              <span className="sidebar-plan__signal" aria-hidden />
+              <div>
+                <strong>{planLabel} plan</strong>
+                <span>{features.includes("DASHBOARD") ? "Shop operations enabled" : "Shared catalog enabled"}</span>
+              </div>
+            </div>
             <button
               className="nav-link tint-slate"
               type="button"

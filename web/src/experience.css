@@ -1599,3 +1599,457 @@ body {
     font-size: 64px;
   }
 }
+
+/*
+ * Dark navigation rail.
+ * One deep surface shared with the page hero, so header, rail and page read as one product.
+ */
+.app-shell .sidebar {
+  padding: 14px 12px 12px;
+  border-right: 0;
+  background:
+    radial-gradient(18rem 14rem at 0% 0%, color-mix(in oklab, var(--px-ochre-500) 22%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--px-sand-950), var(--px-sand-900));
+  color: var(--px-sand-100);
+}
+
+.app-shell .sidebar .sidebar-workspace {
+  grid-template-columns: 42px minmax(0, 1fr) 28px;
+  padding: 10px;
+  border: 1px solid color-mix(in oklab, var(--px-sand-50) 12%, transparent);
+  background: color-mix(in oklab, var(--px-sand-50) 6%, transparent);
+}
+
+.app-shell .sidebar .sidebar-workspace__mark {
+  width: 42px;
+  height: 42px;
+  box-shadow: 0 6px 16px color-mix(in oklab, var(--px-ochre-500) 30%, transparent);
+}
+
+.app-shell .sidebar .sidebar-workspace strong {
+  color: var(--px-sand-50);
+  font-size: 15px;
+}
+
+.app-shell .sidebar .sidebar-workspace span {
+  color: var(--px-sand-400);
+}
+
+.sidebar-workspace__open {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--px-sand-400);
+  transition: background var(--motion), color var(--motion);
+}
+
+.sidebar-workspace__open:hover {
+  background: color-mix(in oklab, var(--px-sand-50) 10%, transparent);
+  color: var(--px-sand-50);
+}
+
+.sidebar-workspace__open svg {
+  width: 16px;
+  height: 16px;
+}
+
+.app-shell .sidebar .nav-section__label {
+  margin-top: 18px;
+  color: var(--px-sand-500);
+}
+
+.app-shell .sidebar .nav-link {
+  min-height: 44px;
+  color: var(--px-sand-300);
+  font-size: 15px;
+}
+
+.app-shell .sidebar .nav-link .nav-ico,
+.app-shell .sidebar .nav-link[class*="tint-"] .nav-ico {
+  width: 32px;
+  height: 32px;
+  background: color-mix(in oklab, var(--px-sand-50) 7%, transparent) !important;
+  color: var(--px-sand-300) !important;
+}
+
+.app-shell .sidebar .nav-link:hover {
+  background: color-mix(in oklab, var(--px-sand-50) 7%, transparent);
+  color: var(--px-sand-50);
+}
+
+.app-shell .sidebar .nav-link:hover .nav-ico {
+  color: var(--px-ochre-300) !important;
+}
+
+.app-shell .sidebar .nav-link.active {
+  background: linear-gradient(90deg, color-mix(in oklab, var(--px-ochre-500) 26%, transparent), color-mix(in oklab, var(--px-ochre-500) 6%, transparent));
+  color: var(--px-sand-50);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--px-ochre-400) 34%, transparent);
+}
+
+.app-shell .sidebar .nav-link.active .nav-ico {
+  background: var(--px-ochre-500) !important;
+  color: var(--px-sand-950) !important;
+}
+
+.app-shell .sidebar .nav-link:focus-visible,
+.sidebar-workspace__open:focus-visible {
+  outline: 2px solid var(--px-ochre-300);
+  outline-offset: 2px;
+}
+
+.app-shell .sidebar .sidebar-foot {
+  display: grid;
+  gap: 8px;
+  border-top-color: color-mix(in oklab, var(--px-sand-50) 10%, transparent);
+}
+
+.sidebar-plan {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--px-teal-500) 12%, transparent);
+}
+
+.sidebar-plan__signal {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--px-teal-400, var(--px-teal-500));
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--px-teal-400, var(--px-teal-500)) 22%, transparent);
+}
+
+.sidebar-plan strong,
+.sidebar-plan span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-plan strong {
+  color: var(--px-sand-50);
+  font-size: 13.5px;
+}
+
+.sidebar-plan span {
+  color: var(--px-sand-400);
+  font-size: 12px;
+}
+
+.app-shell--collapsed .sidebar .sidebar-workspace {
+  grid-template-columns: 1fr;
+}
+
+.app-shell--collapsed .sidebar-workspace__open,
+.app-shell--collapsed .sidebar-plan {
+  display: none;
+}
+
+.app-shell--collapsed .sidebar .nav-section + .nav-section {
+  border-top-color: color-mix(in oklab, var(--px-sand-50) 10%, transparent);
+}
+
+/* Catalog home hero with a fitment illustration. */
+.catalog-home .floor-mast {
+  padding: 24px 28px 28px;
+  overflow: hidden;
+}
+
+.catalog-home__hero-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+  gap: 24px;
+  align-items: center;
+}
+
+.catalog-home__hero-copy {
+  min-width: 0;
+}
+
+.catalog-home .floor-greet {
+  margin: 0;
+  font-size: clamp(30px, 3vw, 42px);
+}
+
+.catalog-home .floor-sit {
+  font-size: 17px;
+}
+
+.catalog-home__trust {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  color: var(--px-sand-200);
+  font-size: 13.5px;
+}
+
+.catalog-home__trust svg {
+  width: 16px;
+  height: 16px;
+  color: var(--px-teal-300, var(--px-teal-100));
+}
+
+.fitment-visual {
+  position: relative;
+  height: 220px;
+}
+
+.fitment-visual__orbit {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  border: 1px dashed color-mix(in oklab, var(--px-sand-50) 22%, transparent);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.fitment-visual__orbit--one {
+  width: 200px;
+  height: 200px;
+}
+
+.fitment-visual__orbit--two {
+  width: 290px;
+  height: 150px;
+  border-color: color-mix(in oklab, var(--px-ochre-300) 26%, transparent);
+}
+
+.fitment-device {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 104px;
+  height: 188px;
+  padding: 8px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, var(--px-sand-700), var(--px-sand-950));
+  box-shadow: 0 24px 40px rgba(0, 0, 0, 0.45), inset 0 0 0 1px color-mix(in oklab, var(--px-sand-50) 18%, transparent);
+  transform: translate(-50%, -50%) rotate(-6deg);
+}
+
+.fitment-device__speaker {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 28px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--px-sand-50) 24%, transparent);
+  transform: translateX(-50%);
+}
+
+.fitment-device__screen {
+  display: grid;
+  height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  border-radius: 18px;
+  background:
+    radial-gradient(5rem 5rem at 50% 30%, color-mix(in oklab, var(--px-ochre-400) 50%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--px-ochre-900), var(--px-sand-950));
+}
+
+.fitment-device__screen span {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--px-ochre-500), var(--px-teal-600));
+  color: var(--px-sand-50);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.fitment-device__screen small {
+  color: var(--px-sand-200);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.fitment-chip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid color-mix(in oklab, var(--px-sand-50) 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--px-sand-950) 70%, transparent);
+  color: var(--px-sand-50);
+  font-size: 12.5px;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.fitment-chip svg {
+  width: 13px;
+  height: 13px;
+  color: var(--px-teal-300, var(--px-teal-100));
+}
+
+.fitment-chip--screen { top: 18px; left: 0; }
+.fitment-chip--battery { top: 92px; right: 0; }
+.fitment-chip--camera { bottom: 14px; left: 18px; }
+
+/* Catalog home content below the hero. */
+.catalog-home__section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.catalog-home__section-head p,
+.catalog-guide__intro p {
+  margin: 0 0 4px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.catalog-home__section-head h2,
+.catalog-guide__intro h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.025em;
+}
+
+.catalog-home__section-head > span {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.catalog-tile__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.catalog-tile__top small {
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.catalog-tile strong {
+  font-size: 20px;
+}
+
+.catalog-tile em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.catalog-tile em svg {
+  width: 15px;
+  height: 15px;
+  transition: transform var(--motion);
+}
+
+.catalog-tile:hover em svg {
+  transform: translateX(3px);
+}
+
+.catalog-guide {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.8fr) minmax(0, 2fr);
+  gap: 24px 32px;
+  align-items: start;
+  padding: 24px;
+  border: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--px-elevation-2);
+}
+
+.catalog-guide__intro > span {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.catalog-guide ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-guide li {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.catalog-guide li > span {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.catalog-guide li strong {
+  display: block;
+  font-size: 16px;
+}
+
+.catalog-guide li p {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
+  .catalog-home__hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fitment-visual {
+    display: none;
+  }
+
+  .catalog-guide {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .catalog-home .floor-mast {
+    padding: 20px 18px;
+  }
+
+  .catalog-home__section-head {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .catalog-guide ol {
+    grid-template-columns: 1fr;
+  }
+}
