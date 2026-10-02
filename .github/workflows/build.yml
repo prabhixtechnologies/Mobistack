@@ -449,6 +449,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Web interaction and accessibility tests
+        working-directory: web
+        run: npm test
+
       # Colours come from the generated tokens or they do not ship. The checker ships inside
       # @prabhixtechnologies/brand as a bin, so it arrives with the dependency and runs against
       # the same version the bundle is built from. There is one implementation, so adding an
