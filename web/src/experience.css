@@ -494,6 +494,80 @@ body {
   color: var(--ink-soft);
 }
 
+/* The sign-in stage is always dark: its showcase type is light in both themes. */
+.auth-screen {
+  background:
+    radial-gradient(56rem 34rem at 92% 4%, color-mix(in oklab, var(--px-ochre-500) 38%, transparent), transparent 62%),
+    radial-gradient(44rem 30rem at 4% 96%, color-mix(in oklab, var(--px-teal-600) 34%, transparent), transparent 58%),
+    linear-gradient(155deg, var(--px-sand-950), var(--px-ochre-950) 62%, var(--px-sand-950));
+  color: var(--px-sand-50);
+}
+
+.auth-screen__glow {
+  opacity: 0.55;
+}
+
+.auth-layout {
+  max-width: var(--px-container-lg);
+  grid-template-columns: minmax(0, 27rem) minmax(0, 1fr);
+}
+
+.auth-panel {
+  padding: var(--px-space-8) var(--px-space-8) var(--px-space-6);
+  border-color: color-mix(in oklab, var(--px-sand-50) 22%, transparent);
+}
+
+.auth-showcase {
+  max-width: 32rem;
+}
+
+.auth-kicker {
+  color: var(--px-ochre-300);
+}
+
+.auth-showcase h2 {
+  color: var(--px-sand-50);
+  font-size: var(--px-text-display);
+  line-height: var(--px-text-display--line-height);
+}
+
+.auth-tagline {
+  max-width: 34ch;
+  color: var(--px-sand-200);
+  font-size: var(--px-text-body-lg);
+}
+
+.auth-highlight {
+  padding: var(--px-space-4);
+  border-color: color-mix(in oklab, var(--px-sand-50) 20%, transparent);
+  background: color-mix(in oklab, var(--px-sand-50) 9%, transparent);
+}
+
+.auth-highlight strong {
+  color: var(--px-sand-50);
+}
+
+.auth-highlight p {
+  color: var(--px-sand-200);
+}
+
+.auth-highlight__icon {
+  background: color-mix(in oklab, var(--px-teal-500) 34%, transparent);
+  color: var(--px-teal-100);
+}
+
+.auth-secure {
+  background: color-mix(in oklab, var(--px-green-400) 18%, transparent);
+  color: var(--px-green-200);
+}
+
+.auth-screen .auth-top .icon-btn,
+.auth-screen .auth-top .btn.ghost {
+  color: var(--px-sand-50);
+  border-color: color-mix(in oklab, var(--px-sand-50) 26%, transparent);
+  background: color-mix(in oklab, var(--px-sand-50) 10%, transparent);
+}
+
 @media (min-width: 1200px) {
   :root {
     --sidebar: var(--px-sidebar);
