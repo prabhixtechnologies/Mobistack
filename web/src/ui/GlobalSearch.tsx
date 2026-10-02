@@ -174,12 +174,7 @@ export function GlobalSearch() {
       <button className="cmd-trigger" type="button" onClick={() => setOpen(true)} aria-label="Search phone, SKU, barcode, customer, or repair">
         <Icon name="search" className="search-ico" />
         <span>
-          {compact ? "Search…" : (
-            <>
-              <em>Command</em>
-              phone · SKU · barcode · customer · repair · sale
-            </>
-          )}
+          {compact ? "Search…" : "Search phones, parts, SKUs, customers…"}
         </span>
         <kbd className="search-kbd">Ctrl K</kbd>
       </button>

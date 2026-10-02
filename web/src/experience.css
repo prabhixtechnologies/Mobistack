@@ -2529,3 +2529,352 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+ * Finish layer.
+ * One typeface, one radius scale, one shadow scale. Cards carry colour in their icon,
+ * never in a border that bends around a rounded corner.
+ * ========================================================================== */
+:root {
+  --px-font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --px-font-display: "Inter", "Segoe UI", system-ui, sans-serif;
+  --px-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font: var(--px-font-body);
+  --serif: var(--px-font-display);
+  --mono: var(--px-font-mono);
+
+  --finish-r-sm: 10px;
+  --finish-r-md: 14px;
+  --finish-r-lg: 18px;
+  --finish-r-xl: 22px;
+  --finish-hairline: color-mix(in oklab, var(--ink) 9%, transparent);
+  --finish-shadow-1: 0 1px 2px rgba(28, 20, 10, 0.05), 0 1px 1px rgba(28, 20, 10, 0.03);
+  --finish-shadow-2: 0 1px 2px rgba(28, 20, 10, 0.04), 0 6px 20px -6px rgba(28, 20, 10, 0.12);
+  --finish-shadow-3: 0 2px 4px rgba(28, 20, 10, 0.05), 0 16px 36px -12px rgba(28, 20, 10, 0.22);
+}
+
+:root[data-theme="dark"] {
+  --finish-hairline: color-mix(in oklab, var(--ink) 12%, transparent);
+  --finish-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --finish-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  --finish-shadow-3: 0 2px 4px rgba(0, 0, 0, 0.4), 0 18px 40px -12px rgba(0, 0, 0, 0.7);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  font-optical-sizing: auto;
+  letter-spacing: -0.006em;
+}
+
+h1, h2, h3,
+.floor-greet,
+.station__state,
+.catalog-tile strong,
+.plan-card h2 {
+  font-family: var(--px-font-display);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+}
+
+kbd,
+.catalog-home .catalog-home__search kbd,
+.search-kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Overlines: quieter, tighter, one colour. */
+.page-kicker,
+.floor-shop,
+.station__head h2,
+.station__kicker,
+.catalog-home__section-head p,
+.catalog-guide__intro p,
+.catalog-upgrade__kicker,
+.daybook__head h2,
+.plan-card__eyebrow,
+.plan-card__includes,
+.nav-section__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* Buttons */
+.btn {
+  min-height: 40px;
+  border-radius: var(--finish-r-sm);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.btn:not(.ghost):not(.secondary) {
+  background-image: linear-gradient(180deg, color-mix(in oklab, #fff 14%, transparent), transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent), 0 1px 2px rgba(28, 20, 10, 0.18);
+}
+
+.btn:hover:not(:disabled) {
+  transform: none;
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent), 0 4px 12px -4px rgba(28, 20, 10, 0.35);
+}
+
+.btn.ghost,
+.btn.secondary {
+  border-color: var(--finish-hairline);
+  background: var(--surface);
+  box-shadow: var(--finish-shadow-1);
+}
+
+/* Header */
+.app-header {
+  border-bottom: 1px solid var(--finish-hairline);
+  box-shadow: none;
+}
+
+.cmd-trigger {
+  height: 40px;
+  min-height: 40px;
+  border: 1px solid var(--finish-hairline);
+  border-radius: var(--finish-r-sm);
+  background: var(--surface);
+  box-shadow: var(--finish-shadow-1);
+  color: var(--ink-faint);
+  font-size: 13.5px;
+  font-weight: 450;
+}
+
+.cmd-trigger:hover,
+.cmd-trigger:focus-visible {
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--finish-hairline));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 12%, transparent);
+}
+
+.cmd-trigger .search-kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--finish-hairline);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+}
+
+.user-chip {
+  border: 1px solid var(--finish-hairline);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--finish-shadow-1);
+}
+
+/* Sidebar */
+.app-shell .sidebar .sidebar-workspace {
+  border-radius: var(--finish-r-md);
+}
+
+.app-shell .sidebar .sidebar-workspace__mark {
+  border-radius: var(--finish-r-sm);
+}
+
+.app-shell .sidebar .nav-link {
+  border-radius: var(--finish-r-sm);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.app-shell .sidebar .nav-link.active {
+  font-weight: 600;
+  background: color-mix(in oklab, var(--px-sand-50) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--px-sand-50) 10%, transparent);
+}
+
+.app-shell .sidebar .nav-link .nav-ico {
+  border-radius: 8px;
+}
+
+.app-shell .sidebar .nav-section__label {
+  color: var(--px-sand-500);
+}
+
+.sidebar-plan {
+  border: 1px solid color-mix(in oklab, var(--px-teal-500) 22%, transparent);
+  border-radius: var(--finish-r-sm);
+}
+
+/* Heroes: glass edge instead of a flat slab. */
+.page--floor .floor-mast,
+.billing-page .billing-hero {
+  border-radius: var(--finish-r-xl);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--px-sand-50) 9%, transparent),
+    inset 0 0 0 1px color-mix(in oklab, var(--px-sand-50) 6%, transparent),
+    var(--finish-shadow-3);
+}
+
+.page--floor .floor-greet,
+.billing-page .billing-hero h1 {
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.page--floor .floor-sit {
+  letter-spacing: -0.01em;
+}
+
+.page--floor .floor-mast__cmd .btn:not(.ghost) {
+  background-image: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.catalog-home .catalog-home__search {
+  border-radius: var(--finish-r-md);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--px-sand-50) 6%, transparent);
+  font-weight: 450;
+}
+
+.fitment-chip {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+/* Cards: hairline, soft lift, colour lives in the icon. */
+.catalog-tile,
+.page--floor .station--bench,
+.page--floor .station--shelf,
+.page--floor .floor-daybook,
+.catalog-guide,
+.billing-page .plan-card,
+.billing-page .billing-history,
+.card {
+  border: 1px solid var(--finish-hairline);
+  border-radius: var(--finish-r-lg);
+  box-shadow: var(--finish-shadow-2);
+}
+
+.page--floor .station--bench,
+.page--floor .station--shelf,
+.page--floor .station--shelf:has(.station-mark--warn),
+.page--floor .station--shelf:has(.station-mark--crit),
+.page--floor .station--bench:has(.station-mark--info) {
+  border-top: 1px solid var(--finish-hairline);
+}
+
+.page--floor .station--counter {
+  border-radius: var(--finish-r-lg);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--px-sand-50) 8%, transparent),
+    var(--finish-shadow-3);
+}
+
+.catalog-tile {
+  border-top: 1px solid var(--finish-hairline);
+  transition: transform 180ms var(--px-ease-out), box-shadow 180ms var(--px-ease-out), border-color 180ms var(--px-ease-out);
+}
+
+.catalog-tile:hover {
+  border-color: color-mix(in oklab, var(--tile) 40%, var(--finish-hairline));
+  box-shadow: var(--finish-shadow-3);
+  transform: translateY(-2px);
+}
+
+.catalog-tile__icon {
+  border-radius: var(--finish-r-sm);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tile) 18%, transparent);
+}
+
+.catalog-tile strong {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.catalog-tile__top small {
+  color: color-mix(in oklab, var(--ink) 30%, transparent);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.catalog-home__section-head h2,
+.catalog-guide__intro h2,
+.catalog-upgrade h2 {
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.catalog-upgrade {
+  border: 1px solid var(--finish-hairline);
+  border-radius: var(--finish-r-lg);
+  background:
+    radial-gradient(24rem 14rem at 0% 0%, color-mix(in oklab, var(--px-ochre-400) 14%, transparent), transparent 70%),
+    var(--surface);
+  box-shadow: var(--finish-shadow-2);
+}
+
+.catalog-home__lower .catalog-upgrade,
+.catalog-home__lower .catalog-guide {
+  border-radius: var(--finish-r-lg);
+}
+
+.catalog-upgrade li svg,
+.catalog-upgrade .catalog-upgrade__kicker {
+  color: var(--accent-text);
+}
+
+.catalog-guide li {
+  border: 1px solid var(--finish-hairline);
+  border-radius: var(--finish-r-md);
+  background: color-mix(in oklab, var(--surface-muted) 55%, var(--surface));
+}
+
+.catalog-guide li > span {
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent);
+}
+
+.catalog-guide li strong {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Billing finish */
+.billing-page .plan-card__price strong {
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.billing-page .plan-card__recommended {
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.billing-hero__visual {
+  border-radius: var(--finish-r-lg);
+}
+
+.billing-page .plan-card::before {
+  display: none;
+}
+
+.billing-page .plan-card--recommended {
+  border-color: color-mix(in oklab, var(--px-ochre-500) 38%, var(--finish-hairline));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--px-ochre-500) 9%, transparent), var(--finish-shadow-3);
+}
+
+.billing-page .plan-card--current {
+  border-color: color-mix(in oklab, var(--px-green-500) 40%, var(--finish-hairline));
+}
+
+/* Footer */
+.brand-footer {
+  border-top: 1px solid var(--finish-hairline);
+}
