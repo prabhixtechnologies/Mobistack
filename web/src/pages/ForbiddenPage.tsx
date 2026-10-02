@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAccess } from "../lib/access";
 import { useAuth } from "../lib/auth";
-import { afterAuthPath } from "../lib/plan";
+import { afterAuthPath, hasFeature } from "../lib/plan";
 import { permissionLabel, type Permission } from "../lib/permissions";
 import { Icon } from "../ui/navIcons";
 
@@ -22,6 +22,8 @@ export function ForbiddenPage({
   const { user } = useAuth();
   const unpaid = reason === "unpaid";
   const home = user ? afterAuthPath(user) : "/";
+  const hasDashboard = hasFeature(user, "DASHBOARD");
+  const canManageTeam = hasFeature(user, "MEMBERS");
 
   return (
     <div className="page">
@@ -53,13 +55,15 @@ export function ForbiddenPage({
         <p className="faint">
           {unpaid
             ? "Ask a workspace owner to open Billing and reactivate the subscription."
-            : "Ask a workspace owner or admin to update your role under Team."}
+            : canManageTeam
+              ? "Ask a workspace owner or admin to update your role under Team."
+              : "Ask a workspace owner or contact support if you need this access."}
         </p>
 
         <div className="row forbidden__actions">
           {!unpaid && (
             <Link className="btn" to={home}>
-              Back to dashboard
+              Back to {hasDashboard ? "dashboard" : "home"}
             </Link>
           )}
           <Link className={unpaid ? "btn" : "btn ghost"} to="/support">

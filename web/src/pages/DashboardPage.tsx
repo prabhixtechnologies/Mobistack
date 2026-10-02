@@ -280,13 +280,6 @@ const CATALOG_TILES: { to: string; icon: NavIconName; title: string; body: strin
   },
 ];
 
-const FULL_PLAN: { icon: NavIconName; label: string }[] = [
-  { icon: "cart", label: "Sales and invoices" },
-  { icon: "wrench", label: "Repair bench" },
-  { icon: "box", label: "Inventory and stock alerts" },
-  { icon: "chart", label: "Reports" },
-];
-
 const CATALOG_STEPS: { number: string; title: string; body: string }[] = [
   { number: "01", title: "Choose the phone", body: "Search by model name, code, or the name printed on the device." },
   { number: "02", title: "Check every fit", body: "Compare shared screens, batteries, cameras, and other compatible parts." },
@@ -370,17 +363,9 @@ function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canB
         <section className="catalog-upgrade" aria-labelledby="catalog-upgrade-title">
           <div>
             <p className="catalog-upgrade__kicker">Full Inventory Management</p>
-            <h2 id="catalog-upgrade-title">Run the whole counter from here</h2>
-            <p>Sales, repairs and stock stay off on the Compatibility plan. Switching keeps your catalog and notes.</p>
+            <h2 id="catalog-upgrade-title">Need more than compatibility?</h2>
+            <p>Compare plans in Billing. Your catalog and private notes stay with your shop if you switch.</p>
           </div>
-          <ul>
-            {FULL_PLAN.map((item) => (
-              <li key={item.label}>
-                <Icon name={item.icon} />
-                {item.label}
-              </li>
-            ))}
-          </ul>
           {canBill ? (
             <Link className="btn" to="/billing">
               See plans

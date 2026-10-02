@@ -3,8 +3,11 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { isAbortError } from "../lib/abort";
 import { api } from "../lib/api";
+import { useAccess } from "../lib/access";
+import { useAuth } from "../lib/auth";
 import { storeGet, storeSet } from "../lib/storage";
 import { useMediaQuery } from "../lib/media";
+import { allowedOnPlan } from "../lib/plan";
 import type { CommonsSearchHit, DeviceSearchHit, GlobalSearchResponse, PartSearchHit } from "../lib/types";
 import { Icon } from "./navIcons";
 
@@ -18,7 +21,6 @@ type Hit =
 
 const RECENT_KEY = "search.recent";
 const OPEN_EVENT = "mobistack:command";
-const SEARCH_KINDS = ["Phone", "SKU", "Barcode", "Customer", "Repair", "Sale"];
 const ACTIONS: Extract<Hit, { kind: "action" }>[] = [
   { kind: "action", to: "/sales", title: "New sale", hint: "Take a payment" },
   { kind: "action", to: "/repairs", title: "Book a repair", hint: "Open a job card" },
@@ -47,6 +49,20 @@ function remember(query: string): void {
 }
 
 export function GlobalSearch() {
+  const { user } = useAuth();
+  const access = useAccess();
+  const features = user?.features ?? [];
+  const has = (feature: string) => features.includes(feature);
+  const canInventory = has("INVENTORY") && access.has("INVENTORY_READ");
+  const actions = ACTIONS.filter((action) => allowedOnPlan(action.to, features) && access.canOpen(action.to));
+  const searchKinds = [
+    "Phone",
+    ...(canInventory ? ["SKU", "Barcode"] : []),
+    ...(has("CUSTOMERS") && access.has("CUSTOMER_READ") ? ["Customer"] : []),
+    ...(has("REPAIRS") && access.has("REPAIR_READ") ? ["Repair"] : []),
+    ...(has("SALES") && access.has("SALES_READ") ? ["Sale"] : []),
+  ];
+  const searchCopy = canInventory ? "Search phones, parts, and stock…" : "Search phones and fitment…";
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<GlobalSearchResponse | null>(null);
@@ -60,13 +76,13 @@ export function GlobalSearch() {
 
   const hits: Hit[] =
     query.trim().length < 2
-      ? [...recent.map((row) => ({ kind: "recent" as const, query: row })), ...ACTIONS]
+      ? [...recent.map((row) => ({ kind: "recent" as const, query: row })), ...actions]
       : result
         ? [
             ...(result.commonsDevices ?? []).map((hit) => ({ kind: "commons-device" as const, hit })),
             ...(result.commonsComponents ?? []).map((hit) => ({ kind: "commons-component" as const, hit })),
             ...result.devices.map((device) => ({ kind: "device" as const, device })),
-            ...result.parts.map((part) => ({ kind: "part" as const, part })),
+            ...(canInventory ? result.parts.map((part) => ({ kind: "part" as const, part })) : []),
           ]
         : [];
 
@@ -171,10 +187,10 @@ export function GlobalSearch() {
 
   return (
     <>
-      <button className="cmd-trigger" type="button" onClick={() => setOpen(true)} aria-label="Search phone, SKU, barcode, customer, or repair">
+      <button className="cmd-trigger" type="button" onClick={() => setOpen(true)} aria-label={searchCopy}>
         <Icon name="search" className="search-ico" />
         <span>
-          {compact ? "Search…" : "Search phones, parts, SKUs, customers…"}
+          {compact ? "Search…" : searchCopy}
         </span>
         <kbd className="search-kbd">Ctrl K</kbd>
       </button>
@@ -190,7 +206,7 @@ export function GlobalSearch() {
                   <input
                     ref={input}
                     value={query}
-                    placeholder="Phone, SKU, barcode, customer, repair, sale…"
+                    placeholder={searchCopy}
                     aria-autocomplete="list"
                     aria-controls={listId}
                     role="combobox"
@@ -205,7 +221,7 @@ export function GlobalSearch() {
                   {!error && query.trim().length < 2 && (
                     <>
                       <div className="cmd-hint" aria-hidden>
-                        {SEARCH_KINDS.map((kind) => (
+                        {searchKinds.map((kind) => (
                           <b key={kind}>{kind}</b>
                         ))}
                       </div>
@@ -276,7 +292,7 @@ export function GlobalSearch() {
                           : hit.kind === "commons-component"
                             ? "Shared catalog · part"
                             : hit.kind === "device"
-                              ? "Shop device"
+                              ? "Shop phone record"
                               : `${hit.part.sku} · ${hit.part.availableQty} in stock`;
                       return (
                         <button

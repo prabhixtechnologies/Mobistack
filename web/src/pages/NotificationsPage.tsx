@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
+import { useAccess } from "../lib/access";
+import { useAuth } from "../lib/auth";
+import { hasFeature } from "../lib/plan";
 import { Icon, type NavIconName } from "../ui/navIcons";
 import { PageHeader } from "../ui/PageHeader";
 import { Tabs } from "../ui/Tabs";
@@ -104,6 +107,9 @@ function channelLabel(channel: string): string {
 }
 
 export function NotificationsPage() {
+  const { user } = useAuth();
+  const access = useAccess();
+  const canOpenMembers = hasFeature(user, "MEMBERS") && access.has("USER_READ");
   const [params, setParams] = useSearchParams();
   const requestedView = params.get("view");
   const view = requestedView === "channels" || requestedView === "sent" ? requestedView : "inbox";
@@ -249,7 +255,7 @@ export function NotificationsPage() {
                     <span className="notify-item__body">
                       <span className="notify-item__title">{item.title}</span>
                       {item.body && <span className="notify-item__text">{item.body}</span>}
-                      {item.eventType === "JOIN_REQUEST" && (
+                      {item.eventType === "JOIN_REQUEST" && canOpenMembers && (
                         <Link to="/members" className="notify-item__link" onClick={(event) => event.stopPropagation()}>
                           Open People to approve
                         </Link>

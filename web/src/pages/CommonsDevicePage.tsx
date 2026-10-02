@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAccess } from "../lib/access";
+import { useAuth } from "../lib/auth";
+import { hasFeature } from "../lib/plan";
 import { useResource } from "../lib/useResource";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { Modal } from "../ui/Modal";
@@ -14,14 +16,16 @@ import type { CatalogStockRow, CommonsDevice, CommonsFit } from "../lib/types";
 
 export function CommonsDevicePage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const access = useAccess();
+  const canOpenStock = hasFeature(user, "INVENTORY") && access.has("INVENTORY_READ");
   const fitment = useFitmentGroups();
   const device = useResource<CommonsDevice>(id ? `/api/v1/mobistack/commons/devices?deviceId=${id}` : null);
   const fits = useResource<CommonsFit[]>(
     id && fitment.ready ? `/api/v1/mobistack/commons/devices/fits?deviceId=${id}&groupId=${fitment.selected ?? ""}` : null,
   );
   const stock = useResource<CatalogStockRow[]>(
-    id && access.has("INVENTORY_READ") ? `/api/v1/mobistack/inventory/catalog-links/devices/stock?catalogDeviceId=${id}` : null,
+    id && canOpenStock ? `/api/v1/mobistack/inventory/catalog-links/devices/stock?catalogDeviceId=${id}` : null,
   );
   const [disputeFor, setDisputeFor] = useState<CommonsFit | null>(null);
   const [reason, setReason] = useState("");
@@ -83,7 +87,11 @@ export function CommonsDevicePage() {
         <PageHeader
           kicker={<Link to="/commons">Fitment Catalog · {device.data.brandName}</Link>}
           title={title}
-          subtitle="Shared catalog phone. Confirm a fit from the bench, or open linked stock for this shop."
+          subtitle={
+            canOpenStock
+              ? "Shared catalog phone. Confirm a fit from the bench, or open linked stock for this shop."
+              : "Shared catalog phone. Check what fits and contribute what you learn."
+          }
           meta={
             <div className="device-hero__facts">
               {device.data.modelCode ? <code>{device.data.modelCode}</code> : null}
@@ -95,7 +103,7 @@ export function CommonsDevicePage() {
       </div>
       {error && <div className="error">{error}</div>}
 
-      {access.has("INVENTORY_READ") && (
+      {canOpenStock && (
         <section className="card tight">
           <div className="spread" style={{ padding: "16px 18px" }}>
             <strong>This shop’s stock</strong>

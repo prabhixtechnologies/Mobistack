@@ -162,7 +162,7 @@ export function routeContext(pathname: string): { title: string; section: string
   }
   if (pathname.startsWith("/commons/devices/")) return { title: "Shared device", section: "Catalog" };
   if (pathname.startsWith("/commons/components/")) return { title: "Shared part", section: "Catalog" };
-  if (pathname.startsWith("/devices/")) return { title: "Shop device", section: "Stock" };
+  if (pathname.startsWith("/devices/")) return { title: "Shop phone", section: "Catalog" };
   if (pathname.startsWith("/compatibility/")) return { title: "Fitment category", section: "Catalog" };
   return { title: "MobiStack", section: "Shop operations" };
 }
@@ -176,13 +176,12 @@ export interface Crumb {
 const CRUMB_TARGETS: Record<string, string> = {
   "/commons/devices": "/commons",
   "/commons/components": "/commons",
-  "/devices": "/inventory",
 };
 
 export function breadcrumbsFor(
   pathname: string,
   detailLabel?: string,
-  options?: { homeTo?: string; homeLabel?: string },
+  options?: { homeTo?: string; homeLabel?: string; deviceParent?: string },
 ): Crumb[] {
   const home = {
     label: options?.homeLabel ?? "Dashboard",
@@ -204,7 +203,11 @@ export function breadcrumbsFor(
     const label = looksLikeId
       ? (detailLabel ?? "Details")
       : (routeLabel(accumulated) ?? segment.charAt(0).toUpperCase() + segment.slice(1));
-    crumbs.push({ label, to: isLast ? undefined : (CRUMB_TARGETS[accumulated] ?? accumulated) });
+    const target =
+      accumulated === "/devices"
+        ? (options?.deviceParent ?? "/commons")
+        : (CRUMB_TARGETS[accumulated] ?? accumulated);
+    crumbs.push({ label, to: isLast ? undefined : target });
   });
 
   return crumbs;

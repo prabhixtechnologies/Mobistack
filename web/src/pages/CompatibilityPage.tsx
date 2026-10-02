@@ -5,6 +5,8 @@ import { TAG_TONES, toneFor } from "@prabhixtechnologies/brand";
 import { api } from "../lib/api";
 import { highlightText, groupLine, phoneLabel } from "../lib/compatibility";
 import { useAccess } from "../lib/access";
+import { useAuth } from "../lib/auth";
+import { hasFeature } from "../lib/plan";
 import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import { Icon } from "../ui/navIcons";
@@ -45,9 +47,11 @@ interface ChangeRequest {
 }
 
 export function CompatibilityPage() {
+  const { user } = useAuth();
   const access = useAccess();
   const canApprove = access.has("COMPATIBILITY_APPROVE");
   const canWrite = access.has("CATALOG_WRITE");
+  const canImport = canWrite && hasFeature(user, "IMPORT");
   const [query, setQuery] = useState("");
   const [overview, setOverview] = useState<CompatibilityOverview | null>(null);
   const [groups, setGroups] = useState<CompatibilityGroup[]>([]);
@@ -169,7 +173,7 @@ export function CompatibilityPage() {
             <Link className="btn ghost" to="/commons">
               Open shared catalog
             </Link>
-            {canWrite ? (
+            {canImport ? (
               <Link className="btn ghost" to="/import">
                 Import list
               </Link>
@@ -244,7 +248,7 @@ export function CompatibilityPage() {
                     {device.matchedAliases.length > 0 ? ` · ${device.matchedAliases.join(", ")}` : ""}
                   </div>
                 </div>
-                <span className="badge neutral">Shop stock</span>
+                <span className="badge neutral">Shop phone record</span>
               </Link>
             ))}
             {hits.length === 0 && commonsHits.length === 0 && groups.length === 0 && (
@@ -278,7 +282,11 @@ export function CompatibilityPage() {
               compact
               icon="box"
               title={overview ? "No private notes yet" : "Loading the part lists…"}
-              hint={overview ? "Import a pasted list, or keep notes on the bench until you propose them." : undefined}
+              hint={overview
+                ? canImport
+                  ? "Import a pasted list, or keep notes on the bench until you propose them."
+                  : "Keep private notes here until you are ready to propose them."
+                : undefined}
             />
           )}
         </section>

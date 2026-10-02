@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, money, qty } from "../lib/api";
+import { useAccess } from "../lib/access";
+import { useAuth } from "../lib/auth";
 import { phoneLabel } from "../lib/compatibility";
+import { hasFeature } from "../lib/plan";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
 import type { DeviceCompatibilityView, PricingFlag } from "../lib/types";
 
 export function DevicePage() {
+  const { user } = useAuth();
+  const access = useAccess();
+  const inventory = hasFeature(user, "INVENTORY") && access.has("INVENTORY_READ");
+  const sales = hasFeature(user, "SALES") && access.has("SALES_READ");
   const { id } = useParams();
   const [flag, setFlag] = useState<PricingFlag>("NORMAL");
   const [view, setView] = useState<DeviceCompatibilityView | null>(null);
@@ -61,9 +68,13 @@ export function DevicePage() {
       <PageHeader
         kicker="Catalog"
         title={phoneLabel(view.device)}
-        subtitle={`${view.totalPartsAvailable} parts on the shelf · ${view.categoriesInStock} categories in stock`}
+        subtitle={
+          inventory
+            ? `${view.totalPartsAvailable} parts on the shelf · ${view.categoriesInStock} categories in stock`
+            : "Your shop’s phone record and compatible part groups."
+        }
         actions={
-          <label className="form-field device-detail__pricing">
+          inventory ? <label className="form-field device-detail__pricing">
             <span className="form-field__label">Pricing</span>
             <select
               className="select"
@@ -77,7 +88,7 @@ export function DevicePage() {
               <option value="VIP">VIP</option>
               <option value="CLEARANCE">Clearance</option>
             </select>
-          </label>
+          </label> : undefined
         }
       />
 
@@ -116,17 +127,21 @@ export function DevicePage() {
                   <strong>{category.categoryName}</strong>
                   <div className="faint">{category.variantCount} options</div>
                 </div>
-                <div>
-                  <strong>{qty.format(category.totalAvailable)} in stock</strong>
-                  <div className="faint">
-                    {category.minPrice != null
-                      ? category.minPrice === category.maxPrice
-                        ? money.format(category.minPrice)
-                        : `${money.format(category.minPrice)} – ${money.format(category.maxPrice ?? 0)}`
-                      : "No price"}
-                  </div>
-                </div>
-                <span className={`badge ${category.stockStatus}`}>{category.stockStatus}</span>
+                {inventory && (
+                  <>
+                    <div>
+                      <strong>{qty.format(category.totalAvailable)} in stock</strong>
+                      <div className="faint">
+                        {category.minPrice != null
+                          ? category.minPrice === category.maxPrice
+                            ? money.format(category.minPrice)
+                            : `${money.format(category.minPrice)} – ${money.format(category.maxPrice ?? 0)}`
+                          : "No price"}
+                      </div>
+                    </div>
+                    <span className={`badge ${category.stockStatus}`}>{category.stockStatus}</span>
+                  </>
+                )}
               </button>
               {expanded &&
                 category.options.map((option) => (
@@ -134,19 +149,25 @@ export function DevicePage() {
                     <div>
                       <strong>{option.variantName}</strong>
                       <div className="faint">
-                        {option.sku}
+                        {inventory ? option.sku : "Compatible option"}
                         {option.grade ? ` · ${option.grade}` : ""}
                         {option.quality ? ` · ${option.quality}` : ""}
                       </div>
                     </div>
-                    <div>
-                      <strong>{money.format(option.price)}</strong>
-                      <div className="faint">{qty.format(option.availableQty)} available</div>
-                    </div>
-                    <span className={`badge ${option.stockStatus}`}>{option.stockStatus}</span>
-                    <Link className="btn ghost" to={`/sales?q=${encodeURIComponent(option.sku)}`}>
-                      Sell
-                    </Link>
+                    {inventory && (
+                      <>
+                        <div>
+                          <strong>{money.format(option.price)}</strong>
+                          <div className="faint">{qty.format(option.availableQty)} available</div>
+                        </div>
+                        <span className={`badge ${option.stockStatus}`}>{option.stockStatus}</span>
+                      </>
+                    )}
+                    {sales && (
+                      <Link className="btn ghost" to={`/sales?q=${encodeURIComponent(option.sku)}`}>
+                        Sell
+                      </Link>
+                    )}
                   </div>
                 ))}
             </div>
@@ -157,7 +178,9 @@ export function DevicePage() {
             compact
             icon="box"
             title="No parts linked yet"
-            hint="Add a compatibility group on the product so this phone shows stock and price."
+            hint={inventory
+              ? "Add a compatibility group on the product so this phone shows stock and price."
+              : "Add a private fitment note when you learn what fits this phone."}
           />
         )}
       </section>

@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { groupLine, highlightText, splitEqualsLine } from "../lib/compatibility";
 import { useAccess } from "../lib/access";
+import { useAuth } from "../lib/auth";
+import { hasFeature } from "../lib/plan";
 import { EmptyState } from "../ui/EmptyState";
 import { TextField } from "../ui/Field";
 import { ConfirmDialog, Modal } from "../ui/Modal";
@@ -18,8 +20,10 @@ interface EditorState {
 
 export function CompatibilityCategoryPage() {
   const { categoryId } = useParams();
+  const { user } = useAuth();
   const access = useAccess();
   const canWrite = access.has("CATALOG_WRITE");
+  const canImport = canWrite && hasFeature(user, "IMPORT");
   const [category, setCategory] = useState<CategoryOverview | null>(null);
   const [groups, setGroups] = useState<CompatibilityGroup[]>([]);
   const [query, setQuery] = useState("");
@@ -266,7 +270,9 @@ export function CompatibilityCategoryPage() {
               query.trim().length >= 2
                 ? "Try a shorter model name."
                 : canWrite
-                  ? "Add the first line, or import a pasted list."
+                  ? canImport
+                    ? "Add the first line, or import a pasted list."
+                    : "Add the first line to this private fitment list."
                   : "Ask someone with catalogue access to add a group."
             }
           />

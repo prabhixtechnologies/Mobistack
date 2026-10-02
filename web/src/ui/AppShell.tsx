@@ -6,6 +6,7 @@ import { DRAWER_QUERY, TABLET_QUERY, useMediaQuery } from "../lib/media";
 import { NAV_SECTIONS, routeContext, type NavItem } from "../lib/navigation";
 import { selectedWorkspaceId } from "../lib/types";
 import { api } from "../lib/api";
+import { allowedOnPlan } from "../lib/plan";
 import { usePresence } from "../lib/presence";
 import { GlobalSearch, openCommandPalette } from "./GlobalSearch";
 import { BrandFooter, BrandMark } from "./BrandMark";
@@ -162,7 +163,7 @@ export function AppShell() {
         };
         const route = routes[event.key.toLowerCase()];
         goChord.current = false;
-        if (route) {
+        if (route && allowedOnPlan(route, features) && access.canOpen(route)) {
           event.preventDefault();
           navigate(route);
         }
@@ -173,7 +174,7 @@ export function AppShell() {
       window.removeEventListener("keydown", onKeyDown);
       if (goTimer.current !== null) window.clearTimeout(goTimer.current);
     };
-  }, [drawer, navOpen, navigate]);
+  }, [access, drawer, features, navOpen, navigate]);
 
   /**
    * A nav entry survives when the shop's plan includes it, the viewer holds its
@@ -507,10 +508,16 @@ export function AppShell() {
         <dl className="shortcut-list">
           <div><dt><kbd>Ctrl K</kbd></dt><dd>Search, scan, or jump to a page</dd></div>
           <div><dt><kbd>/</kbd></dt><dd>Open search</dd></div>
-          <div><dt><kbd>G H</kbd></dt><dd>Go to the shop floor</dd></div>
-          <div><dt><kbd>G S</kbd></dt><dd>Go to Sales</dd></div>
-          <div><dt><kbd>G R</kbd></dt><dd>Go to Repairs</dd></div>
-          <div><dt><kbd>G I</kbd></dt><dd>Go to Inventory</dd></div>
+          <div><dt><kbd>G H</kbd></dt><dd>Go to Home</dd></div>
+          {allowedOnPlan("/sales", features) && access.canOpen("/sales") && (
+            <div><dt><kbd>G S</kbd></dt><dd>Go to Sales</dd></div>
+          )}
+          {allowedOnPlan("/repairs", features) && access.canOpen("/repairs") && (
+            <div><dt><kbd>G R</kbd></dt><dd>Go to Repairs</dd></div>
+          )}
+          {allowedOnPlan("/inventory", features) && access.canOpen("/inventory") && (
+            <div><dt><kbd>G I</kbd></dt><dd>Go to Inventory</dd></div>
+          )}
           <div><dt><kbd>G C</kbd></dt><dd>Go to Shared fitment</dd></div>
           <div><dt><kbd>Ctrl B</kbd></dt><dd>Toggle navigation</dd></div>
           <div><dt><kbd>?</kbd></dt><dd>Show this guide</dd></div>

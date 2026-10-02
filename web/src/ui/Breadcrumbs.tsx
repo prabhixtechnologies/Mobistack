@@ -17,6 +17,7 @@ export function Breadcrumbs({ detailLabel }: { detailLabel?: string }) {
   const crumbs = breadcrumbsFor(pathname, detailLabel, {
     homeTo,
     homeLabel: hasFeature(user, "DASHBOARD") ? "Dashboard" : "Home",
+    deviceParent: hasFeature(user, "INVENTORY") ? "/inventory" : "/commons",
   });
 
   if (crumbs.length < 2) {
