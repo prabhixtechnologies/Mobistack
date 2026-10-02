@@ -5474,13 +5474,14 @@ a.metric-card:hover {
 
 .cmd-trigger {
   flex: 1 1 240px;
+  align-self: center;
   min-width: 0;
   max-width: 680px;
+  height: 36px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 8px 0 12px;
-  min-height: 36px;
   border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--line));
   border-radius: 8px;
   background: var(--surface);

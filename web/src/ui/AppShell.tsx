@@ -149,14 +149,6 @@ export function AppShell() {
   return (
     <div className={shellClass}>
       <SkipLink />
-      {/*
-        The palette listens for Ctrl+K and for the event `openCommandPalette()` fires. It
-        was written, exported and never mounted, so both the shortcut and the dashboard's
-        "Search / Scan" and "Scan barcode" buttons dispatched into nothing. It belongs in
-        the shell rather than on a page: a shortcut that only works on the dashboard is not
-        a global shortcut.
-      */}
-      <GlobalSearch />
       <header className="app-header" role="banner">
         <button
           className="icon-btn header-icon sidebar-toggle"
@@ -178,6 +170,11 @@ export function AppShell() {
           </span>
         )}
 
+        {/*
+          The trigger is a flex item. It has to live in this horizontal header. As a child of
+          the column shell, flex-grow stretches it down the viewport and the page starts below it.
+        */}
+        <GlobalSearch />
 
         <div className="app-header__actions">
           {activeWorkspaces.length > 1 && (
