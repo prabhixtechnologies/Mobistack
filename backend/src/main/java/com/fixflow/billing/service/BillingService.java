@@ -863,7 +863,13 @@ public class BillingService {
     }
 
     private PaymentReceipt toReceipt(BillingOrder order) {
-        String planName = ScreenSeatService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
+        String purpose = order.getPurpose() == null ? "" : order.getPurpose();
+        // WORKSPACE_JOIN is priced under the Pilot plan; its name says nothing about what was bought.
+        String planName = purpose.startsWith("GROUP_JOIN")
+                ? "Fitment group join"
+                : JOIN_PRICE.equals(order.getPriceCode())
+                ? "Shop join"
+                : ScreenSeatService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
                 ? "Extra screens (month)"
                 : priceRepository.findByCode(order.getPriceCode())
                 .map(price -> planService.planName(price.getPlanId()))

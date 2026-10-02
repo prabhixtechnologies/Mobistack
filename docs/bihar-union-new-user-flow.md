@@ -117,15 +117,16 @@ Shown only once their own shop exists and is not in Bihar mobile union yet. The 
 | After payment | Next |
 |---|---|
 | They close the sheet | Back here. The code stays. Nothing is captured. |
+| Razorpay reports a failure | Back here. Say the payment did not go through and nothing was charged. |
 | Signature does not match | Stay. "Payment signature did not match." |
 | Razorpay is not configured | No charge. The request is pending. **Waiting** for a union admin. |
-| Captured | **Waiting** for a union admin. |
+| Captured | **Waiting** for a union admin. It checks again every 30 seconds, on Check again, and when the app comes back to the front. |
 | They cancel while waiting | Withdraw the request. Put the ₹50 back. Return here. |
 | Union admin admits the shop | The shop is a `MEMBER`. Next refresh opens **Compatibility**. |
 | Union admin refuses | Return here. A later try can pay again. |
 | Union admin removes the shop later | Leave Compatibility and return here. |
 
-A union admin sees the group's code on the members screen and admits a paid request there. Until they admit the shop, compatibility stays closed.
+A union admin sees the group's code on the members screen and admits a paid request there, on the web or in the app under **Waiting to join**. Until they admit the shop, compatibility stays closed.
 
 ## 6. Compatibility
 
