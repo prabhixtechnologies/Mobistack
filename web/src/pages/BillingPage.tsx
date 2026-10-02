@@ -4,7 +4,6 @@ import { api, money } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { captureCheckoutOrder, type CheckoutOrder } from "../lib/payOrder";
 import { EmptyState } from "../ui/EmptyState";
-import { PageHeader } from "../ui/PageHeader";
 
 interface PlanCard {
   id: string;
@@ -65,6 +64,26 @@ function when(value?: string | null): string {
     month: "short",
     year: "numeric",
   });
+}
+
+const FEATURE_LABELS: Record<string, string> = {
+  COMPATIBILITY: "Shared phone and part compatibility",
+  DASHBOARD: "Live shop dashboard",
+  SALES: "Sales and payment records",
+  REPAIRS: "Repair jobs and status tracking",
+  INVENTORY: "Inventory and stock control",
+  PURCHASES: "Purchase records",
+  CUSTOMERS: "Customer directory",
+  SUPPLIERS: "Supplier directory",
+  REPORTS: "Business reports",
+  MOVEMENTS: "Stock movement history",
+  MEMBERS: "Team access",
+  IMPORT: "Bulk imports",
+  AUDIT: "Audit trail",
+};
+
+export function featureLabel(feature: string): string {
+  return FEATURE_LABELS[feature] ?? feature.replaceAll("_", " ").toLowerCase();
 }
 
 export function BillingPage() {
@@ -130,15 +149,25 @@ export function BillingPage() {
   const current = data?.subscription;
 
   return (
-    <div className="page">
-      <PageHeader
-        kicker="Workspace"
-        title="Billing"
-        subtitle="Pick a plan. Pay each month. If a month is missed, the shop locks until you pay again."
-      />
+    <div className="page billing-page">
+      <section className="billing-hero">
+        <div>
+          <p className="page-kicker">Choose your MobiStack</p>
+          <h1>Start with compatibility. Grow into the complete counter.</h1>
+          <p>
+            Pick what your shop needs today. Both plans are monthly, transparent, and can be renewed
+            without a separate joining charge.
+          </p>
+        </div>
+        <div className="billing-hero__trust" aria-label="Plan assurances">
+          <span>Secure Razorpay checkout</span>
+          <span>No joining fee</span>
+          <span>Monthly access</span>
+        </div>
+      </section>
       {activating && (
-        <div className="banner banner-warn">
-          This shop has no live plan. Choose one below and pay to turn the features on.
+        <div className="banner billing-status">
+          Your shop is ready. Choose one plan below to switch on the features you need.
         </div>
       )}
       {data?.localActivationAvailable && activating && (
@@ -176,31 +205,62 @@ export function BillingPage() {
       {notice && <div className="muted">{notice}</div>}
       {data && (
         <>
-          <div className="grid-2">
-            {data.plans.map((plan) => (
-              <article className="card stack" key={plan.id}>
-                <strong>{plan.name}</strong>
-                <div className="metric-value">{money.format(plan.amount)}</div>
-                <div className="faint">{plan.interval.toLowerCase()} · {plan.description}</div>
-                <div className="chips">
-                  {plan.features.map((feature) => (
-                    <span className="chip" key={feature}>{feature.replaceAll("_", " ").toLowerCase()}</span>
-                  ))}
+          <div className="billing-plans" aria-label="MobiStack plans">
+            {data.plans.map((plan) => {
+              const recommended = plan.code === "FULL_SHOP";
+              return (
+              <article className={`plan-card${recommended ? " plan-card--recommended" : ""}`} key={plan.id}>
+                <div className="plan-card__top">
+                  <div>
+                    <p className="plan-card__eyebrow">{recommended ? "Complete shop" : "Essential lookup"}</p>
+                    <h2>{plan.name}</h2>
+                  </div>
+                  {recommended ? <span className="plan-card__recommended">Recommended</span> : null}
                 </div>
+                <div className="plan-card__price">
+                  <strong>{money.format(plan.amount)}</strong>
+                  <span>/ month</span>
+                </div>
+                <p className="plan-card__description">{plan.description}</p>
+                <div className="plan-card__rule" />
+                <p className="plan-card__includes">{recommended ? "Everything to run your counter" : "Made for fitment checks"}</p>
+                <ul className="plan-card__features">
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      <span aria-hidden>✓</span>
+                      {featureLabel(feature)}
+                    </li>
+                  ))}
+                  {!recommended ? (
+                    <li className="plan-card__locked">
+                      <span aria-hidden>—</span>
+                      Inventory, sales and repairs stay locked
+                    </li>
+                  ) : null}
+                </ul>
                 <button
-                  className="btn"
+                  className={`btn plan-card__action${recommended ? "" : " secondary"}`}
                   type="button"
                   disabled={paying !== null}
                   onClick={() => void buy(plan)}
                 >
-                  {paying === plan.code ? "Opening checkout…" : `Pay ${money.format(plan.amount)}`}
+                  {paying === plan.code
+                    ? "Opening secure checkout…"
+                    : recommended
+                      ? `Choose full shop · ${money.format(plan.amount)}`
+                      : `Choose compatibility · ${money.format(plan.amount)}`}
                 </button>
               </article>
-            ))}
+              );
+            })}
           </div>
-          <section className="card tight">
-            <div className="spread" style={{ padding: "16px 18px" }}>
-              <strong>Your last 3 payments</strong>
+          <section className="card tight billing-history">
+            <div className="billing-history__head">
+              <div>
+                <p className="page-kicker">Receipts</p>
+                <h2>Recent payments</h2>
+              </div>
+              <span className="faint">Last 3</span>
             </div>
             {data.recentPayments.length === 0 ? (
               <EmptyState compact icon="card" title="No payments yet" hint="Pay a plan above and the last three show here." />

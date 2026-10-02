@@ -138,15 +138,27 @@ export function ShopJourneyPage({ gate }: { gate: Exclude<GateKind, "loading" | 
 function Start({ onCreate, onJoin, onInvite }: { onCreate: () => void; onJoin: () => void; onInvite: () => void }) {
   const { logout } = useAuth();
   return (
-    <Journey title="Your shop" body="Create your own counter, or join a shop that already exists.">
-      <button className="auth-submit" type="button" onClick={onCreate}>
-        Create shop
-      </button>
-      <button className="auth-submit auth-submit--secondary" type="button" onClick={onJoin}>
-        Join a shop
-      </button>
+    <Journey title="How will you use MobiStack?" body="Open a new counter or join the team at an existing shop. Creating a shop is free.">
+      <div className="journey-choices">
+        <button className="journey-choice" type="button" onClick={onCreate}>
+          <span className="journey-choice__icon" aria-hidden>＋</span>
+          <span>
+            <strong>Create my shop</strong>
+            <small>Set up your own counter, then choose a plan.</small>
+          </span>
+          <b aria-hidden>→</b>
+        </button>
+        <button className="journey-choice" type="button" onClick={onJoin}>
+          <span className="journey-choice__icon" aria-hidden>⌁</span>
+          <span>
+            <strong>Join an existing shop</strong>
+            <small>Use the code shared by the shop owner.</small>
+          </span>
+          <b aria-hidden>→</b>
+        </button>
+      </div>
       <button className="auth-text" type="button" onClick={onInvite}>
-        I have an invite
+        I received an invitation
       </button>
       <button className="auth-text" type="button" onClick={() => void logout()}>
         Sign out
@@ -204,6 +216,7 @@ function CreateShop({ onBack }: { onBack: () => void }) {
 function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | null }) {
   const { user, refreshUser, refreshWorkspaces } = useAuth();
   const [code, setCode] = useState("");
+  const [planCode, setPlanCode] = useState<"COMPATIBILITY" | "FULL_SHOP">("COMPATIBILITY");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -218,7 +231,7 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
         group ? "/api/v1/mobistack/groups/join/checkout" : "/api/v1/mobistack/workspaces/join/checkout",
         {
           method: "POST",
-          body: JSON.stringify({ joinCode }),
+          body: JSON.stringify(group ? { joinCode, planCode } : { joinCode }),
         },
       );
       const payment = await collectJoinPayment(checkout, joinCode, user ?? undefined, checkout.shopName);
@@ -250,7 +263,7 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
       title={group ? "Join the union" : "Join a shop"}
       body={
         group
-          ? "Enter the fitment group code. A matching code asks to join that catalog."
+          ? "Enter the union code, then choose the MobiStack plan that fits your shop."
           : "Enter the code from that shop. A real code opens payment of ₹50."
       }
     >
@@ -264,9 +277,38 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
             onChange={(event) => setCode(event.target.value.toUpperCase())}
           />
         </label>
+        {group ? (
+          <fieldset className="journey-plan-picker">
+            <legend>Choose your monthly plan</legend>
+            <button
+              className={`journey-plan${planCode === "COMPATIBILITY" ? " journey-plan--selected" : ""}`}
+              type="button"
+              aria-pressed={planCode === "COMPATIBILITY"}
+              onClick={() => setPlanCode("COMPATIBILITY")}
+            >
+              <span>
+                <strong>Compatibility</strong>
+                <small>Check which parts fit each phone</small>
+              </span>
+              <b>₹50<small>/month</small></b>
+            </button>
+            <button
+              className={`journey-plan${planCode === "FULL_SHOP" ? " journey-plan--selected" : ""}`}
+              type="button"
+              aria-pressed={planCode === "FULL_SHOP"}
+              onClick={() => setPlanCode("FULL_SHOP")}
+            >
+              <span>
+                <strong>Full Inventory Management</strong>
+                <small>Inventory, sales, repairs and compatibility</small>
+              </span>
+              <b>₹499<small>/month</small></b>
+            </button>
+          </fieldset>
+        ) : null}
         {error && <p className="auth-error" role="alert">{error}</p>}
         <button className="auth-submit" type="submit" disabled={busy || code.trim() === ""}>
-          {busy ? "Checking…" : "Continue"}
+          {busy ? "Checking…" : group ? `Continue with ${planCode === "FULL_SHOP" ? "₹499" : "₹50"} plan` : "Continue"}
         </button>
         {onBack && (
           <button className="auth-text" type="button" onClick={onBack}>
