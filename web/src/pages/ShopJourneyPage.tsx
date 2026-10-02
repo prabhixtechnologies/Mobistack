@@ -250,7 +250,7 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
       title={group ? "Join the union" : "Join a shop"}
       body={
         group
-          ? "Enter the code for Bihar mobile union. A matching code opens payment of ₹50."
+          ? "Enter the fitment group code. A matching code asks to join that catalog."
           : "Enter the code from that shop. A real code opens payment of ₹50."
       }
     >
@@ -322,8 +322,10 @@ function Waiting({ union }: { union: boolean }) {
   const waiting = workspaces.find((row) => row.status === "PENDING" || row.status === "INVITED");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const who = union ? "a union admin" : "the shop owner";
-  const name = union ? "the union" : waiting?.name ?? "the shop";
+  const name = union ? "the fitment group" : waiting?.name ?? "the shop";
+  const body = union
+    ? `A group admin still has to approve ${name} before the catalog opens.`
+    : `Payment is done for ${name}. The shop owner still has to approve.`;
 
   async function cancel() {
     setBusy(true);
@@ -343,7 +345,7 @@ function Waiting({ union }: { union: boolean }) {
   }
 
   return (
-    <Journey title="Waiting" body={`Payment is done for ${name}. ${who} still has to approve.`}>
+    <Journey title="Waiting" body={body}>
       {error && <p className="auth-error" role="alert">{error}</p>}
       <button className="auth-submit auth-submit--secondary" type="button" disabled={busy} onClick={() => void cancel()}>
         {busy ? "Cancelling…" : "Cancel request"}

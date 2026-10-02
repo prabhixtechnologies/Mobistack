@@ -76,6 +76,12 @@ public class GroupJoinService {
         if (waiting || billing.hasUnspentGroupJoin(userId, shopId, group.getId())) {
             return JoinCheckoutResponse.alreadyPaid(group.getName());
         }
+        // Production has no Razorpay account yet. A 502 that names the missing keys leaves the
+        // owner stuck on the code screen. File the request and let a group admin admit the shop.
+        if (!billing.paymentsConfigured()) {
+            savePending(userId, shopId, group.getId());
+            return JoinCheckoutResponse.alreadyPaid(group.getName());
+        }
         var order = billing.createGroupJoinOrder(userId, shopId, group.getId());
         return new JoinCheckoutResponse(order.id(), order.orderId(), order.amount(), order.currency(),
                 order.keyId(), order.priceCode(), order.gateway(), group.getName(), false);
@@ -108,12 +114,7 @@ public class GroupJoinService {
         if (!billing.consumeGroupJoin(userId, shopId, group.getId())) {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED, "Pay ₹50 to ask to join this group.");
         }
-        GroupJoinRequest row = new GroupJoinRequest();
-        row.setGroupId(group.getId());
-        row.setWorkspaceId(shopId);
-        row.setUserId(userId);
-        row.setStatus(GroupJoinRequest.PENDING);
-        requests.save(row);
+        GroupJoinRequest row = savePending(userId, shopId, group.getId());
         return new JoinState(GroupJoinRequest.PENDING, row.getId(), group.getId(), group.getName());
     }
 
@@ -167,6 +168,15 @@ public class GroupJoinService {
         return row;
     }
 
+    private GroupJoinRequest savePending(UUID userId, UUID shopId, UUID groupId) {
+        GroupJoinRequest row = new GroupJoinRequest();
+        row.setGroupId(groupId);
+        row.setWorkspaceId(shopId);
+        row.setUserId(userId);
+        row.setStatus(GroupJoinRequest.PENDING);
+        return requests.save(row);
+    }
+
     private SharingGroup requireGroup(String rawCode) {
         String code = rawCode == null ? "" : rawCode.trim();
         if (code.isBlank()) {
@@ -174,7 +184,7 @@ public class GroupJoinService {
         }
         return groups.findByJoinCodeIgnoreCase(code)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND,
-                        "That code is not for Bihar mobile union."));
+                        "That code does not match a fitment group."));
     }
 
     private UUID ownedShop(UUID userId) {

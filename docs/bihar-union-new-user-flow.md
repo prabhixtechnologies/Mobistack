@@ -69,7 +69,7 @@ The code is the join code from that shop's settings. The button stays disabled w
 |---|---|
 | They close the sheet | Back to Join a shop. The code stays. Nothing is captured. |
 | Signature does not match | Stay. "Payment signature did not match." |
-| Razorpay is not configured in production | Stay. "Razorpay is not configured." |
+| Razorpay is not configured in production | Stay. "Payment is not available right now. Try again later." |
 | Captured | `PENDING` membership as viewer. The ₹50 is consumed. **Waiting** for the shop owner. |
 
 | While waiting on a shop | Next |
@@ -108,7 +108,7 @@ Shown only once their own shop exists and is not in Bihar mobile union yet. The 
 | Code | Next |
 |---|---|
 | Empty | Stay. |
-| Not the union's code | Stay. "That code is not for Bihar mobile union." No payment sheet. |
+| Not a fitment group's code | Stay. "That code does not match a fitment group." No payment sheet. |
 | Shop is already a member | **Compatibility**. |
 | A request is already waiting | **Waiting** for the union. Do not charge again. |
 | An unused captured payment already exists for this shop and this group | Skip Razorpay. **Waiting**. |
@@ -117,7 +117,8 @@ Shown only once their own shop exists and is not in Bihar mobile union yet. The 
 | After payment | Next |
 |---|---|
 | They close the sheet | Back here. The code stays. Nothing is captured. |
-| Signature does not match, or Razorpay is not configured | Stay. Same messages as on Join a shop. |
+| Signature does not match | Stay. "Payment signature did not match." |
+| Razorpay is not configured | No charge. The request is pending. **Waiting** for a union admin. |
 | Captured | **Waiting** for a union admin. |
 | They cancel while waiting | Withdraw the request. Put the ₹50 back. Return here. |
 | Union admin admits the shop | The shop is a `MEMBER`. Next refresh opens **Compatibility**. |

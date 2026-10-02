@@ -186,7 +186,7 @@ public class BillingService {
             order.setStatus(PaymentStatus.PENDING);
         } else if (environment.acceptsProfiles(Profiles.of("prod"))) {
             throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
-                    "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+                    "Payment is not available right now. Try again later.");
         } else {
             order.setGateway("DEV");
             order.setGatewayOrderId("dev-" + UUID.randomUUID());
@@ -388,7 +388,7 @@ public class BillingService {
             order.setStatus(PaymentStatus.PENDING);
         } else if (environment.acceptsProfiles(Profiles.of("prod"))) {
             throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
-                    "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+                    "Payment is not available right now. Try again later.");
         } else {
             order.setGateway("DEV");
             order.setGatewayOrderId("dev-" + UUID.randomUUID());
@@ -397,6 +397,11 @@ public class BillingService {
         return new CheckoutOrderResponse(order.getId(), order.getGatewayOrderId(), amountPaise,
                 order.getCurrency(), razorpayGateway.configured() ? razorpayGateway.keyId() : null,
                 order.getPriceCode(), order.getGateway());
+    }
+
+    /** False in production until Razorpay keys are set. Callers must not print those key names. */
+    public boolean paymentsConfigured() {
+        return razorpayGateway.configured();
     }
 
     /** Same ₹50 price as a shop join. The purpose names the fitment group so the two fees do not mix. */
@@ -429,7 +434,7 @@ public class BillingService {
             order.setStatus(PaymentStatus.PENDING);
         } else if (environment.acceptsProfiles(Profiles.of("prod"))) {
             throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE,
-                    "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+                    "Payment is not available right now. Try again later.");
         } else {
             order.setGateway("DEV");
             order.setGatewayOrderId("dev-" + UUID.randomUUID());

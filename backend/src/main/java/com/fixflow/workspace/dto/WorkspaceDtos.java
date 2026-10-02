@@ -46,7 +46,10 @@ public final class WorkspaceDtos {
             boolean alreadyPaid
     ) {
         public static JoinCheckoutResponse alreadyPaid(String shopName) {
-            return new JoinCheckoutResponse(null, null, 0, "INR", null, "WORKSPACE_JOIN", "PAID", shopName, true);
+            // A real id, so the phone can post it back. Null became the text "null" and the
+            // complete call was rejected before the pending request could be found.
+            return new JoinCheckoutResponse(UUID.randomUUID(), null, 0, "INR", null,
+                    "WORKSPACE_JOIN", "PAID", shopName, true);
         }
     }
 
