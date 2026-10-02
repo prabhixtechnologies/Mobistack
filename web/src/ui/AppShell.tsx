@@ -175,9 +175,9 @@ export function AppShell() {
   }, [drawer, navOpen, navigate]);
 
   /**
-   * A nav entry survives when the viewer holds its capability, it clears the
-   * platform-staff bar, and an unpaid workspace hasn't locked it away. Sections
-   * that end up empty are dropped so no bare heading is left behind.
+   * A nav entry survives when the shop's plan includes it, the viewer holds its
+   * capability, and an unpaid workspace hasn't locked it away. A platform admin
+   * follows the same plan inside the shop. Empty sections are dropped.
    */
   const visible = (item: NavItem): boolean => {
     if (item.platformAdmin) {
@@ -189,7 +189,7 @@ export function AppShell() {
     if (item.commonsReviewer && !user?.commonsReviewer) {
       return false;
     }
-    if (item.feature && !access.isPlatformAdmin && !features.includes(item.feature)) {
+    if (item.feature && !features.includes(item.feature)) {
       return false;
     }
     return !item.need || access.has(item.need);

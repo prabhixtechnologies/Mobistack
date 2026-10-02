@@ -35,15 +35,12 @@ export function afterAuthPath(
   if (user.paymentRequired) {
     return "/billing?activate=1";
   }
-  if (user.catalogOnly) {
-    return "/commons";
-  }
   return "/";
 }
 
 export function routeFeature(pathname: string): string | null {
   if (pathname === "/") {
-    return "DASHBOARD";
+    return null;
   }
   if (
     pathname.startsWith("/commons") ||

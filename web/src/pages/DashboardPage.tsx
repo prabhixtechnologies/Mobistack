@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useAccess } from "../lib/access";
 import { api, money, qty } from "../lib/api";
@@ -255,6 +255,33 @@ function busyPreview(data: DashboardResponse): DashboardResponse {
   };
 }
 
+function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canBill: boolean }) {
+  return (
+    <div className="page billing-page">
+      <section className="billing-hero">
+        <div>
+          <p className="page-kicker">{shop}</p>
+          <h1>{name ? `Welcome, ${name}` : "Home"}</h1>
+          <p>
+            Compatibility is on. Look up a phone and see the parts that fit it. Sales, repairs and
+            stock stay off until this shop is on Full Inventory Management.
+          </p>
+        </div>
+      </section>
+      <div className="row">
+        <Link className="btn" to="/commons">
+          Browse catalog
+        </Link>
+        {canBill && (
+          <Link className="btn ghost" to="/billing">
+            See Full Inventory Management
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const { user } = useAuth();
   const access = useAccess();
@@ -269,11 +296,15 @@ export function DashboardPage() {
 
   const shop = user?.workspaceName ?? user?.shopName ?? "This shop";
   const name = firstName(user?.fullName);
-  const canSales = access.has("SALES_READ");
-  const canRepairs = access.has("REPAIR_READ");
-  const canStock = access.has("INVENTORY_READ");
+  const floor = Boolean(user?.features?.includes("DASHBOARD"));
+  const canSales = floor && access.has("SALES_READ");
+  const canRepairs = floor && access.has("REPAIR_READ");
+  const canStock = floor && access.has("INVENTORY_READ");
 
   useEffect(() => {
+    if (!floor) {
+      return;
+    }
     let live = true;
     setError(null);
     api<DashboardResponse>("/api/v1/mobistack/dashboard")
@@ -318,7 +349,7 @@ export function DashboardPage() {
     return () => {
       live = false;
     };
-  }, [nonce, canSales, canRepairs, canStock]);
+  }, [floor, nonce, canSales, canRepairs, canStock]);
 
   const daybook = useMemo<DayRow[]>(() => {
     const rows: DayRow[] = [];
@@ -373,8 +404,8 @@ export function DashboardPage() {
     return daybook.some((row) => row.at && dayKey(row.at) === today);
   }, [daybook]);
 
-  if (user && !user.features?.includes("DASHBOARD") && !user.systemAdmin) {
-    return <Navigate to="/commons" replace />;
+  if (user && !floor) {
+    return <CatalogHome shop={shop} name={name} canBill={access.has("WORKSPACE_BILLING")} />;
   }
 
   if (error) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { afterAuthPath } from "./plan";
+import { afterAuthPath, allowedOnPlan } from "./plan";
 import { routePermission } from "./permissions";
 
 describe("returning owner routing", () => {
@@ -7,8 +7,12 @@ describe("returning owner routing", () => {
     expect(afterAuthPath({ paymentRequired: false, catalogOnly: false, features: ["DASHBOARD", "SALES"] })).toBe("/");
   });
 
-  it("keeps catalog-only plans on the shared catalog", () => {
-    expect(afterAuthPath({ paymentRequired: false, catalogOnly: true, features: ["COMPATIBILITY"] })).toBe("/commons");
+  it("opens home for a compatibility plan, with the sales floor still out of reach", () => {
+    const user = { paymentRequired: false, catalogOnly: true, features: ["COMPATIBILITY"] };
+    expect(afterAuthPath(user)).toBe("/");
+    expect(allowedOnPlan("/", user.features)).toBe(true);
+    expect(allowedOnPlan("/sales", user.features)).toBe(false);
+    expect(allowedOnPlan("/inventory", user.features)).toBe(false);
   });
 });
 

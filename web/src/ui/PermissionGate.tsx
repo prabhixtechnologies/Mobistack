@@ -61,8 +61,14 @@ export function RequirePermission({ need }: { need?: Permission }) {
     );
   }
 
-  if (user?.catalogOnly && !allowedWhileUnpaid(pathname) && !pathname.startsWith("/commons")) {
-    return <Navigate to="/commons" replace />;
+  if (
+    user?.catalogOnly &&
+    pathname !== "/" &&
+    !pathname.startsWith("/compatibility") &&
+    !allowedWhileUnpaid(pathname) &&
+    !pathname.startsWith("/commons")
+  ) {
+    return <Navigate to="/" replace />;
   }
 
   if (user && !user.paymentRequired && !allowedOnPlan(pathname, user.features)) {

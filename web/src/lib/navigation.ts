@@ -41,7 +41,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Home",
     items: [
-      { to: "/", label: "Shop floor", icon: "home", tint: "rose", end: true, feature: "DASHBOARD" },
+      { to: "/", label: "Home", icon: "home", tint: "rose", end: true },
     ],
   },
   {
