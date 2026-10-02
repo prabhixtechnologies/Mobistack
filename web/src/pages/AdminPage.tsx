@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, money } from "../lib/api";
 import { EmptyState } from "../ui/EmptyState";
 import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import { Tabs } from "../ui/Tabs";
 
 interface Workspace {
   id: string;
@@ -92,7 +94,11 @@ const emptyPlan = {
 };
 
 export function AdminPage() {
-  const [tab, setTab] = useState<AdminTab>("shops");
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get("tab");
+  const tab: AdminTab = ["shops", "plans", "payments", "live", "support", "releases", "reviewers"].includes(requestedTab ?? "")
+    ? (requestedTab as AdminTab)
+    : "shops";
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [flags, setFlags] = useState<Flag[]>([]);
   const [live, setLive] = useState<LiveUser[]>([]);
@@ -179,15 +185,20 @@ export function AdminPage() {
         kicker="Platform"
         title="Platform"
         subtitle="Plans, payments, live users, support, and the native/OTA release gate."
-        actions={
-        <div className="method-tabs">
-          {(["shops", "plans", "payments", "live", "support", "releases", "reviewers"] as const).map((id) => (
-            <button key={id} className={`method-tab ${tab === id ? "on" : ""}`} type="button" onClick={() => setTab(id)}>
-              {id}
-            </button>
-          ))}
-        </div>
-        }
+      />
+      <Tabs
+        label="Platform sections"
+        tabs={[
+          { id: "shops", label: "Shops" },
+          { id: "plans", label: "Plans" },
+          { id: "payments", label: "Payments" },
+          { id: "live", label: "Live users" },
+          { id: "support", label: "Support" },
+          { id: "releases", label: "Releases" },
+          { id: "reviewers", label: "Reviewers" },
+        ]}
+        active={tab}
+        onChange={(next) => setParams(next === "shops" ? {} : { tab: next })}
       />
       {error && <div className="error">{error}</div>}
 
@@ -361,7 +372,7 @@ export function AdminPage() {
                       interval: plan.interval,
                       features: plan.features,
                     });
-                    setTab("plans");
+                    setParams({ tab: "plans" });
                   }}
                 >
                   Edit

@@ -7,7 +7,16 @@ import { Modal } from "./Modal";
 import { PageHeader } from "./PageHeader";
 import { SkipLink } from "./SkipLink";
 
-const RULES = ["button-name", "link-name", "image-alt", "label"];
+const RULES = [
+  "button-name",
+  "link-name",
+  "image-alt",
+  "label",
+  "heading-order",
+  "color-contrast",
+  "aria-required-children",
+  "aria-required-parent",
+];
 
 async function violations(container: HTMLElement) {
   const results = await axe.run(container, {
@@ -35,12 +44,14 @@ describe("MobiStack keyboard and names", () => {
       </main>,
     );
     expect(getByRole("heading", { name: "Members" })).toBeTruthy();
+    expect(getByRole("heading", { name: "No members yet", level: 2 })).toBeTruthy();
     expect(getByRole("button", { name: "Invite" })).toBeTruthy();
     expect(await violations(container)).toEqual([]);
   });
 
   it("names retry on an error state", async () => {
     const { container, getByRole } = render(<ErrorState message="The shop list failed." onRetry={() => undefined} />);
+    expect(getByRole("heading", { name: "That didn't load", level: 2 })).toBeTruthy();
     expect(getByRole("button", { name: "Try again" })).toBeTruthy();
     expect(await violations(container)).toEqual([]);
   });

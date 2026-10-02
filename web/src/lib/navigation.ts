@@ -39,12 +39,45 @@ export interface NavSection {
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
+    label: "Home",
+    items: [
+      { to: "/", label: "Shop floor", icon: "home", tint: "rose", end: true, feature: "DASHBOARD" },
+    ],
+  },
+  {
+    label: "Counter",
+    hint: "sell and serve",
+    shared: "shop",
+    items: [
+      { to: "/sales", label: "Sales", icon: "cart", tint: "green", need: "SALES_READ", feature: "SALES" },
+      { to: "/customers", label: "Customers", icon: "users", tint: "blue", need: "CUSTOMER_READ", feature: "CUSTOMERS" },
+    ],
+  },
+  {
+    label: "Bench",
+    hint: "repair queue",
+    shared: "shop",
+    items: [
+      { to: "/repairs", label: "Repairs", icon: "wrench", tint: "amber", need: "REPAIR_READ", feature: "REPAIRS" },
+    ],
+  },
+  {
+    label: "Stock",
+    hint: "this shop",
+    shared: "shop",
+    items: [
+      { to: "/inventory", label: "Inventory", icon: "box", tint: "blue", need: "INVENTORY_READ", feature: "INVENTORY" },
+      { to: "/purchases", label: "Purchases", icon: "truck", tint: "orange", need: "PURCHASE_READ", feature: "PURCHASES" },
+      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan", need: "SUPPLIER_READ", feature: "SUPPLIERS" },
+    ],
+  },
+  {
     label: "Catalog",
     hint: "shared across shops",
     shared: "commons",
     items: [
-      { to: "/commons", label: "Fitment catalog", icon: "globe", tint: "cyan", end: true, feature: "COMPATIBILITY" },
-      { to: "/compatibility", label: "Fitment notes", icon: "lock", tint: "slate", need: "CATALOG_READ" },
+      { to: "/commons", label: "Shared fitment", icon: "globe", tint: "cyan", end: true, feature: "COMPATIBILITY" },
+      { to: "/compatibility", label: "Shop notes", icon: "lock", tint: "slate", need: "CATALOG_READ" },
       { to: "/commons/standing", label: "Contributor standing", icon: "pulse", tint: "blue", allowUnpaid: true },
       {
         to: "/commons/review",
@@ -57,41 +90,19 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: "Shop",
-    hint: "this counter",
-    shared: "shop",
+    label: "Insights",
     items: [
-      { to: "/", label: "Dashboard", icon: "home", tint: "rose", end: true, feature: "DASHBOARD" },
-      { to: "/sales", label: "Sales", icon: "cart", tint: "green", need: "SALES_READ", feature: "SALES" },
-      { to: "/repairs", label: "Repairs", icon: "wrench", tint: "amber", need: "REPAIR_READ", feature: "REPAIRS" },
-      { to: "/inventory", label: "Inventory", icon: "box", tint: "blue", need: "INVENTORY_READ", feature: "INVENTORY" },
-      {
-        to: "/inventory/catalog-links",
-        label: "Link a part",
-        icon: "link",
-        tint: "cyan",
-        need: "INVENTORY_READ",
-        feature: "INVENTORY",
-      },
-      { to: "/purchases", label: "Purchases", icon: "truck", tint: "orange", need: "PURCHASE_READ", feature: "PURCHASES" },
-      { to: "/customers", label: "Customers", icon: "users", tint: "blue", need: "CUSTOMER_READ", feature: "CUSTOMERS" },
-      { to: "/suppliers", label: "Suppliers", icon: "store", tint: "cyan", need: "SUPPLIER_READ", feature: "SUPPLIERS" },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
-      { to: "/members", label: "Members", icon: "people", tint: "blue", need: "USER_READ", feature: "MEMBERS" },
-      { to: "/users", label: "Access control", icon: "key", tint: "rose", need: "USER_READ", feature: "MEMBERS" },
-      { to: "/import", label: "Import", icon: "upload", tint: "slate", need: "CATALOG_WRITE", feature: "IMPORT" },
       { to: "/reports", label: "Reports", icon: "chart", tint: "green", need: "REPORT_READ", feature: "REPORTS" },
-      { to: "/movements", label: "Movements", icon: "move", tint: "amber", need: "INVENTORY_READ", feature: "MOVEMENTS" },
+      { to: "/movements", label: "Stock activity", icon: "move", tint: "amber", need: "INVENTORY_READ", feature: "MOVEMENTS" },
       { to: "/audit", label: "Audit", icon: "shield", tint: "slate", need: "AUDIT_READ", feature: "AUDIT" },
     ],
   },
   {
-    label: "Workspace",
+    label: "Manage",
     items: [
+      { to: "/members", label: "Team", icon: "people", tint: "blue", need: "USER_READ", feature: "MEMBERS" },
+      { to: "/users", label: "Roles & access", icon: "key", tint: "rose", need: "USER_READ", feature: "MEMBERS" },
+      { to: "/import", label: "Import data", icon: "upload", tint: "slate", need: "CATALOG_WRITE", feature: "IMPORT" },
       { to: "/workspaces", label: "Workspaces", icon: "grid", tint: "blue", allowUnpaid: true },
       { to: "/billing", label: "Billing", icon: "card", tint: "green", need: "WORKSPACE_BILLING", allowUnpaid: true },
       { to: "/settings", label: "Settings", icon: "settings", tint: "slate", need: "SETTINGS_READ", allowUnpaid: true },
@@ -127,6 +138,7 @@ export function allowedWhileUnpaid(pathname: string): boolean {
 
 const EXTRA_LABELS: Record<string, string> = {
   "/devices": "Devices",
+  "/inventory/catalog-links": "Link catalog part",
   "/profile": "My profile",
   "/search": "Search",
   "/commons/devices": "Devices",
@@ -139,6 +151,20 @@ const NAV_LABELS: Record<string, string> = Object.fromEntries(
 
 export function routeLabel(pathname: string): string | undefined {
   return NAV_LABELS[pathname] ?? EXTRA_LABELS[pathname];
+}
+
+/** Human context for the shell title and document title, including detail routes. */
+export function routeContext(pathname: string): { title: string; section: string } {
+  const direct = routeLabel(pathname);
+  if (direct) {
+    const section = NAV_SECTIONS.find((group) => group.items.some((item) => item.to === pathname))?.label ?? "MobiStack";
+    return { title: direct, section };
+  }
+  if (pathname.startsWith("/commons/devices/")) return { title: "Shared device", section: "Catalog" };
+  if (pathname.startsWith("/commons/components/")) return { title: "Shared part", section: "Catalog" };
+  if (pathname.startsWith("/devices/")) return { title: "Shop device", section: "Stock" };
+  if (pathname.startsWith("/compatibility/")) return { title: "Fitment category", section: "Catalog" };
+  return { title: "MobiStack", section: "Shop operations" };
 }
 
 export interface Crumb {

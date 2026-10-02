@@ -198,6 +198,27 @@ function remaining(alert: StockAlert): string | null {
   return alert.observedValue === 1 ? "1 remaining" : `${qty.format(alert.observedValue)} remaining`;
 }
 
+function StationSignal({
+  label,
+  values,
+}: {
+  label: string;
+  values: { label: string; value: number; max: number }[];
+}) {
+  return (
+    <div className="station-signal" aria-label={label}>
+      {values.map((item) => (
+        <label key={item.label}>
+          <span>{item.label}</span>
+          <meter min={0} max={Math.max(item.max, 1)} value={Math.max(0, Math.min(item.value, item.max))}>
+            {item.value}
+          </meter>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 const PREVIEW_ENV = ((import.meta.env.VITE_ENVIRONMENT as string | undefined) ?? "").toUpperCase();
 
 /** Non-production layout stress test: `?floor=busy`. Never invents shop data in production. */
@@ -530,6 +551,14 @@ export function DashboardPage() {
                 <b>{money.format(view.sales.todayProfit)}</b> profit
               </span>
             </p>
+            <StationSignal
+              label="Counter pulse"
+              values={[
+                { label: "Tickets", value: tickets, max: Math.max(12, tickets) },
+                { label: "Sales", value: view.sales.todaySales, max: Math.max(100_000, view.sales.todaySales) },
+                { label: "Profit", value: Math.max(0, view.sales.todayProfit), max: Math.max(25_000, view.sales.todayProfit) },
+              ]}
+            />
             <div className="station__item">
               <span>Last sale</span>
               {lastSale ? (
@@ -558,6 +587,14 @@ export function DashboardPage() {
               </span>
             </header>
             <p className="station__state">{benchState}</p>
+            <StationSignal
+              label="Repair queue"
+              values={[
+                { label: "Open", value: view.repairs.pending, max: Math.max(10, view.repairs.pending) },
+                { label: "Ready", value: view.repairs.ready, max: Math.max(5, view.repairs.ready) },
+                { label: "Done", value: view.repairs.delivered, max: Math.max(10, view.repairs.delivered) },
+              ]}
+            />
             <div className="station__item">
               <span>{urgentRepair ? "Next up" : "Queue"}</span>
               {urgentRepair ? (
@@ -584,6 +621,14 @@ export function DashboardPage() {
               </span>
             </header>
             <p className="station__state">{shelfState}</p>
+            <StationSignal
+              label="Inventory health"
+              values={[
+                { label: "Units", value: inv.stockUnits, max: Math.max(100, inv.stockUnits) },
+                { label: "Low", value: inv.lowStockCount, max: Math.max(10, inv.lowStockCount) },
+                { label: "Out", value: inv.outOfStockCount, max: Math.max(5, inv.outOfStockCount) },
+              ]}
+            />
             <div className="station__item">
               <span>Watch</span>
               {sku ? (

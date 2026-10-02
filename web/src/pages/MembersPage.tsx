@@ -5,6 +5,7 @@ import { useAccess } from "../lib/access";
 import { api } from "../lib/api";
 import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
+import { TeamNav } from "../ui/TeamNav";
 import { ConfirmDialog } from "../ui/Modal";
 import { selectedWorkspaceId } from "../lib/types";
 import type { PageResponse } from "../lib/types";
@@ -117,10 +118,11 @@ export function MembersPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Operations"
-        title="People"
+        kicker="Manage"
+        title="Team"
         subtitle="Paid join requests land here. Owners, admins, and anyone with People edit permission can approve."
       />
+      <TeamNav />
       {error && <div className="error">{error}</div>}
       {token && <div className="card">Give them this invite token: <strong>{token}</strong></div>}
       {pendingCount > 0 && (
@@ -132,7 +134,7 @@ export function MembersPage() {
       <div className="card">
         Approvers are the shop's owners, admins, and anyone given People edit permission.
         To let someone else approve, open{" "}
-        <Link to="/users">Access control</Link>, edit them, and assign the Admin role. They need
+        <Link to="/users">Roles & access</Link>, edit them, and assign the Admin role. They need
         to reopen this workspace so the new permission applies.
       </div>
 

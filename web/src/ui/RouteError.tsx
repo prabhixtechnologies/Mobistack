@@ -25,7 +25,7 @@ export function RouteError({ kind = "not-found" }: { kind?: Kind }) {
         title={forbidden ? "You do not have access to that" : "That page is not here"}
         hint={
           forbidden
-            ? "Your role does not include this area. A shop owner can grant the permission from Members."
+            ? "Your role does not include this area. A shop owner can grant the permission from Team."
             : "The link may be from an older build, or the record may have been removed. Nothing is wrong with your shop."
         }
         action={

@@ -19,14 +19,17 @@ export function InventoryPage() {
   const canReceive = access.has("INVENTORY_WRITE");
   const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState(params.get("q") ?? "");
-  const [lowOnly, setLowOnly] = useState(false);
+  const [lowOnly, setLowOnly] = useState(params.get("stock") === "low");
   const [receiveFor, setReceiveFor] = useState<ProductVariant | null>(null);
   const settled = useDebounced(query);
 
   // Keep the address bar in step so a search can be shared or reloaded.
   useEffect(() => {
-    setParams(settled.trim() ? { q: settled.trim() } : {}, { replace: true });
-  }, [settled, setParams]);
+    const next = new URLSearchParams();
+    if (settled.trim()) next.set("q", settled.trim());
+    if (lowOnly) next.set("stock", "low");
+    setParams(next, { replace: true });
+  }, [settled, lowOnly, setParams]);
 
   const path = useMemo(() => {
     const search = new URLSearchParams();
@@ -46,6 +49,7 @@ export function InventoryPage() {
     {
       key: "part",
       header: "Part",
+      mobileLabel: "Part",
       render: (variant) => (
         <div className="cell-identity">
           <strong>{variant.productName}</strong>
@@ -56,19 +60,21 @@ export function InventoryPage() {
         </div>
       ),
     },
-    { key: "sku", header: "SKU", render: (variant) => variant.sku },
+    { key: "sku", header: "SKU", mobileLabel: "SKU", render: (variant) => variant.sku },
     {
       key: "stock",
       header: "Stock",
+      mobileLabel: "Stock",
       align: "right",
       render: (variant) => (
         <span className={`badge ${variant.stockStatus}`}>{qty.format(variant.availableQty)}</span>
       ),
     },
-    { key: "retail", header: "Retail", align: "right", render: (variant) => money.format(variant.retailPrice) },
+    { key: "retail", header: "Retail", mobileLabel: "Retail", align: "right", render: (variant) => money.format(variant.retailPrice) },
     {
       key: "cost",
       header: "Cost",
+      mobileLabel: "Cost",
       align: "right",
       need: "REPORT_READ",
       render: (variant) => money.format(variant.costPrice),
@@ -78,6 +84,7 @@ export function InventoryPage() {
           {
             key: "actions",
             header: "",
+            mobileLabel: "",
             align: "right" as const,
             render: (variant: ProductVariant) => (
               <button className="btn ghost" type="button" onClick={() => setReceiveFor(variant)}>
@@ -105,7 +112,7 @@ export function InventoryPage() {
     );
 
   return (
-    <div className="page">
+    <div className="page page--wide">
       <PageHeader
         kicker="Shop"
         title="Inventory"
@@ -128,6 +135,18 @@ export function InventoryPage() {
         <button className={lowOnly ? "btn soft" : "btn ghost"} type="button" onClick={() => setLowOnly(!lowOnly)}>
           Low stock
         </button>
+        {(query || lowOnly) && (
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setLowOnly(false);
+            }}
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       <div className="card tight">
@@ -140,6 +159,17 @@ export function InventoryPage() {
           onRetry={parts.reload}
           rowActions={partActions}
           rowLabel={(variant) => `${variant.productName} ${variant.variantName}`.trim()}
+          selectable
+          bulkActions={[
+            {
+              id: "copy-skus",
+              label: "Copy SKUs",
+              onSelect: async (keys) => {
+                const selected = parts.rows.filter((variant) => keys.includes(variant.id));
+                await navigator.clipboard.writeText(selected.map((variant) => variant.sku).join("\n"));
+              },
+            },
+          ]}
           skeletonRows={8}
           empty={{
             icon: "box",

@@ -57,13 +57,13 @@ export function DevicePage() {
   }
 
   return (
-    <div className="page">
+    <div className="page device-detail">
       <PageHeader
         kicker="Catalog"
         title={phoneLabel(view.device)}
         subtitle={`${view.totalPartsAvailable} parts on the shelf · ${view.categoriesInStock} categories in stock`}
         actions={
-          <label className="form-field" style={{ minWidth: 0, width: "100%", maxWidth: 180 }}>
+          <label className="form-field device-detail__pricing">
             <span className="form-field__label">Pricing</span>
             <select
               className="select"
@@ -83,7 +83,7 @@ export function DevicePage() {
 
       <div className="card">
         <div className="metric-label">Compatible models</div>
-        <div className="chips" style={{ marginTop: 12 }}>
+        <div className="chips device-detail__models">
           <span className="chip">
             {phoneLabel(view.device)}
           </span>
@@ -94,7 +94,7 @@ export function DevicePage() {
           ))}
         </div>
         {view.device.aliases.length > 0 && (
-          <p className="faint" style={{ marginBottom: 0 }}>
+          <p className="faint device-detail__aliases">
             Also known as {view.device.aliases.join(", ")}
           </p>
         )}
@@ -110,14 +110,14 @@ export function DevicePage() {
                 type="button"
                 aria-expanded={expanded}
                 onClick={() => setOpenCategory(expanded ? null : category.categoryId)}
-                style={{ width: "100%", background: "transparent", textAlign: "left" }}
+                data-category-trigger
               >
                 <div>
-                  <div style={{ fontWeight: 650 }}>{category.categoryName}</div>
+                  <strong>{category.categoryName}</strong>
                   <div className="faint">{category.variantCount} options</div>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 650 }}>{qty.format(category.totalAvailable)} in stock</div>
+                  <strong>{qty.format(category.totalAvailable)} in stock</strong>
                   <div className="faint">
                     {category.minPrice != null
                       ? category.minPrice === category.maxPrice
@@ -130,9 +130,9 @@ export function DevicePage() {
               </button>
               {expanded &&
                 category.options.map((option) => (
-                  <div className="category-row" key={option.variantId} style={{ background: "var(--bg-muted)" }}>
+                  <div className="category-row device-detail__option" key={option.variantId}>
                     <div>
-                      <div style={{ fontWeight: 600 }}>{option.variantName}</div>
+                      <strong>{option.variantName}</strong>
                       <div className="faint">
                         {option.sku}
                         {option.grade ? ` · ${option.grade}` : ""}
@@ -140,7 +140,7 @@ export function DevicePage() {
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontWeight: 650 }}>{money.format(option.price)}</div>
+                      <strong>{money.format(option.price)}</strong>
                       <div className="faint">{qty.format(option.availableQty)} available</div>
                     </div>
                     <span className={`badge ${option.stockStatus}`}>{option.stockStatus}</span>

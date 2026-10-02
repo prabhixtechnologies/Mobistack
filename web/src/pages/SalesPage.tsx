@@ -277,6 +277,7 @@ export function SalesPage() {
     {
       key: "invoice",
       header: "Invoice",
+      mobileLabel: "Invoice",
       render: (sale) => (
         <div className="cell-identity">
           <strong>{sale.invoiceNumber}</strong>
@@ -284,11 +285,12 @@ export function SalesPage() {
         </div>
       ),
     },
-    { key: "customer", header: "Customer", render: (sale) => sale.customerName ?? "Walk-in" },
-    { key: "total", header: "Total", align: "right", render: (sale) => money.format(sale.total) },
+    { key: "customer", header: "Customer", mobileLabel: "Customer", render: (sale) => sale.customerName ?? "Walk-in" },
+    { key: "total", header: "Total", mobileLabel: "Total", align: "right", render: (sale) => money.format(sale.total) },
     {
       key: "profit",
       header: "Profit",
+      mobileLabel: "Profit",
       align: "right",
       need: "REPORT_READ",
       render: (sale) => money.format(sale.profit),
@@ -296,6 +298,7 @@ export function SalesPage() {
     {
       key: "actions",
       header: "",
+      mobileLabel: "",
       align: "right",
       render: (sale) => (
         <div className="row" style={{ justifyContent: "flex-end" }}>
@@ -318,7 +321,7 @@ export function SalesPage() {
   ];
 
   return (
-    <div className="page">
+    <div className="page page--wide">
       <PageHeader
         kicker="Shop"
         title="Sales"
@@ -330,7 +333,7 @@ export function SalesPage() {
 
       <div className="pos">
       {canSell ? (
-        <form className="pos__ticket" onSubmit={submit}>
+        <form className="pos__ticket pos__workspace" onSubmit={submit}>
           <h2>This ticket</h2>
           <input
             ref={searchRef}
@@ -352,7 +355,7 @@ export function SalesPage() {
           />
           {/* Announced, not just shown: at a counter nobody is watching this corner of the
               screen while holding a part and a scanner. */}
-          <p className="faint" role="status" aria-live="polite">
+          <p className="scan-feedback" role="status" aria-live="polite">
             {scanNote}
           </p>
           <p className="faint" id="pos-keys">
@@ -436,7 +439,7 @@ export function SalesPage() {
         </div>
       )}
 
-      <div>
+      <div className="pos__history">
         <DataTable
           columns={columns}
           rows={sales.loading && sales.rows.length === 0 ? undefined : sales.rows}

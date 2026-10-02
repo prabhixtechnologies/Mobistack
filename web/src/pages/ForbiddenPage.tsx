@@ -53,7 +53,7 @@ export function ForbiddenPage({
         <p className="faint">
           {unpaid
             ? "Ask a workspace owner to open Billing and reactivate the subscription."
-            : "Ask a workspace owner or admin to update your role under People."}
+            : "Ask a workspace owner or admin to update your role under Team."}
         </p>
 
         <div className="row forbidden__actions">

@@ -1,13 +1,13 @@
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../lib/auth";
 import { useAccess } from "../lib/access";
 import { DRAWER_QUERY, TABLET_QUERY, useMediaQuery } from "../lib/media";
-import { NAV_SECTIONS, type NavItem } from "../lib/navigation";
+import { NAV_SECTIONS, routeContext, type NavItem } from "../lib/navigation";
 import { selectedWorkspaceId } from "../lib/types";
 import { api } from "../lib/api";
 import { usePresence } from "../lib/presence";
-import { GlobalSearch } from "./GlobalSearch";
+import { GlobalSearch, openCommandPalette } from "./GlobalSearch";
 import { BrandFooter, BrandMark } from "./BrandMark";
 import { ThemeToggle } from "./ThemeToggle";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -15,6 +15,7 @@ import { Menu, MenuItem, MenuSeparator } from "./Menu";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Icon } from "./navIcons";
 import { SkipLink } from "./SkipLink";
+import { Modal } from "./Modal";
 
 const SIDEBAR_KEY = "mobistack.sidebar.collapsed";
 
@@ -27,6 +28,11 @@ function initials(name?: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function isTextEntry(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  return Boolean(element?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']"));
 }
 
 export function AppShell() {
@@ -51,6 +57,10 @@ export function AppShell() {
   const [navOpen, setNavOpen] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
   const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [shortcutOpen, setShortcutOpen] = useState(false);
+  const [online, setOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  const goChord = useRef(false);
+  const goTimer = useRef<number | null>(null);
   // Seat enforcement was switched off here while Settings went on reporting seat counts
   // as if it were running, so the numbers a shop owner saw were not the numbers the
   // backend held. Heartbeat only once there is a signed-in user in a workspace: an
@@ -58,6 +68,8 @@ export function AppShell() {
   usePresence(Boolean(user && currentWorkspace));
   const localUnlock = Boolean(user?.localActivationAvailable);
   const canBill = access.has("WORKSPACE_BILLING");
+  const canSales = access.has("SALES_READ") && features.includes("SALES");
+  const context = routeContext(pathname);
 
   async function activateLocalShop() {
     setUnlocking(true);
@@ -91,6 +103,20 @@ export function AppShell() {
   }, [pathname]);
 
   useEffect(() => {
+    document.title = `${context.title} · MobiStack`;
+  }, [context.title]);
+
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
+    };
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && navOpen) {
         event.preventDefault();
@@ -104,11 +130,49 @@ export function AppShell() {
         } else {
           setCollapsed((value) => !value);
         }
+        return;
+      }
+      if (isTextEntry(event.target)) return;
+      if (event.key === "?") {
+        event.preventDefault();
+        setShortcutOpen(true);
+        return;
+      }
+      if (event.key === "/") {
+        event.preventDefault();
+        openCommandPalette();
+        return;
+      }
+      if (event.key.toLowerCase() === "g") {
+        goChord.current = true;
+        if (goTimer.current !== null) window.clearTimeout(goTimer.current);
+        goTimer.current = window.setTimeout(() => {
+          goChord.current = false;
+        }, 900);
+        return;
+      }
+      if (goChord.current) {
+        const routes: Record<string, string> = {
+          h: "/",
+          s: "/sales",
+          r: "/repairs",
+          i: "/inventory",
+          c: "/commons",
+        };
+        const route = routes[event.key.toLowerCase()];
+        goChord.current = false;
+        if (route) {
+          event.preventDefault();
+          navigate(route);
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [drawer, navOpen]);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (goTimer.current !== null) window.clearTimeout(goTimer.current);
+    };
+  }, [drawer, navOpen, navigate]);
 
   /**
    * A nav entry survives when the viewer holds its capability, it clears the
@@ -222,6 +286,38 @@ export function AppShell() {
                 </div>
                 <MenuSeparator />
                 <MenuItem
+                  icon={<Icon name="user" />}
+                  onClick={() => {
+                    close();
+                    navigate("/profile");
+                  }}
+                >
+                  My profile
+                </MenuItem>
+                {access.has("SETTINGS_READ") && (
+                  <MenuItem
+                    icon={<Icon name="settings" />}
+                    onClick={() => {
+                      close();
+                      navigate("/settings");
+                    }}
+                  >
+                    Shop settings
+                  </MenuItem>
+                )}
+                {canBill && (
+                  <MenuItem
+                    icon={<Icon name="card" />}
+                    onClick={() => {
+                      close();
+                      navigate("/billing");
+                    }}
+                  >
+                    Billing
+                  </MenuItem>
+                )}
+                <MenuSeparator />
+                <MenuItem
                   danger
                   icon={<Icon name="logout" />}
                   onClick={async () => {
@@ -272,7 +368,10 @@ export function AppShell() {
           <nav className="nav-group">
             {sections.map((section) => (
               <div className="nav-section" key={section.label}>
-                <div className="nav-section__label">{section.label}</div>
+                <div className="nav-section__label">
+                  <span>{section.label}</span>
+                  {section.hint && <small>{section.hint}</small>}
+                </div>
                 {section.items.map((item) => (
                   <NavLink
                     key={item.to}
@@ -310,6 +409,15 @@ export function AppShell() {
 
         <div className="main" id="main-content" tabIndex={-1}>
           <div className="main__body">
+            {!online && (
+              <div className="offline-bar" role="status">
+                <Icon name="alert" />
+                <div>
+                  <strong>You’re offline</strong>
+                  <span>Read what is already open. New changes will be available after the connection returns.</span>
+                </div>
+              </div>
+            )}
             {unpaid && (
               <div className="lock-bar">
                 <div>
@@ -350,26 +458,53 @@ export function AppShell() {
 
       {drawer && (
         <nav className="app-dock" aria-label="Primary shop actions">
-          <NavLink to="/commons" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
-            <Icon name="globe" />
-            Catalog
+          <NavLink to="/" end className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
+            <Icon name="home" />
+            Home
           </NavLink>
-          {access.has("WORKSPACE_BILLING") && (
-            <NavLink to="/billing" className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}>
-              <Icon name="card" />
-              Billing
-            </NavLink>
-          )}
+          <NavLink
+            to={canSales ? "/sales" : "/commons"}
+            className={({ isActive }) => `app-dock__item${isActive ? " active" : ""}`}
+          >
+            <Icon name={canSales ? "cart" : "globe"} />
+            {canSales ? "Sale" : "Catalog"}
+          </NavLink>
+          <button className="app-dock__item" type="button" onClick={() => openCommandPalette()}>
+            <Icon name="search" />
+            Scan
+          </button>
           <button
             className="app-dock__item"
             type="button"
             onClick={() => setNavOpen((value) => !value)}
+            aria-expanded={navOpen}
+            aria-controls="app-sidebar"
           >
             <Icon name="panelLeft" />
-            Menu
+            More
           </button>
         </nav>
       )}
+
+      <Modal
+        open={shortcutOpen}
+        size="sm"
+        title="Keyboard shortcuts"
+        description="Move around the counter without leaving the keyboard."
+        onClose={() => setShortcutOpen(false)}
+      >
+        <dl className="shortcut-list">
+          <div><dt><kbd>Ctrl K</kbd></dt><dd>Search, scan, or jump to a page</dd></div>
+          <div><dt><kbd>/</kbd></dt><dd>Open search</dd></div>
+          <div><dt><kbd>G H</kbd></dt><dd>Go to the shop floor</dd></div>
+          <div><dt><kbd>G S</kbd></dt><dd>Go to Sales</dd></div>
+          <div><dt><kbd>G R</kbd></dt><dd>Go to Repairs</dd></div>
+          <div><dt><kbd>G I</kbd></dt><dd>Go to Inventory</dd></div>
+          <div><dt><kbd>G C</kbd></dt><dd>Go to Shared fitment</dd></div>
+          <div><dt><kbd>Ctrl B</kbd></dt><dd>Toggle navigation</dd></div>
+          <div><dt><kbd>?</kbd></dt><dd>Show this guide</dd></div>
+        </dl>
+      </Modal>
     </div>
   );
 }

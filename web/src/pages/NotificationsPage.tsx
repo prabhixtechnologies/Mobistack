@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { Icon, type NavIconName } from "../ui/navIcons";
 import { PageHeader } from "../ui/PageHeader";
+import { Tabs } from "../ui/Tabs";
 
 interface Pref {
   eventType: string;
@@ -103,6 +104,9 @@ function channelLabel(channel: string): string {
 }
 
 export function NotificationsPage() {
+  const [params, setParams] = useSearchParams();
+  const requestedView = params.get("view");
+  const view = requestedView === "channels" || requestedView === "sent" ? requestedView : "inbox";
   const [prefs, setPrefs] = useState<Pref[]>([]);
   const [inbox, setInbox] = useState<InboxSummary>({ unread: 0, items: [] });
   const [rows, setRows] = useState<Outbox[]>([]);
@@ -183,13 +187,17 @@ export function NotificationsPage() {
     <div className="page notify-page">
       <PageHeader
         kicker="Support"
-        title="Inbox"
+        title={view === "inbox" ? "Inbox" : view === "channels" ? "Notification channels" : "Delivery history"}
         subtitle={
-          inbox.unread === 0
-            ? "You are caught up. Shop notices land here; sign-in codes stay private."
-            : `${inbox.unread} unread ${inbox.unread === 1 ? "notice" : "notices"} waiting.`
+          view === "channels"
+            ? "Choose where each shop notice and private sign-in code reaches you."
+            : view === "sent"
+              ? "Review the latest email, WhatsApp, SMS, and push deliveries."
+              : inbox.unread === 0
+                ? "You are caught up. Shop notices land here; sign-in codes stay private."
+                : `${inbox.unread} unread ${inbox.unread === 1 ? "notice" : "notices"} waiting.`
         }
-        actions={
+        actions={view === "inbox" ? (
           <div className="notify-hero__meta">
             <span className={`notify-count ${inbox.unread ? "notify-count--hot" : ""}`}>
               {inbox.unread} unread
@@ -198,13 +206,23 @@ export function NotificationsPage() {
               Mark all read
             </button>
           </div>
-        }
+        ) : undefined}
       />
 
       {error && <div className="error">{error}</div>}
       {notice && <div className="banner">{notice}</div>}
+      <Tabs
+        label="Notification views"
+        tabs={[
+          { id: "inbox", label: "Inbox", badge: inbox.unread || undefined },
+          { id: "channels", label: "Channels" },
+          { id: "sent", label: "Sent", badge: sent.length || undefined },
+        ]}
+        active={view}
+        onChange={(next) => setParams(next === "inbox" ? {} : { view: next })}
+      />
 
-      <section className="notify-panel" aria-label="Inbox">
+      {view === "inbox" && <section className="notify-panel" aria-label="Inbox">
         {inbox.items.length === 0 ? (
           <div className="notify-empty">
             <span className="notify-empty__mark" aria-hidden>
@@ -249,9 +267,9 @@ export function NotificationsPage() {
             })}
           </ol>
         )}
-      </section>
+      </section>}
 
-      <section className="notify-panel notify-channels" aria-label="Channels">
+      {view === "channels" && <section className="notify-panel notify-channels" aria-label="Channels">
         <div className="notify-panel__head">
           <div>
             <h2>Where we reach you</h2>
@@ -264,9 +282,9 @@ export function NotificationsPage() {
 
         <PreferenceTable title="Shop" prefs={shopPrefs} onToggle={toggle} />
         <PreferenceTable title="Sign-in codes" prefs={signinPrefs} onToggle={toggle} />
-      </section>
+      </section>}
 
-      {sent.length > 0 && (
+      {view === "sent" && sent.length > 0 && (
         <section className="notify-panel" aria-label="Recently sent">
           <div className="notify-panel__head">
             <div>
@@ -289,6 +307,15 @@ export function NotificationsPage() {
             ))}
           </ol>
         </section>
+      )}
+      {view === "sent" && sent.length === 0 && (
+        <div className="notify-empty">
+          <span className="notify-empty__mark" aria-hidden>
+            <Icon name="bell" />
+          </span>
+          <strong>No deliveries yet</strong>
+          <p>Email, WhatsApp, SMS, and push deliveries will appear here.</p>
+        </div>
       )}
     </div>
   );

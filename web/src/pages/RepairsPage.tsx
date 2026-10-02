@@ -29,6 +29,12 @@ const STATUSES = ["RECEIVED", "DIAGNOSING", "WAITING_FOR_PART", "IN_REPAIR", "RE
 
 const OPEN_STATUSES = STATUSES.filter((status) => status !== "DELIVERED" && status !== "CANCELLED");
 
+const REPAIR_LANES = [
+  { id: "intake", label: "Intake", statuses: ["RECEIVED", "DIAGNOSING"] },
+  { id: "bench", label: "On the bench", statuses: ["WAITING_FOR_PART", "IN_REPAIR"] },
+  { id: "ready", label: "Ready & closed", statuses: ["READY", "DELIVERED", "CANCELLED"] },
+] as const;
+
 export function RepairsPage() {
   const access = useAccess();
   const canWrite = access.has("REPAIR_WRITE");
@@ -225,53 +231,66 @@ export function RepairsPage() {
         />
       ) : (
         <>
-          <div className="job-list">
-          {jobs.rows.map((job) => (
-            <article className="job-row" key={job.id}>
-              <div>
-                <strong>{job.jobNumber}</strong>
-                <div className="job-row__meta">
-                  {job.customerName ?? "Walk-in"} · {job.deviceName ?? "Device unknown"}
-                </div>
-                <p style={{ margin: "8px 0 0" }}>{job.problem}</p>
-                <div className="muted" style={{ marginTop: 6 }}>
-                  {money.format(job.total)} · paid {money.format(job.paid)}
-                  {access.has("REPORT_READ") && ` · profit ${money.format(job.profit)}`}
-                </div>
-              </div>
-              <div>
-                <span className={`status-chip${job.status === "READY" ? " status-chip--ready" : job.status === "WAITING_FOR_PART" ? " status-chip--warn" : " status-chip--open"}`}>
-                  {humanLabel(job.status)}
-                </span>
-              </div>
-              {canWrite && (
-                <div className="row">
-                  <select
-                    className="select"
-                    value={job.status}
-                    disabled={changeStatus.busy}
-                    onChange={(e) => void changeStatus.run(job, e.target.value)}
-                    style={{ width: 200, maxWidth: "100%" }}
-                    aria-label={`Status for ${job.jobNumber}`}
-                  >
-                    {STATUSES.map((status) => (
-                      <option key={status} value={status}>
-                        {humanLabel(status)}
-                      </option>
+          <div className="repair-board">
+            {REPAIR_LANES.map((lane) => {
+              const laneJobs = jobs.rows.filter((job) => lane.statuses.some((status) => status === job.status));
+              return (
+                <section className="repair-lane" key={lane.id} aria-labelledby={`repair-lane-${lane.id}`}>
+                  <header className="repair-lane__header">
+                    <h2 id={`repair-lane-${lane.id}`}>{lane.label}</h2>
+                    <span className="badge neutral">{laneJobs.length}</span>
+                  </header>
+                  <div className="repair-lane__list">
+                    {laneJobs.map((job) => (
+                      <article className="job-row" key={job.id}>
+                        <div className="job-row__body">
+                          <strong>{job.jobNumber}</strong>
+                          <div className="job-row__meta">
+                            {job.customerName ?? "Walk-in"} · {job.deviceName ?? "Device unknown"}
+                          </div>
+                          <p className="job-row__problem">{job.problem}</p>
+                          <div className="muted job-row__money">
+                            {money.format(job.total)} · paid {money.format(job.paid)}
+                            {access.has("REPORT_READ") && ` · profit ${money.format(job.profit)}`}
+                          </div>
+                        </div>
+                        <div>
+                          <span className={`status-chip${job.status === "READY" ? " status-chip--ready" : job.status === "WAITING_FOR_PART" ? " status-chip--warn" : " status-chip--open"}`}>
+                            {humanLabel(job.status)}
+                          </span>
+                        </div>
+                        {canWrite && (
+                          <div className="job-row__actions">
+                            <select
+                              className="select"
+                              value={job.status}
+                              disabled={changeStatus.busy}
+                              onChange={(e) => void changeStatus.run(job, e.target.value)}
+                              aria-label={`Status for ${job.jobNumber}`}
+                            >
+                              {STATUSES.map((status) => (
+                                <option key={status} value={status}>
+                                  {humanLabel(status)}
+                                </option>
+                              ))}
+                            </select>
+                            <button className="btn ghost" type="button" onClick={() => setPartFor(job)}>
+                              Add part
+                            </button>
+                            {job.outstanding > 0 && (
+                              <button className="btn" type="button" disabled={collect.busy} onClick={() => void collect.run(job)}>
+                                {collect.busy ? "Taking…" : `Collect ${money.format(job.outstanding)}`}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </article>
                     ))}
-                  </select>
-                  <button className="btn ghost" type="button" onClick={() => setPartFor(job)}>
-                    Add part
-                  </button>
-                  {job.outstanding > 0 && (
-                    <button className="btn" type="button" disabled={collect.busy} onClick={() => void collect.run(job)}>
-                      {collect.busy ? "Taking…" : `Collect ${money.format(job.outstanding)}`}
-                    </button>
-                  )}
-                </div>
-              )}
-            </article>
-          ))}
+                    {laneJobs.length === 0 && <p className="faint">Nothing here right now.</p>}
+                  </div>
+                </section>
+              );
+            })}
           </div>
           <div>
             <LoadMore

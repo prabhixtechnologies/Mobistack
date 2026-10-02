@@ -7,6 +7,7 @@ import { ThemeProvider } from "./lib/theme";
 import { ToastProvider } from "./ui/Toast";
 import "./lib/oidc-config";
 import "./styles.css";
+import "./experience.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -45,6 +45,24 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function CopyUrlButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      className="btn ghost btn--sm copy-link"
+      type="button"
+      onClick={async () => {
+        await navigator.clipboard.writeText(value);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1600);
+      }}
+      aria-live="polite"
+    >
+      {copied ? "Copied" : "Copy link"}
+    </button>
+  );
+}
+
 export function AppDownloadPage() {
   const { platform } = useParams();
   const kind = platform?.toLowerCase();
@@ -80,7 +98,7 @@ function Hub({ catalog, error }: { catalog: Catalog | null; error: string | null
         Direct downloads from {BRAND.organization}. Android installs come from the company store.
         iOS needs a signed package from your shop.
       </p>
-      {error && <div className="error">{error}</div>}
+      {error && <div className="banner banner-warn">Download availability could not be checked. The direct links still work.</div>}
       <div className="app-dl__grid">
         <PackageCard kind="android" pkg={catalog?.android} />
         <PackageCard kind="ios" pkg={catalog?.ios} />
@@ -111,9 +129,10 @@ function PlatformCard({
           ? "This link serves the signed iOS package when one is published. iPhones cannot install a raw IPA the way Android installs an APK — use your shop provisioning or TestFlight if the file is not trusted on the device."
           : "Android packages are published on the Prabhix company store. Open the download on the phone and allow installs from the browser if Android asks."}
       </p>
-      {error && <div className="error">{error}</div>}
+      {error && <div className="banner banner-warn">Download availability could not be checked. The direct link still works.</div>}
       <p className="app-dl__url">
-        <code>{displayUrl(href)}</code>
+        <code title={displayUrl(href)}>{displayUrl(href)}</code>
+        <CopyUrlButton value={displayUrl(href)} />
       </p>
       {pkg?.available ? (
         <p className="muted">
@@ -147,7 +166,8 @@ function PackageCard({ kind, pkg }: { kind: "android" | "ios"; pkg?: PackageInfo
       <h2>{ios ? "iOS" : "Android"}</h2>
       <p className="muted">{ios ? "Signed IPA when published" : "Company store APK"}</p>
       <p className="app-dl__url">
-        <code>{displayUrl(href)}</code>
+        <code title={displayUrl(href)}>{displayUrl(href)}</code>
+        <CopyUrlButton value={displayUrl(href)} />
       </p>
       {pkg?.available ? (
         <p className="muted">{pkg.filename} · {formatSize(pkg.sizeBytes)}</p>

@@ -25,7 +25,7 @@ export function EmptyState({
       <div className="empty-state__icon">
         <Icon name={icon} />
       </div>
-      <strong>{title}</strong>
+      <h2 className="empty-state__title">{title}</h2>
       {hint && <p className="muted">{hint}</p>}
       {action && <div className="empty-state__action">{action}</div>}
     </div>
@@ -36,22 +36,44 @@ export function EmptyState({
  * Failure counterpart to `EmptyState`. Surfaces the message the API returned and
  * offers a retry rather than stranding the user on a dead panel.
  */
-export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function ErrorState({
+  message,
+  onRetry,
+  correlationId,
+}: {
+  message: string;
+  onRetry?: () => void;
+  correlationId?: string;
+}) {
+  const technical = /(?:network|failed to fetch|http \d{3}|syntaxerror|typeerror|stack trace)/i.test(message);
+
   return (
     <div className="empty-state empty-state--error">
       <div className="empty-state__icon">
         <Icon name="alert" />
       </div>
-      <strong>That didn't load</strong>
-      <p className="muted">{message}</p>
-      {onRetry && (
-        <div className="empty-state__action">
+      <h2 className="empty-state__title">That didn't load</h2>
+      <p className="muted">
+        {technical ? "MobiStack could not reach the service. Check the connection and try again." : message}
+      </p>
+      {technical && (
+        <details className="error-details">
+          <summary>Technical details</summary>
+          <code>{message}</code>
+        </details>
+      )}
+      {correlationId && <p className="faint">Reference {correlationId}</p>}
+      <div className="empty-state__support">
+        {onRetry && (
           <button className="btn ghost" type="button" onClick={onRetry}>
             <Icon name="refresh" />
             Try again
           </button>
-        </div>
-      )}
+        )}
+        <a className="btn ghost" href="/support">
+          Get support
+        </a>
+      </div>
     </div>
   );
 }

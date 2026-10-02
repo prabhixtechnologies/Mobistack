@@ -10,6 +10,7 @@ import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { Modal } from "../ui/Modal";
 import { TextField } from "../ui/Field";
 import { Tabs, TabPanel } from "../ui/Tabs";
+import { TeamNav } from "../ui/TeamNav";
 import { PermissionGate } from "../ui/PermissionGate";
 import { useToast } from "../ui/Toast";
 import { Icon } from "../ui/navIcons";
@@ -229,8 +230,8 @@ export function AccessControlPage() {
   return (
     <div className="page">
       <PageHeader
-        kicker="Access control"
-        title="Who can do what"
+        kicker="Manage"
+        title="Team access"
         subtitle="Assign Admin to let someone approve paid join requests. Admins have People edit permission; managers do not."
         actions={
           <PermissionGate need="USER_WRITE">
@@ -241,6 +242,7 @@ export function AccessControlPage() {
           </PermissionGate>
         }
       />
+      <TeamNav />
 
       <Tabs
         tabs={[
