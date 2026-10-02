@@ -43,7 +43,7 @@ export function BrandFooter() {
         <nav className="brand-footer__links" aria-label="Legal and support">
           <Link to="/app">Get the app</Link>
           <a href="/app/android">Android</a>
-          <a href="/download/ios">iOS</a>
+          <Link to="/app/ios">iOS</Link>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
           <Link to="/refunds">Refunds</Link>

@@ -196,6 +196,10 @@ function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user
             <Route path="/commons/components/:id" element={<CommonsComponentPage />} />
             <Route path="/commons/standing" element={<CommonsStandingPage />} />
             <Route path="/commons/review" element={<CommonsReviewPage />} />
+            <Route path="/commons/devices" element={<Navigate to="/commons" replace />} />
+            <Route path="/commons/components" element={<Navigate to="/commons" replace />} />
+            <Route path="/devices" element={<Navigate to="/inventory" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/devices/:id" element={<DevicePage />} />
             <Route path="/sales" element={<SalesPage />} />
             <Route path="/repairs" element={<RepairsPage />} />

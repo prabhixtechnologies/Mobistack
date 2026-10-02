@@ -172,6 +172,13 @@ export interface Crumb {
   to?: string;
 }
 
+/** Intermediate URL segments that have no page of their own, and the page that lists them. */
+const CRUMB_TARGETS: Record<string, string> = {
+  "/commons/devices": "/commons",
+  "/commons/components": "/commons",
+  "/devices": "/inventory",
+};
+
 export function breadcrumbsFor(
   pathname: string,
   detailLabel?: string,
@@ -197,7 +204,7 @@ export function breadcrumbsFor(
     const label = looksLikeId
       ? (detailLabel ?? "Details")
       : (routeLabel(accumulated) ?? segment.charAt(0).toUpperCase() + segment.slice(1));
-    crumbs.push({ label, to: isLast ? undefined : accumulated });
+    crumbs.push({ label, to: isLast ? undefined : (CRUMB_TARGETS[accumulated] ?? accumulated) });
   });
 
   return crumbs;

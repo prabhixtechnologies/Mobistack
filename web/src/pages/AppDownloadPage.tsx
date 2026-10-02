@@ -23,7 +23,7 @@ const STORE_URL = ((import.meta.env.VITE_STORE_URL as string | undefined) || "ht
 
 function fileHref(kind: "android" | "ios", pkg?: PackageInfo): string {
   if (kind === "ios") {
-    return pkg?.url || "/download/ios";
+    return pkg?.available && pkg.url ? pkg.url : "/app/ios";
   }
   return pkg?.url || `${STORE_URL}/mobistack/android.apk`;
 }
@@ -147,9 +147,15 @@ function PlatformCard({
         </p>
       )}
       <p className="app-dl__actions">
-        <a className="btn" href={href} download={ios ? "MobiStack.ipa" : "MobiStack.apk"}>
-          Download {ios ? "iOS" : "Android"}
-        </a>
+        {ios && !pkg?.available ? (
+          <button className="btn" type="button" disabled>
+            iOS not published yet
+          </button>
+        ) : (
+          <a className="btn" href={href} download={ios ? "MobiStack.ipa" : "MobiStack.apk"}>
+            Download {ios ? "iOS" : "Android"}
+          </a>
+        )}
         <Link className="btn ghost" to={ios ? "/app/android" : "/app/ios"}>
           {ios ? "Android instead" : "iOS instead"}
         </Link>
@@ -175,9 +181,15 @@ function PackageCard({ kind, pkg }: { kind: "android" | "ios"; pkg?: PackageInfo
         <p className="muted">{ios ? "IPA not uploaded yet" : "APK not uploaded yet"}</p>
       )}
       <p className="app-dl__actions">
-        <a className="btn" href={href} download={ios ? "MobiStack.ipa" : "MobiStack.apk"}>
-          Download
-        </a>
+        {ios && !pkg?.available ? (
+          <button className="btn" type="button" disabled>
+            Not published yet
+          </button>
+        ) : (
+          <a className="btn" href={href} download={ios ? "MobiStack.ipa" : "MobiStack.apk"}>
+            Download
+          </a>
+        )}
         <Link className="btn ghost" to={ios ? "/app/ios" : "/app/android"}>
           Install notes
         </Link>

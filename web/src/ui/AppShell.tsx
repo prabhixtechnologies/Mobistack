@@ -378,7 +378,7 @@ export function AppShell() {
                     to={item.to}
                     end={item.end}
                     title={item.label}
-                    className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+                    className={({ isActive }) => `nav-link tint-${item.tint}${isActive ? " active" : ""}`}
                   >
                     <span className="nav-ico">
                       <Icon name={item.icon} />

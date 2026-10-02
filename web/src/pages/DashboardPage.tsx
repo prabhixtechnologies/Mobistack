@@ -6,6 +6,7 @@ import { api, money, qty } from "../lib/api";
 import { humanLabel } from "../lib/labels";
 import { openCommandPalette } from "../ui/GlobalSearch";
 import { ErrorState } from "../ui/EmptyState";
+import { Icon, type NavIconName } from "../ui/navIcons";
 import type { DashboardResponse, PageResponse, StockAlert } from "../lib/types";
 
 interface SaleRow {
@@ -255,29 +256,100 @@ function busyPreview(data: DashboardResponse): DashboardResponse {
   };
 }
 
+const CATALOG_TILES: { to: string; icon: NavIconName; title: string; body: string; tone: string }[] = [
+  {
+    to: "/commons",
+    icon: "globe",
+    title: "Shared fitment",
+    body: "Pick a phone and see every screen, battery and part the union says fits it.",
+    tone: "teal",
+  },
+  {
+    to: "/compatibility",
+    icon: "lock",
+    title: "Shop notes",
+    body: "Your own fitment notes. Other shops never see them.",
+    tone: "indigo",
+  },
+  {
+    to: "/commons/standing",
+    icon: "pulse",
+    title: "Contributor standing",
+    body: "What you have added to the shared catalog and how it was reviewed.",
+    tone: "ochre",
+  },
+];
+
+const FULL_PLAN: { icon: NavIconName; label: string }[] = [
+  { icon: "cart", label: "Sales and invoices" },
+  { icon: "wrench", label: "Repair bench" },
+  { icon: "box", label: "Inventory and stock alerts" },
+  { icon: "chart", label: "Reports" },
+];
+
 function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canBill: boolean }) {
   return (
-    <div className="page billing-page">
-      <section className="billing-hero">
-        <div>
-          <p className="page-kicker">{shop}</p>
-          <h1>{name ? `Welcome, ${name}` : "Home"}</h1>
-          <p>
-            Compatibility is on. Look up a phone and see the parts that fit it. Sales, repairs and
-            stock stay off until this shop is on Full Inventory Management.
-          </p>
+    <div className="page page--floor catalog-home">
+      <header className="floor-mast">
+        <div className="floor-mast__top">
+          <div className="floor-id">
+            <p className="floor-shop">{shop}</p>
+            <p className="floor-when">{todayLabel()}</p>
+          </div>
+          <div className="floor-mast__cmd">
+            <Link className="btn" to="/commons">
+              Browse catalog
+            </Link>
+          </div>
         </div>
-      </section>
-      <div className="row">
-        <Link className="btn" to="/commons">
-          Browse catalog
-        </Link>
-        {canBill && (
-          <Link className="btn ghost" to="/billing">
-            See Full Inventory Management
+        <div className="floor-mast__copy">
+          <p className="floor-greet">
+            {greeting()}, {name}.
+          </p>
+          <p className="floor-sit">Compatibility is on. Find the part that fits before the customer leaves.</p>
+        </div>
+        <button className="catalog-home__search" type="button" onClick={() => openCommandPalette()}>
+          <Icon name="search" />
+          <span>Search a phone, model code or part</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+      </header>
+
+      <div className="catalog-home__tiles">
+        {CATALOG_TILES.map((tile) => (
+          <Link key={tile.to} className={`catalog-tile catalog-tile--${tile.tone}`} to={tile.to}>
+            <span className="catalog-tile__icon" aria-hidden>
+              <Icon name={tile.icon} />
+            </span>
+            <strong>{tile.title}</strong>
+            <span>{tile.body}</span>
+            <em>Open →</em>
           </Link>
-        )}
+        ))}
       </div>
+
+      <section className="catalog-upgrade" aria-labelledby="catalog-upgrade-title">
+        <div>
+          <p className="catalog-upgrade__kicker">Full Inventory Management</p>
+          <h2 id="catalog-upgrade-title">Run the whole counter from here</h2>
+          <p>Sales, repairs and stock stay off on the Compatibility plan. Switching keeps your catalog and notes.</p>
+        </div>
+        <ul>
+          {FULL_PLAN.map((item) => (
+            <li key={item.label}>
+              <Icon name={item.icon} />
+              {item.label}
+            </li>
+          ))}
+        </ul>
+        {canBill ? (
+          <Link className="btn" to="/billing">
+            See plans
+          </Link>
+        ) : (
+          <p className="catalog-upgrade__ask">Ask the shop owner to switch plans.</p>
+        )}
+      </section>
     </div>
   );
 }

@@ -1161,7 +1161,409 @@ body {
 
 @media (min-width: 1200px) {
   :root {
-    --sidebar: 18.5rem;
+    --sidebar: 16.5rem;
+  }
+}
+
+/*
+ * Sidebar.
+ * The header already carries the MobiStack mark, so the rail starts with the shop.
+ */
+.sidebar {
+  padding: 16px 12px 12px;
+  border-right: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+  background: var(--surface);
+}
+
+.sidebar .sidebar-product {
+  display: none;
+}
+
+.sidebar .sidebar-workspace {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 12px;
+  border: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--px-sand-100) 70%, var(--surface));
+}
+
+.sidebar .sidebar-workspace__mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--px-ochre-600, var(--accent)), var(--px-teal-600));
+  color: var(--px-sand-50);
+  font-size: 16px;
+}
+
+.sidebar .sidebar-workspace strong {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.sidebar .sidebar-workspace span {
+  font-size: 12.5px;
+}
+
+.sidebar .nav-group {
+  align-content: start;
+  gap: 4px;
+  padding-right: 0;
+}
+
+.sidebar .nav-section {
+  gap: 2px;
+}
+
+.sidebar .nav-section__label {
+  margin-top: 14px;
+  padding: 0 10px 6px;
+  color: var(--ink-faint);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.sidebar .nav-section__label small {
+  display: none;
+}
+
+.sidebar .nav-link {
+  gap: 12px;
+  min-height: 42px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transform: none;
+}
+
+.sidebar .nav-link .nav-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--surface-muted) !important;
+  color: var(--ink-soft) !important;
+  transition: background var(--motion), color var(--motion);
+}
+
+.sidebar .nav-link .nav-ico svg {
+  width: 17px;
+  height: 17px;
+}
+
+.sidebar .tint-rose .nav-ico { background: var(--px-rose-100, var(--surface-muted)) !important; color: var(--px-rose-700, var(--ink)) !important; }
+.sidebar .tint-green .nav-ico { background: var(--px-green-100, var(--surface-muted)) !important; color: var(--px-green-700, var(--ink)) !important; }
+.sidebar .tint-amber .nav-ico { background: var(--px-ochre-100) !important; color: var(--px-ochre-800) !important; }
+.sidebar .tint-blue .nav-ico { background: var(--px-indigo-100) !important; color: var(--px-indigo-800) !important; }
+.sidebar .tint-violet .nav-ico { background: var(--px-violet-100, var(--surface-muted)) !important; color: var(--px-violet-700, var(--ink)) !important; }
+.sidebar .tint-cyan .nav-ico { background: var(--px-teal-100) !important; color: var(--px-teal-800) !important; }
+.sidebar .tint-orange .nav-ico { background: var(--px-ochre-100) !important; color: var(--px-ochre-900) !important; }
+.sidebar .tint-slate .nav-ico { background: var(--surface-muted) !important; color: var(--ink-soft) !important; }
+
+.sidebar .nav-link:hover {
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.sidebar .nav-link.active {
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
+  color: var(--accent-text);
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 28%, transparent);
+}
+
+.sidebar .nav-link.active .nav-ico {
+  background: var(--accent) !important;
+  color: var(--accent-ink) !important;
+}
+
+.sidebar .nav-link.active::before,
+.sidebar .nav-link.active::after {
+  display: none;
+}
+
+.sidebar .sidebar-foot {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+}
+
+.app-shell--collapsed .sidebar .sidebar-workspace {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 8px 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.app-shell--collapsed .sidebar .nav-link {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.app-shell--collapsed .sidebar .nav-section__label {
+  display: none;
+}
+
+.app-shell--collapsed .sidebar .nav-section + .nav-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in oklab, var(--line) 70%, transparent);
+}
+
+:root[data-theme="dark"] .sidebar .sidebar-workspace {
+  background: var(--surface-muted);
+}
+
+:root[data-theme="dark"] .sidebar .nav-link:not(.active) .nav-ico {
+  background: var(--surface-muted) !important;
+  color: var(--ink-soft) !important;
+}
+
+/* Catalog home: the Compatibility plan's front door. */
+.catalog-home .catalog-home__search {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 40rem);
+  min-height: 52px;
+  margin-top: 16px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in oklab, var(--px-sand-50) 26%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--px-sand-50) 12%, transparent);
+  color: var(--px-sand-50);
+  font: inherit;
+  font-size: 15.5px;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--motion), border-color var(--motion);
+}
+
+.catalog-home .catalog-home__search:hover {
+  border-color: color-mix(in oklab, var(--px-sand-50) 50%, transparent);
+  background: color-mix(in oklab, var(--px-sand-50) 18%, transparent);
+}
+
+.catalog-home .catalog-home__search:focus-visible {
+  outline: 2px solid var(--px-ochre-300);
+  outline-offset: 2px;
+}
+
+.catalog-home .catalog-home__search svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--px-ochre-300);
+}
+
+.catalog-home .catalog-home__search span {
+  flex: 1;
+  color: var(--px-sand-200);
+}
+
+.catalog-home .catalog-home__search kbd {
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--px-sand-50) 16%, transparent);
+  color: var(--px-sand-100);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.catalog-home__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.catalog-tile {
+  --tile: var(--px-teal-600);
+  --tile-soft: var(--px-teal-100);
+  --tile-ink: var(--px-teal-800);
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 190px;
+  padding: 20px;
+  border: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+  border-top: 4px solid var(--tile);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--px-elevation-2);
+  color: var(--ink);
+  transition: transform var(--motion), box-shadow var(--motion), border-color var(--motion);
+}
+
+.catalog-tile--indigo {
+  --tile: var(--px-indigo-500);
+  --tile-soft: var(--px-indigo-100);
+  --tile-ink: var(--px-indigo-800);
+}
+
+.catalog-tile--ochre {
+  --tile: var(--px-ochre-500);
+  --tile-soft: var(--px-ochre-100);
+  --tile-ink: var(--px-ochre-900);
+}
+
+.catalog-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--px-elevation-3);
+}
+
+.catalog-tile:focus-visible {
+  outline: 2px solid var(--tile);
+  outline-offset: 2px;
+}
+
+.catalog-tile__icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  background: var(--tile-soft);
+  color: var(--tile-ink);
+}
+
+.catalog-tile__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.catalog-tile strong {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.catalog-tile > span:not(.catalog-tile__icon) {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.catalog-tile em {
+  margin-top: auto;
+  color: var(--tile-ink);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+:root[data-theme="dark"] .catalog-tile em,
+:root[data-theme="dark"] .catalog-tile__icon {
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .catalog-tile__icon {
+  background: var(--surface-muted);
+}
+
+.catalog-upgrade {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  gap: 20px 32px;
+  align-items: center;
+  padding: 24px;
+  border: 1px solid color-mix(in oklab, var(--accent) 24%, var(--line));
+  border-radius: 18px;
+  background:
+    radial-gradient(22rem 12rem at 100% 100%, color-mix(in oklab, var(--px-teal-500) 14%, transparent), transparent 70%),
+    color-mix(in oklab, var(--accent) 6%, var(--surface));
+}
+
+.catalog-upgrade__kicker {
+  margin: 0 0 6px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.catalog-upgrade h2 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.catalog-upgrade p {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.catalog-upgrade ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-upgrade li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.catalog-upgrade li svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--accent-text);
+}
+
+.catalog-upgrade .btn {
+  min-height: 44px;
+  padding-inline: 22px;
+}
+
+.catalog-upgrade__ask {
+  font-weight: 600;
+}
+
+@media (max-width: 1100px) {
+  .catalog-upgrade {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-upgrade .btn {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 860px) {
+  .catalog-home__tiles {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-tile {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .catalog-upgrade ul {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-home .catalog-home__search kbd {
+    display: none;
   }
 }
 
