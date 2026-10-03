@@ -62,14 +62,16 @@ AND NOT EXISTS (
 
 -- Sub-brands are listed separately because that is how they are sold and how a shop asks for them.
 -- Redmi, Poco and iQOO are Xiaomi and Vivo companies; a counter still says "Redmi Note 12 folder".
-INSERT INTO catalog_brands (name)
-SELECT b.name
+INSERT INTO catalog_brands (group_id, name)
+SELECT '11111111-1111-4111-8111-111111111111', b.name
 FROM (VALUES
     ('Apple'), ('Samsung'), ('Xiaomi'), ('Redmi'), ('Poco'), ('Realme'), ('Oppo'), ('Vivo'),
     ('iQOO'), ('OnePlus'), ('Motorola'), ('Nothing'), ('Infinix'), ('Tecno'), ('Lava'), ('Nokia')
   ) AS b(name)
 WHERE NOT EXISTS (
-  SELECT 1 FROM catalog_brands x WHERE lower(x.name) = lower(b.name)
+  SELECT 1 FROM catalog_brands x
+  WHERE x.group_id = '11111111-1111-4111-8111-111111111111'
+    AND lower(x.name) = lower(b.name)
 );
 
 -- ---------------------------------------------------------------------------------------------
@@ -150,13 +152,16 @@ INSERT INTO seed_models VALUES
   ('Infinix',  'Infinix Hot 30',      NULL,         2023),
   ('Tecno',    'Tecno Spark 10',      NULL,         2023);
 
-INSERT INTO catalog_devices (brand_id, name, model_code, release_year)
-SELECT b.id, m.name, m.model_code, m.release_year
+INSERT INTO catalog_devices (group_id, brand_id, name, model_code, release_year)
+SELECT '11111111-1111-4111-8111-111111111111', b.id, m.name, m.model_code, m.release_year
 FROM seed_models m
-JOIN catalog_brands b ON lower(b.name) = lower(m.brand)
+JOIN catalog_brands b
+  ON b.group_id = '11111111-1111-4111-8111-111111111111'
+ AND lower(b.name) = lower(m.brand)
 WHERE NOT EXISTS (
   SELECT 1 FROM catalog_devices x
-  WHERE x.brand_id = b.id
+  WHERE x.group_id = '11111111-1111-4111-8111-111111111111'
+    AND x.brand_id = b.id
     AND lower(x.name) = lower(m.name)
     AND lower(COALESCE(x.variant, '')) = ''
 );
@@ -194,13 +199,15 @@ INSERT INTO seed_part_kinds VALUES
   ('POWER_VOLUME_FLEX', 'Power Volume Flex',
    'Side button flex cable.');
 
-INSERT INTO catalog_components (category_code, name, description)
-SELECT p.category_code, d.name || ' ' || p.suffix, p.description
+INSERT INTO catalog_components (group_id, category_code, name, description)
+SELECT '11111111-1111-4111-8111-111111111111', p.category_code, d.name || ' ' || p.suffix, p.description
 FROM catalog_devices d
 CROSS JOIN seed_part_kinds p
-WHERE NOT EXISTS (
+WHERE d.group_id = '11111111-1111-4111-8111-111111111111'
+  AND NOT EXISTS (
   SELECT 1 FROM catalog_components x
-  WHERE x.category_code = p.category_code
+  WHERE x.group_id = '11111111-1111-4111-8111-111111111111'
+    AND x.category_code = p.category_code
     AND lower(x.name) = lower(d.name || ' ' || p.suffix)
 );
 
@@ -211,9 +218,11 @@ SELECT '11111111-1111-4111-8111-111111111111', c.id, d.id, 'EXACT'
 FROM catalog_devices d
 CROSS JOIN seed_part_kinds p
 JOIN catalog_components c
-  ON c.category_code = p.category_code
+  ON c.group_id = '11111111-1111-4111-8111-111111111111'
+ AND c.category_code = p.category_code
  AND lower(c.name) = lower(d.name || ' ' || p.suffix)
-WHERE NOT EXISTS (
+WHERE d.group_id = '11111111-1111-4111-8111-111111111111'
+  AND NOT EXISTS (
   SELECT 1 FROM catalog_fitments f
   WHERE f.group_id = '11111111-1111-4111-8111-111111111111'
     AND f.component_id = c.id AND f.device_id = d.id
@@ -250,8 +259,12 @@ INSERT INTO catalog_fitments (group_id, component_id, device_id, fit_quality)
 SELECT '11111111-1111-4111-8111-111111111111', c.id, d.id, 'COMPATIBLE'
 FROM seed_cross s
 JOIN catalog_components c
-  ON c.category_code = s.category_code AND lower(c.name) = lower(s.component_name)
-JOIN catalog_devices d ON lower(d.name) = lower(s.device_name)
+  ON c.group_id = '11111111-1111-4111-8111-111111111111'
+ AND c.category_code = s.category_code
+ AND lower(c.name) = lower(s.component_name)
+JOIN catalog_devices d
+  ON d.group_id = '11111111-1111-4111-8111-111111111111'
+ AND lower(d.name) = lower(s.device_name)
 WHERE NOT EXISTS (
   SELECT 1 FROM catalog_fitments f
   WHERE f.group_id = '11111111-1111-4111-8111-111111111111'
