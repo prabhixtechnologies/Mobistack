@@ -24,6 +24,9 @@ export function CommonsDevicePage() {
   const fits = useResource<CommonsFit[]>(
     id && fitment.ready ? `/api/v1/mobistack/commons/devices/fits?deviceId=${id}&groupId=${fitment.selected ?? ""}` : null,
   );
+  const companions = useResource<{ id: string; categoryCode: string; name: string; members: { id: string; brandName: string; name: string }[] }[]>(
+    id && fitment.ready ? `/api/v1/mobistack/commons/devices/companions?deviceId=${id}` : null,
+  );
   const stock = useResource<CatalogStockRow[]>(
     id && canOpenStock ? `/api/v1/mobistack/inventory/catalog-links/devices/stock?catalogDeviceId=${id}` : null,
   );
@@ -102,6 +105,23 @@ export function CommonsDevicePage() {
         />
       </div>
       {error && <div className="error">{error}</div>}
+
+      {(companions.data ?? []).map((group) => (
+        <section className="card tight" key={group.id}>
+          <div style={{ padding: "16px 18px" }}>
+            <strong>{group.name}</strong>
+            <div className="faint">{group.categoryCode}</div>
+          </div>
+          {group.members.map((member) => (
+            <Link key={member.id} className="category-row" to={`/commons/devices/${member.id}`}>
+              <div>
+                <div style={{ fontWeight: 650 }}>{member.name}</div>
+                <div className="faint">{member.brandName}</div>
+              </div>
+            </Link>
+          ))}
+        </section>
+      ))}
 
       {canOpenStock && (
         <section className="card tight">

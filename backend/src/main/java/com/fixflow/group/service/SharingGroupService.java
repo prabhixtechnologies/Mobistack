@@ -37,7 +37,7 @@ public class SharingGroupService {
 
     public static final String GROUP_HEADER = "X-Fitment-Group";
 
-    public record GroupCard(UUID id, String name, GroupRole callerRole) {
+    public record GroupCard(UUID id, String name, GroupRole callerRole, String joinCode) {
     }
 
     public record MemberCard(String kind, UUID subjectId, String label, GroupRole role) {
@@ -55,7 +55,7 @@ public class SharingGroupService {
     public List<GroupCard> listVisible() {
         UserPrincipal caller = CurrentUser.require();
         return visible(caller).stream()
-                .map(group -> new GroupCard(group.getId(), group.getName(), roleOf(caller, group)))
+                .map(group -> new GroupCard(group.getId(), group.getName(), roleOf(caller, group), null))
                 .toList();
     }
 
@@ -80,7 +80,7 @@ public class SharingGroupService {
         group.setOwnerUserId(caller.getId());
         group.setJoinCode(freshJoinCode(trimmed));
         groups.save(group);
-        return new GroupCard(group.getId(), group.getName(), GroupRole.OWNER);
+        return new GroupCard(group.getId(), group.getName(), GroupRole.OWNER, group.getJoinCode());
     }
 
     /**

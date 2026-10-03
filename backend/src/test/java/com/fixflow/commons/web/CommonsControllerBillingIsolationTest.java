@@ -4,6 +4,7 @@ import com.fixflow.billing.service.BillingService;
 import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
+import com.fixflow.commons.service.EquivalenceCatalogService;
 import com.fixflow.group.service.SharingGroupService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
@@ -30,6 +32,8 @@ class CommonsControllerBillingIsolationTest {
     @Mock
     private ContributionService contributions;
     @Mock
+    private EquivalenceCatalogService equivalence;
+    @Mock
     private com.fixflow.shop.repository.ShopRepository shops;
     @Mock
     private SharingGroupService groups;
@@ -38,12 +42,14 @@ class CommonsControllerBillingIsolationTest {
 
     @Test
     void listingBrandsDoesNotConsultTheCompatibilityPlan() {
-        when(catalog.listBrands()).thenReturn(List.of(new CatalogBrand()));
+        UUID groupId = UUID.randomUUID();
+        when(groups.requireSelected()).thenReturn(groupId);
+        when(catalog.listBrands(groupId)).thenReturn(List.of(new CatalogBrand()));
 
-        CommonsController controller = new CommonsController(catalog, contributions, shops, groups);
+        CommonsController controller = new CommonsController(catalog, contributions, equivalence, shops, groups);
         assertThat(controller.brands()).hasSize(1);
 
-        verify(catalog).listBrands();
+        verify(catalog).listBrands(groupId);
         verifyNoInteractions(billingService);
         verify(shops, never()).count();
     }

@@ -5,6 +5,7 @@ export interface FitmentGroup {
   id: string;
   name: string;
   callerRole: "OWNER" | "ADMIN" | "MEMBER";
+  joinCode?: string | null;
 }
 
 export interface FitmentMember {
@@ -60,14 +61,15 @@ export function useFitmentGroups() {
     setSelected(id);
   }
 
-  async function create(name: string): Promise<void> {
+  async function create(name: string): Promise<string | null> {
     const created = await api<FitmentGroup>("/api/v1/mobistack/groups", {
       method: "POST",
       body: JSON.stringify({ name }),
     });
     setFitmentGroup(created.id);
     setSelected(created.id);
-    setGroups((current) => [...current.filter((group) => group.id !== created.id), created]);
+    setGroups((current) => [...current.filter((group) => group.id !== created.id), { ...created, joinCode: null }]);
+    return created.joinCode ?? null;
   }
 
   const current = groups.find((group) => group.id === selected) ?? null;

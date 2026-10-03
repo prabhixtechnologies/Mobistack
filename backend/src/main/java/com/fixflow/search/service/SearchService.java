@@ -14,6 +14,7 @@ import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
 import com.fixflow.commons.domain.CatalogEntities.CatalogComponent;
 import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
 import com.fixflow.commons.repository.CatalogBrandRepository;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.commons.repository.CatalogComponentRepository;
 import com.fixflow.commons.repository.CatalogDeviceRepository;
 import com.fixflow.config.FixFlowProperties;
@@ -61,6 +62,7 @@ public class SearchService {
     private final CatalogDeviceRepository catalogDevices;
     private final CatalogComponentRepository catalogComponents;
     private final CatalogBrandRepository catalogBrands;
+    private final SharingGroupService sharingGroups;
 
     @Transactional(readOnly = true)
     public GlobalSearchResponse search(UUID shopId, String rawQuery, PricingFlag flag) {
@@ -202,7 +204,11 @@ public class SearchService {
     }
 
     private List<CommonsSearchHit> searchCommonsDevices(String term) {
-        List<CatalogDevice> rows = catalogDevices.search(term, PageRequest.of(0, DEFAULT_DEVICE_LIMIT))
+        UUID groupId = sharingGroups.resolveSelected();
+        if (groupId == null) {
+            return List.of();
+        }
+        List<CatalogDevice> rows = catalogDevices.search(groupId, term, PageRequest.of(0, DEFAULT_DEVICE_LIMIT))
                 .getContent();
         if (rows.isEmpty()) {
             return List.of();
@@ -227,7 +233,11 @@ public class SearchService {
     }
 
     private List<CommonsSearchHit> searchCommonsComponents(String term) {
-        return catalogComponents.search(term, PageRequest.of(0, DEFAULT_PART_LIMIT))
+        UUID groupId = sharingGroups.resolveSelected();
+        if (groupId == null) {
+            return List.of();
+        }
+        return catalogComponents.search(groupId, term, PageRequest.of(0, DEFAULT_PART_LIMIT))
                 .getContent()
                 .stream()
                 .map(component -> new CommonsSearchHit(

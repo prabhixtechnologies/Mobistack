@@ -93,14 +93,18 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
             select v from ProductVariant v
             where v.shopId = :shopId and v.active
               and v.product.active
+              and v.onHandQty > 0
               and v.catalogComponentId in (
                   select f.componentId from CatalogFitment f
-                  where f.deviceId = :catalogDeviceId and f.disputed = false
+                  where f.groupId = :groupId
+                    and f.disputed = false
+                    and f.deviceId in :deviceIds
               )
             order by v.product.name, v.variantName
             """)
-    List<ProductVariant> findStockForCatalogDevice(@Param("shopId") UUID shopId,
-                                                   @Param("catalogDeviceId") UUID catalogDeviceId);
+    List<ProductVariant> findStockForCatalogDevices(@Param("shopId") UUID shopId,
+                                                    @Param("groupId") UUID groupId,
+                                                    @Param("deviceIds") java.util.Collection<UUID> deviceIds);
 
     List<ProductVariant> findByShopIdAndCatalogComponentId(UUID shopId, UUID catalogComponentId);
 

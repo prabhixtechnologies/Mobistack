@@ -5,6 +5,8 @@ import com.fixflow.catalog.repository.ProductVariantRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.commons.repository.CatalogComponentRepository;
+import com.fixflow.commons.service.EquivalenceCatalogService;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -40,6 +42,8 @@ public class ShopCatalogLinkController {
 
     private final ProductVariantRepository variants;
     private final CatalogComponentRepository components;
+    private final EquivalenceCatalogService equivalence;
+    private final SharingGroupService groups;
 
     /**
      * Points one of this shop's variants at a part in the shared catalog.
@@ -54,8 +58,8 @@ public class ShopCatalogLinkController {
         if (request == null || request.componentId() == null) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "Name the catalog component to link.");
         }
-        if (!components.existsById(request.componentId())) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "No such component in the shared catalog");
+        if (components.findByIdAndGroupId(request.componentId(), groups.requireSelected()).isEmpty()) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "No such component in this fitment group");
         }
 
         ProductVariant variant = requireOwnVariant(variantId);
@@ -84,7 +88,12 @@ public class ShopCatalogLinkController {
     @PreAuthorize(Authorize.INVENTORY_READ)
     @Transactional(readOnly = true)
     public List<StockView> stockFor(@RequestParam UUID catalogDeviceId) {
-        return variants.findStockForCatalogDevice(CurrentUser.shopId(), catalogDeviceId).stream()
+        UUID groupId = groups.requireSelected();
+        java.util.List<UUID> deviceIds = equivalence.siblingDeviceIds(groupId, catalogDeviceId);
+        if (deviceIds.isEmpty()) {
+            return List.of();
+        }
+        return variants.findStockForCatalogDevices(CurrentUser.shopId(), groupId, deviceIds).stream()
                 .map(StockView::of)
                 .toList();
     }

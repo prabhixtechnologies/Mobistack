@@ -8,17 +8,21 @@ import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
 import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
+import com.fixflow.commons.service.EquivalenceCatalogService;
 import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
 import com.fixflow.shop.repository.ShopRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -49,6 +53,7 @@ public class CommonsController {
 
     private final CommonsCatalogService catalog;
     private final ContributionService contributions;
+    private final EquivalenceCatalogService equivalence;
     private final ShopRepository shops;
     private final SharingGroupService groups;
 
@@ -66,9 +71,9 @@ public class CommonsController {
         UUID groupId = groups.resolveSelected();
         return new StatsView(
                 groupId == null ? shops.count() : groups.shopCount(groupId),
-                catalog.brandCount(),
-                catalog.deviceCount(),
-                catalog.componentCount(),
+                catalog.brandCount(groupId),
+                catalog.deviceCount(groupId),
+                catalog.componentCount(groupId),
                 catalog.fitmentCount(groupId),
                 groupId,
                 groups.nameOf(groupId));
@@ -77,7 +82,7 @@ public class CommonsController {
     @GetMapping("/brands")
     @PreAuthorize("isAuthenticated()")
     public List<BrandView> brands() {
-        return catalog.listBrands().stream().map(BrandView::of).toList();
+        return catalog.listBrands(groups.requireSelected()).stream().map(BrandView::of).toList();
     }
 
     @GetMapping("/devices")
@@ -86,10 +91,11 @@ public class CommonsController {
                                             @RequestParam(required = false) UUID brandId,
                                             @RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "20") int size) {
+        UUID groupId = groups.requireSelected();
         boolean blank = q == null || q.isBlank();
         var result = brandId != null && blank
-                ? catalog.devicesForBrand(brandId, page, size)
-                : blank ? catalog.listDevices(page, size) : catalog.searchDevices(q, page, size);
+                ? catalog.devicesForBrand(groupId, brandId, page, size)
+                : blank ? catalog.listDevices(groupId, page, size) : catalog.searchDevices(groupId, q, page, size);
         var names = catalog.brandNames(result.getContent().stream()
                 .map(CatalogDevice::getBrandId)
                 .distinct()
@@ -100,7 +106,7 @@ public class CommonsController {
     @GetMapping(value = "/devices", params = "deviceId")
     @PreAuthorize("isAuthenticated()")
     public DeviceView device(@RequestParam UUID deviceId) {
-        CatalogDevice device = catalog.requireDevice(deviceId);
+        CatalogDevice device = catalog.requireDevice(groups.requireSelected(), deviceId);
         var names = catalog.brandNames(List.of(device.getBrandId()));
         return DeviceView.of(device, names.get(device.getBrandId()));
     }
@@ -110,36 +116,92 @@ public class CommonsController {
     public PageResponse<ComponentView> components(@RequestParam(required = false) String q,
                                                   @RequestParam(defaultValue = "0") int page,
                                                   @RequestParam(defaultValue = "20") int size) {
+        UUID groupId = groups.requireSelected();
         var result = q == null || q.isBlank()
-                ? catalog.listComponents(page, size)
-                : catalog.searchComponents(q, page, size);
+                ? catalog.listComponents(groupId, page, size)
+                : catalog.searchComponents(groupId, q, page, size);
         return PageResponse.of(result, ComponentView::of);
     }
 
     @GetMapping(value = "/components", params = "componentId")
     @PreAuthorize("isAuthenticated()")
     public ComponentView component(@RequestParam UUID componentId) {
-        return ComponentView.of(catalog.requireComponent(componentId));
+        return ComponentView.of(catalog.requireComponent(groups.requireSelected(), componentId));
     }
 
     /** What fits this phone. The question the commons exists to answer. */
     @GetMapping("/devices/fits")
     @PreAuthorize("isAuthenticated()")
     public List<FitView> fits(@RequestParam UUID deviceId) {
-        List<FitView> answer = catalog.fitmentsForDevice(deviceId, groups.resolveSelected()).stream()
+        UUID groupId = groups.requireSelected();
+        List<FitView> answer = catalog.fitmentsForDevice(deviceId, groupId).stream()
                 .map(FitView::of)
                 .toList();
-        catalog.recordLookup(deviceId);
+        catalog.recordLookup(groupId, deviceId);
         return answer;
+    }
+
+    /** Compatibility groups in this fitment group that contain the model. */
+    @GetMapping("/devices/companions")
+    @PreAuthorize("isAuthenticated()")
+    public List<CompanionGroupView> companions(@RequestParam UUID deviceId) {
+        UUID groupId = groups.requireSelected();
+        return equivalence.groupsForDevice(groupId, deviceId).stream()
+                .map(group -> CompanionGroupView.of(group, equivalence.membersOf(groupId, group.getId()), catalog))
+                .toList();
     }
 
     /** What this part fits — the other direction, for someone holding stock. */
     @GetMapping("/components/devices")
     @PreAuthorize("isAuthenticated()")
     public List<DeviceView> devicesFor(@RequestParam UUID componentId) {
-        List<CatalogDevice> found = catalog.devicesForComponent(componentId, groups.resolveSelected());
+        List<CatalogDevice> found = catalog.devicesForComponent(componentId, groups.requireSelected());
         var names = catalog.brandNames(found.stream().map(CatalogDevice::getBrandId).distinct().toList());
         return found.stream().map(device -> DeviceView.of(device, names.get(device.getBrandId()))).toList();
+    }
+
+    @PostMapping("/brands")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public BrandView createBrand(@Valid @RequestBody NameRequest request) {
+        UUID groupId = managedGroup();
+        return BrandView.of(catalog.findOrCreateBrand(request.name(), CurrentUser.userId(), groupId));
+    }
+
+    @PostMapping("/devices")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public DeviceView createDevice(@Valid @RequestBody DeviceRequest request) {
+        UUID groupId = managedGroup();
+        CatalogDevice saved = catalog.addDevice(
+                request.brand(), request.name(), request.variant(), request.modelCode(),
+                request.releaseYear(), CurrentUser.userId(), groupId);
+        return DeviceView.of(saved, request.brand());
+    }
+
+    @PostMapping("/components")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public ComponentView createComponent(@Valid @RequestBody ComponentRequest request) {
+        UUID groupId = managedGroup();
+        return ComponentView.of(catalog.addComponent(
+                request.categoryCode(), request.name(), request.description(), Map.of(),
+                CurrentUser.userId(), groupId));
+    }
+
+    @PostMapping("/equivalence")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public CompanionGroupView createEquivalence(@Valid @RequestBody EquivalenceRequest request) {
+        UUID groupId = managedGroup();
+        var saved = equivalence.create(groupId, request.categoryCode(), request.name(), request.deviceIds(), CurrentUser.userId());
+        return CompanionGroupView.of(saved, equivalence.membersOf(groupId, saved.getId()), catalog);
+    }
+
+    private UUID managedGroup() {
+        UUID groupId = groups.requireSelected();
+        groups.requireManager(groupId);
+        return groupId;
     }
 
     // --- Contributing ------------------------------------------------------------------------------
@@ -222,6 +284,41 @@ public class CommonsController {
     }
 
     // --- Wire shapes -------------------------------------------------------------------------------
+
+    public record NameRequest(@NotBlank String name) {
+    }
+
+    public record DeviceRequest(@NotBlank String brand,
+                                @NotBlank String name,
+                                String variant,
+                                String modelCode,
+                                Integer releaseYear) {
+    }
+
+    public record ComponentRequest(@NotBlank String categoryCode,
+                                   @NotBlank String name,
+                                   String description) {
+    }
+
+    public record EquivalenceRequest(@NotBlank String categoryCode,
+                                     @NotBlank String name,
+                                     @NotNull List<UUID> deviceIds) {
+    }
+
+    public record CompanionMember(UUID id, String brandName, String name) {
+    }
+
+    public record CompanionGroupView(UUID id, String categoryCode, String name, List<CompanionMember> members) {
+        static CompanionGroupView of(com.fixflow.commons.domain.CatalogEntities.CatalogEquivalenceGroup group,
+                                     List<CatalogDevice> devices,
+                                     CommonsCatalogService catalog) {
+            var names = catalog.brandNames(devices.stream().map(CatalogDevice::getBrandId).distinct().toList());
+            return new CompanionGroupView(group.getId(), group.getCategoryCode(), group.getName(),
+                    devices.stream()
+                            .map(device -> new CompanionMember(device.getId(), names.get(device.getBrandId()), device.getName()))
+                            .toList());
+        }
+    }
 
     public record ContributionRequest(@NotNull Kind kind,
                                       UUID targetId,

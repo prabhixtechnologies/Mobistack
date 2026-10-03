@@ -60,14 +60,14 @@ class ContributionServiceTest {
                 Map.of("brand", "Xiaomi", "name", "Redmi Note 10"), null);
 
         assertThat(result.getStatus()).isEqualTo(Status.PENDING);
-        verify(catalog, never()).addDevice(any(), any(), any(), any(), any(), any());
+        verify(catalog, never()).addDevice(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void aTrustedContributorsDeviceAppliesImmediately() {
         CatalogDevice device = new CatalogDevice();
         device.setId(UUID.randomUUID());
-        when(catalog.addDevice(eq("Xiaomi"), eq("Redmi Note 10"), any(), any(), any(), eq(trusted)))
+        when(catalog.addDevice(eq("Xiaomi"), eq("Redmi Note 10"), any(), any(), any(), eq(trusted), isNull()))
                 .thenReturn(device);
 
         CatalogContribution result = service.submit(trusted, Kind.ADD_DEVICE, null,
@@ -83,9 +83,9 @@ class ContributionServiceTest {
         component.setId(UUID.randomUUID());
         CatalogDevice device = new CatalogDevice();
         device.setId(UUID.randomUUID());
-        when(catalog.addComponent(eq("DISPLAY_FOLDER"), eq("A12 panel"), any(), any(), eq(trusted)))
+        when(catalog.addComponent(eq("DISPLAY_FOLDER"), eq("A12 panel"), any(), any(), eq(trusted), isNull()))
                 .thenReturn(component);
-        when(catalog.findDeviceByName("Samsung", "Galaxy A12")).thenReturn(Optional.of(device));
+        when(catalog.findDeviceByName(isNull(), eq("Samsung"), eq("Galaxy A12"))).thenReturn(Optional.of(device));
 
         CatalogContribution result = service.submit(trusted, Kind.ADD_COMPONENT, null, Map.of(
                 "categoryCode", "DISPLAY_FOLDER",
@@ -101,8 +101,8 @@ class ContributionServiceTest {
     void aNamedPhoneThatIsNotInTheCatalogRefusesThePart() {
         CatalogComponent component = new CatalogComponent();
         component.setId(UUID.randomUUID());
-        when(catalog.addComponent(any(), any(), any(), any(), eq(trusted))).thenReturn(component);
-        when(catalog.findDeviceByName("Samsung", "Galaxy Missing")).thenReturn(Optional.empty());
+        when(catalog.addComponent(any(), any(), any(), any(), eq(trusted), isNull())).thenReturn(component);
+        when(catalog.findDeviceByName(isNull(), eq("Samsung"), eq("Galaxy Missing"))).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.submit(trusted, Kind.ADD_COMPONENT, null, Map.of(
                 "categoryCode", "DISPLAY_FOLDER",

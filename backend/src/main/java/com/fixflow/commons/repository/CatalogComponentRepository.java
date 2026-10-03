@@ -14,15 +14,25 @@ public interface CatalogComponentRepository extends JpaRepository<CatalogCompone
 
     @Query("""
             select c from CatalogComponent c
-            where c.categoryCode = :categoryCode and lower(c.name) = lower(:name)
+            where c.groupId = :groupId
+              and c.categoryCode = :categoryCode
+              and lower(c.name) = lower(:name)
             """)
-    Optional<CatalogComponent> findByIdentity(@Param("categoryCode") String categoryCode,
+    Optional<CatalogComponent> findByIdentity(@Param("groupId") UUID groupId,
+                                              @Param("categoryCode") String categoryCode,
                                               @Param("name") String name);
 
     @Query("""
             select c from CatalogComponent c
-            where lower(c.name) like lower(concat('%', :term, '%'))
+            where c.groupId = :groupId
+              and lower(c.name) like lower(concat('%', :term, '%'))
             order by c.name asc
             """)
-    Page<CatalogComponent> search(@Param("term") String term, Pageable pageable);
+    Page<CatalogComponent> search(@Param("groupId") UUID groupId, @Param("term") String term, Pageable pageable);
+
+    Page<CatalogComponent> findByGroupId(UUID groupId, Pageable pageable);
+
+    long countByGroupId(UUID groupId);
+
+    Optional<CatalogComponent> findByIdAndGroupId(UUID id, UUID groupId);
 }

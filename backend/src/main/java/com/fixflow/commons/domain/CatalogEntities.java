@@ -54,6 +54,9 @@ public final class CatalogEntities {
     @Table(name = "catalog_brands")
     public static class CatalogBrand extends AuditableEntity {
 
+        @Column(name = "group_id", nullable = false)
+        private UUID groupId;
+
         @Column(name = "name", nullable = false, length = 80)
         private String name;
 
@@ -66,6 +69,9 @@ public final class CatalogEntities {
     @Entity(name = "CatalogDevice")
     @Table(name = "catalog_devices")
     public static class CatalogDevice extends AuditableEntity {
+
+        @Column(name = "group_id", nullable = false)
+        private UUID groupId;
 
         @Column(name = "brand_id", nullable = false)
         private UUID brandId;
@@ -116,6 +122,9 @@ public final class CatalogEntities {
     @Entity(name = "CatalogComponent")
     @Table(name = "catalog_components")
     public static class CatalogComponent extends AuditableEntity {
+
+        @Column(name = "group_id", nullable = false)
+        private UUID groupId;
 
         /**
          * Matches {@code categories.code}, a stable string rather than one shop's category row id.
@@ -192,5 +201,41 @@ public final class CatalogEntities {
         public boolean isVerified() {
             return verifiedAt != null;
         }
+    }
+
+    /** Models in one fitment group that take the same kind of part. */
+    @Getter
+    @Setter
+    @Entity(name = "CatalogEquivalenceGroup")
+    @Table(name = "catalog_equivalence_groups")
+    public static class CatalogEquivalenceGroup extends AuditableEntity {
+
+        @Column(name = "group_id", nullable = false)
+        private UUID groupId;
+
+        @Column(name = "category_code", nullable = false, length = 64)
+        private String categoryCode;
+
+        @Column(name = "name", nullable = false, length = 160)
+        private String name;
+
+        @Column(name = "notes")
+        private String notes;
+    }
+
+    @Getter
+    @Setter
+    @Entity(name = "CatalogEquivalenceMember")
+    @Table(name = "catalog_equivalence_group_devices")
+    public static class CatalogEquivalenceMember extends BaseEntity {
+
+        @Column(name = "equivalence_group_id", nullable = false)
+        private UUID equivalenceGroupId;
+
+        @Column(name = "device_id", nullable = false)
+        private UUID deviceId;
+
+        @Column(name = "primary_device", nullable = false)
+        private boolean primaryDevice;
     }
 }

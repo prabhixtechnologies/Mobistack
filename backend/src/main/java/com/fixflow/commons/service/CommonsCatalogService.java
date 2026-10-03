@@ -55,67 +55,72 @@ public class CommonsCatalogService {
     // --- Reads -------------------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<CatalogBrand> listBrands() {
-        return brands.findAllByOrderByNameAsc();
+    public List<CatalogBrand> listBrands(UUID groupId) {
+        requireGroup(groupId);
+        return brands.findByGroupIdOrderByNameAsc(groupId);
     }
 
     @Transactional(readOnly = true)
-    public Page<CatalogDevice> searchDevices(String term, int page, int size) {
-        return devices.search(safeTerm(term), pageable(page, size));
+    public Page<CatalogDevice> searchDevices(UUID groupId, String term, int page, int size) {
+        requireGroup(groupId);
+        return devices.search(groupId, safeTerm(term), pageable(page, size));
     }
 
     /** Browse without a query: most-looked-up models first. */
     @Transactional(readOnly = true)
-    public Page<CatalogDevice> listDevices(int page, int size) {
-        return devices.findAll(PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+    public Page<CatalogDevice> listDevices(UUID groupId, int page, int size) {
+        requireGroup(groupId);
+        return devices.findByGroupId(groupId, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
                 Sort.by(Sort.Direction.DESC, "lookupCount").and(Sort.by("name"))));
     }
 
     @Transactional(readOnly = true)
-    public Page<CatalogComponent> listComponents(int page, int size) {
-        return components.findAll(PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+    public Page<CatalogComponent> listComponents(UUID groupId, int page, int size) {
+        requireGroup(groupId);
+        return components.findByGroupId(groupId, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
                 Sort.by("name")));
     }
 
     @Transactional(readOnly = true)
-    public Page<CatalogDevice> devicesForBrand(UUID brandId, int page, int size) {
-        if (!brands.existsById(brandId)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "No such brand");
-        }
-        return devices.findByBrandIdOrderByNameAsc(brandId, pageable(page, size));
+    public Page<CatalogDevice> devicesForBrand(UUID groupId, UUID brandId, int page, int size) {
+        CatalogBrand brand = requireBrand(groupId, brandId);
+        return devices.findByGroupIdAndBrandIdOrderByNameAsc(brand.getGroupId(), brand.getId(), pageable(page, size));
     }
 
     @Transactional(readOnly = true)
-    public CatalogDevice requireDevice(UUID deviceId) {
-        return devices.findById(deviceId)
+    public CatalogDevice requireDevice(UUID groupId, UUID deviceId) {
+        requireGroup(groupId);
+        return devices.findByIdAndGroupId(deviceId, groupId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such device"));
     }
 
     @Transactional(readOnly = true)
-    public CatalogComponent requireComponent(UUID componentId) {
-        return components.findById(componentId)
+    public CatalogComponent requireComponent(UUID groupId, UUID componentId) {
+        requireGroup(groupId);
+        return components.findByIdAndGroupId(componentId, groupId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such component"));
     }
 
     @Transactional(readOnly = true)
-    public List<CatalogDevice> popularDevices(int limit) {
-        return devices.findAll(PageRequest.of(0, Math.min(Math.max(limit, 1), MAX_PAGE_SIZE),
+    public List<CatalogDevice> popularDevices(UUID groupId, int limit) {
+        requireGroup(groupId);
+        return devices.findByGroupId(groupId, PageRequest.of(0, Math.min(Math.max(limit, 1), MAX_PAGE_SIZE),
                 Sort.by("lookupCount").descending().and(Sort.by("name")))).getContent();
     }
 
     @Transactional(readOnly = true)
-    public long brandCount() {
-        return brands.count();
+    public long brandCount(UUID groupId) {
+        return groupId == null ? 0 : brands.countByGroupId(groupId);
     }
 
     @Transactional(readOnly = true)
-    public long deviceCount() {
-        return devices.count();
+    public long deviceCount(UUID groupId) {
+        return groupId == null ? 0 : devices.countByGroupId(groupId);
     }
 
     @Transactional(readOnly = true)
-    public long componentCount() {
-        return components.count();
+    public long componentCount(UUID groupId) {
+        return groupId == null ? 0 : components.countByGroupId(groupId);
     }
 
     @Transactional(readOnly = true)
@@ -141,8 +146,9 @@ public class CommonsCatalogService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CatalogComponent> searchComponents(String term, int page, int size) {
-        return components.search(safeTerm(term), pageable(page, size));
+    public Page<CatalogComponent> searchComponents(UUID groupId, String term, int page, int size) {
+        requireGroup(groupId);
+        return components.search(groupId, safeTerm(term), pageable(page, size));
     }
 
     /**
@@ -157,8 +163,7 @@ public class CommonsCatalogService {
         if (groupId == null) {
             return List.of();
         }
-        CatalogDevice device = devices.findById(deviceId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such device"));
+        CatalogDevice device = requireDevice(groupId, deviceId);
 
         List<CatalogFitment> edges = fitments.findForDevice(groupId, device.getId());
         Map<UUID, CatalogComponent> byId = components
@@ -176,9 +181,7 @@ public class CommonsCatalogService {
         if (groupId == null) {
             return List.of();
         }
-        if (!components.existsById(componentId)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "No such component");
-        }
+        requireComponent(groupId, componentId);
         List<UUID> deviceIds = fitments.findForComponent(groupId, componentId).stream()
                 .map(CatalogFitment::getDeviceId)
                 .toList();
@@ -203,8 +206,8 @@ public class CommonsCatalogService {
      * concurrent lookups incrementing the same row is not worth a lock.
      */
     @Transactional
-    public void recordLookup(UUID deviceId) {
-        devices.findById(deviceId).ifPresent(device -> {
+    public void recordLookup(UUID groupId, UUID deviceId) {
+        devices.findByIdAndGroupId(deviceId, groupId).ifPresent(device -> {
             device.setLookupCount(device.getLookupCount() + 1);
             devices.save(device);
         });
@@ -213,10 +216,12 @@ public class CommonsCatalogService {
     // --- Writes, called only after ContributionService has decided they are allowed ----------------
 
     @Transactional
-    public CatalogBrand findOrCreateBrand(String name, UUID actorId) {
+    public CatalogBrand findOrCreateBrand(String name, UUID actorId, UUID groupId) {
+        requireGroup(groupId);
         String trimmed = required(name, "A brand needs a name");
-        return brands.findByName(trimmed).orElseGet(() -> {
+        return brands.findByName(groupId, trimmed).orElseGet(() -> {
             CatalogBrand brand = new CatalogBrand();
+            brand.setGroupId(groupId);
             brand.setName(trimmed);
             brand.setCreatedBy(actorId);
             return brands.save(brand);
@@ -229,16 +234,18 @@ public class CommonsCatalogService {
                                    String variant,
                                    String modelCode,
                                    Integer releaseYear,
-                                   UUID actorId) {
-        CatalogBrand brand = findOrCreateBrand(brandName, actorId);
+                                   UUID actorId,
+                                   UUID groupId) {
+        CatalogBrand brand = findOrCreateBrand(brandName, actorId, groupId);
         String trimmedName = required(name, "A device needs a name");
         String trimmedVariant = blankToNull(variant);
 
         // Returns the existing row rather than failing. Two people adding the same phone on the same
         // day is the normal case in a commons, and a conflict error would teach them to stop trying.
-        return devices.findByIdentity(brand.getId(), trimmedName, trimmedVariant)
+        return devices.findByIdentity(groupId, brand.getId(), trimmedName, trimmedVariant)
                 .orElseGet(() -> {
                     CatalogDevice device = new CatalogDevice();
+                    device.setGroupId(groupId);
                     device.setBrandId(brand.getId());
                     device.setName(trimmedName);
                     device.setVariant(trimmedVariant);
@@ -253,12 +260,12 @@ public class CommonsCatalogService {
      * The phone a fitment names, matched the same way a duplicate device is refused.
      */
     @Transactional(readOnly = true)
-    public Optional<CatalogDevice> findDeviceByName(String brandName, String name) {
-        if (brandName == null || brandName.isBlank() || name == null || name.isBlank()) {
+    public Optional<CatalogDevice> findDeviceByName(UUID groupId, String brandName, String name) {
+        if (groupId == null || brandName == null || brandName.isBlank() || name == null || name.isBlank()) {
             return Optional.empty();
         }
-        return brands.findByName(brandName.trim())
-                .flatMap(brand -> devices.findByIdentity(brand.getId(), name.trim(), null));
+        return brands.findByName(groupId, brandName.trim())
+                .flatMap(brand -> devices.findByIdentity(groupId, brand.getId(), name.trim(), null));
     }
 
     @Transactional
@@ -266,12 +273,15 @@ public class CommonsCatalogService {
                                          String name,
                                          String description,
                                          Map<String, Object> attributes,
-                                         UUID actorId) {
+                                         UUID actorId,
+                                         UUID groupId) {
+        requireGroup(groupId);
         String code = required(categoryCode, "A component needs a category").toUpperCase();
         String trimmedName = required(name, "A component needs a name");
 
-        return components.findByIdentity(code, trimmedName).orElseGet(() -> {
+        return components.findByIdentity(groupId, code, trimmedName).orElseGet(() -> {
             CatalogComponent component = new CatalogComponent();
+            component.setGroupId(groupId);
             component.setCategoryCode(code);
             component.setName(trimmedName);
             component.setDescription(blankToNull(description));
@@ -290,12 +300,8 @@ public class CommonsCatalogService {
         if (groupId == null) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "Choose a fitment group.");
         }
-        if (!components.existsById(componentId)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "No such component");
-        }
-        if (!devices.existsById(deviceId)) {
-            throw new ApiException(ErrorCode.NOT_FOUND, "No such device");
-        }
+        requireComponent(groupId, componentId);
+        requireDevice(groupId, deviceId);
 
         return fitments.findByGroupIdAndComponentIdAndDeviceId(groupId, componentId, deviceId)
                 .map(existing -> {
@@ -369,6 +375,22 @@ public class CommonsCatalogService {
                     "Type at least two characters to search.");
         }
         return term.trim();
+    }
+
+    private CatalogBrand requireBrand(UUID groupId, UUID brandId) {
+        requireGroup(groupId);
+        CatalogBrand brand = brands.findById(brandId)
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such brand"));
+        if (!groupId.equals(brand.getGroupId())) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "No such brand");
+        }
+        return brand;
+    }
+
+    private static void requireGroup(UUID groupId) {
+        if (groupId == null) {
+            throw new ApiException(ErrorCode.VALIDATION_FAILED, "Choose a fitment group.");
+        }
     }
 
     private static String required(String value, String message) {

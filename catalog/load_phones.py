@@ -3,8 +3,9 @@
 Uses MOBISTACK_DATABASE_URL, for example:
   postgresql://mobistack:secret@host:5432/mobistack?sslmode=require
 
-Idempotent: a phone that already exists for that brand is skipped.
-Does not invent spare-part links. Same size is not a fitment.
+Idempotent: a phone that already exists for that brand in the original Fitment
+catalog group is skipped. The file is that group's private list. This script
+does not copy it into any other group, and it does not invent spare-part links.
 """
 import json
 import os
@@ -12,6 +13,7 @@ import sys
 from pathlib import Path
 
 PHONES = Path(__file__).with_name("phones.json")
+DEFAULT_GROUP = "11111111-1111-4111-8111-111111111111"
 
 
 def main() -> None:
@@ -38,15 +40,19 @@ def main() -> None:
                 seen_brands.add(name.casefold())
                 cur.execute(
                     """
-                    INSERT INTO catalog_brands (name)
-                    SELECT %s
+                    INSERT INTO catalog_brands (group_id, name)
+                    SELECT %s, %s
                     WHERE NOT EXISTS (
-                      SELECT 1 FROM catalog_brands WHERE lower(name) = lower(%s)
+                      SELECT 1 FROM catalog_brands
+                      WHERE group_id = %s AND lower(name) = lower(%s)
                     )
                     """,
-                    (name, name),
+                    (DEFAULT_GROUP, name, DEFAULT_GROUP, name),
                 )
-            cur.execute("SELECT id::text, name FROM catalog_brands")
+            cur.execute(
+                "SELECT id::text, name FROM catalog_brands WHERE group_id = %s",
+                (DEFAULT_GROUP,),
+            )
             for brand_id, name in cur.fetchall():
                 brands.setdefault(name.casefold(), brand_id)
             already = 0
@@ -63,14 +69,14 @@ def main() -> None:
                 year = row.get("y") if isinstance(row.get("y"), int) else None
                 cur.execute(
                     """
-                    INSERT INTO catalog_devices (brand_id, name, model_code, release_year)
-                    SELECT %s, %s, %s, %s
+                    INSERT INTO catalog_devices (group_id, brand_id, name, model_code, release_year)
+                    SELECT %s, %s, %s, %s, %s
                     WHERE NOT EXISTS (
                       SELECT 1 FROM catalog_devices
-                      WHERE brand_id = %s AND lower(name) = lower(%s)
+                      WHERE group_id = %s AND brand_id = %s AND lower(name) = lower(%s)
                     )
                     """,
-                    (brand_id, phone[:120], code, year, brand_id, phone),
+                    (DEFAULT_GROUP, brand_id, phone[:120], code, year, DEFAULT_GROUP, brand_id, phone),
                 )
                 if cur.rowcount:
                     inserted += 1

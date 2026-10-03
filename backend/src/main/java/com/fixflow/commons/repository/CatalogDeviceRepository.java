@@ -21,11 +21,13 @@ public interface CatalogDeviceRepository extends JpaRepository<CatalogDevice, UU
      */
     @Query("""
             select d from CatalogDevice d
-            where d.brandId = :brandId
+            where d.groupId = :groupId
+              and d.brandId = :brandId
               and lower(d.name) = lower(:name)
               and lower(coalesce(d.variant, '')) = lower(coalesce(:variant, ''))
             """)
-    Optional<CatalogDevice> findByIdentity(@Param("brandId") UUID brandId,
+    Optional<CatalogDevice> findByIdentity(@Param("groupId") UUID groupId,
+                                           @Param("brandId") UUID brandId,
                                            @Param("name") String name,
                                            @Param("variant") String variant);
 
@@ -38,13 +40,20 @@ public interface CatalogDeviceRepository extends JpaRepository<CatalogDevice, UU
      */
     @Query("""
             select distinct d from CatalogDevice d
-            where lower(d.name) like lower(concat('%', :term, '%'))
+            where d.groupId = :groupId
+              and (lower(d.name) like lower(concat('%', :term, '%'))
                or exists (select 1 from CatalogDeviceAlias a
                           where a.deviceId = d.id
-                            and lower(a.alias) like lower(concat('%', :term, '%')))
+                            and lower(a.alias) like lower(concat('%', :term, '%'))))
             order by d.lookupCount desc, d.name asc
             """)
-    Page<CatalogDevice> search(@Param("term") String term, Pageable pageable);
+    Page<CatalogDevice> search(@Param("groupId") UUID groupId, @Param("term") String term, Pageable pageable);
 
-    Page<CatalogDevice> findByBrandIdOrderByNameAsc(UUID brandId, Pageable pageable);
+    Page<CatalogDevice> findByGroupIdAndBrandIdOrderByNameAsc(UUID groupId, UUID brandId, Pageable pageable);
+
+    Page<CatalogDevice> findByGroupId(UUID groupId, Pageable pageable);
+
+    long countByGroupId(UUID groupId);
+
+    Optional<CatalogDevice> findByIdAndGroupId(UUID id, UUID groupId);
 }

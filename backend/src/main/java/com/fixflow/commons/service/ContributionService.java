@@ -206,7 +206,8 @@ public class ContributionService {
                         optional(contribution, "variant"),
                         optional(contribution, "modelCode"),
                         integer(contribution, "releaseYear"),
-                        authorId);
+                        authorId,
+                        contribution.getGroupId());
                 yield device.getId();
             }
             case ADD_COMPONENT -> {
@@ -215,7 +216,8 @@ public class ContributionService {
                         text(contribution, "name"),
                         optional(contribution, "description"),
                         attributes(contribution),
-                        authorId);
+                        authorId,
+                        contribution.getGroupId());
                 attachFits(contribution, component.getId(), authorId);
                 yield component.getId();
             }
@@ -340,7 +342,7 @@ public class ContributionService {
             String brand = requiredText(map.get("brand"), "brand");
             String name = requiredText(map.get("name"), "name");
             Object fit = map.get("fit");
-            CatalogDevice device = catalog.findDeviceByName(brand, name)
+            CatalogDevice device = catalog.findDeviceByName(contribution.getGroupId(), brand, name)
                     .orElseThrow(() -> new ApiException(ErrorCode.VALIDATION_FAILED,
                             "No phone named " + brand + " " + name + " in the catalog."));
             catalog.addFitment(componentId, device.getId(),

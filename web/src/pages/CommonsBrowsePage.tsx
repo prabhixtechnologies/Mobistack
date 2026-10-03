@@ -8,7 +8,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
-import { useFitmentGroups } from "../lib/groups";
+import { canManageGroup, useFitmentGroups } from "../lib/groups";
 import { Icon } from "../ui/navIcons";
 import { brandMark, brandTone } from "../lib/brandTone";
 import type { CommonsBrand, CommonsComponent, CommonsDevice, CommonsStats } from "../lib/types";
@@ -28,7 +28,9 @@ export function CommonsBrowsePage() {
   const stats = useResource<CommonsStats>(
     fitment.ready ? `/api/v1/mobistack/commons/stats?groupId=${fitment.selected ?? ""}` : null,
   );
-  const brands = useResource<CommonsBrand[]>("/api/v1/mobistack/commons/brands");
+  const brands = useResource<CommonsBrand[]>(
+    fitment.ready ? `/api/v1/mobistack/commons/brands?groupId=${fitment.selected ?? ""}` : null,
+  );
 
   const devicePath = useMemo(() => {
     const params = new URLSearchParams();
@@ -93,6 +95,17 @@ export function CommonsBrowsePage() {
         create={fitment.create}
         current={fitment.current}
       />
+
+      {canManageGroup(fitment.current) && (
+        <CatalogAdmin
+          onCreated={() => {
+            brands.reload();
+            devices.reload();
+            components.reload();
+            stats.reload();
+          }}
+        />
+      )}
 
       <div className="method-tabs" role="tablist" aria-label="Catalog sections">
         {(["devices", "components", "contribute"] as const).map((id) => (
@@ -334,5 +347,85 @@ function ContributeForm({ brands }: { brands: CommonsBrand[] }) {
         </button>
       </div>
     </form>
+  );
+}
+
+function CatalogAdmin({ onCreated }: { onCreated: () => void }) {
+  const [brand, setBrand] = useState("");
+  const [model, setModel] = useState("");
+  const [category, setCategory] = useState("TEMPERED_GLASS");
+  const [part, setPart] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const models = usePagedList<CommonsDevice>("/api/v1/mobistack/commons/devices", { size: 40 });
+
+  async function send(path: string, body: unknown) {
+    setError(null);
+    setMessage(null);
+    await api(path, { method: "POST", body: JSON.stringify(body) });
+    setMessage("Saved in this fitment group.");
+    onCreated();
+    models.reload();
+  }
+
+  return (
+    <section className="card" style={{ display: "grid", gap: 16, padding: 18 }}>
+      <div>
+        <strong>Build this group's list</strong>
+        <p className="faint">Brands, models and parts stay in this group. They are not copied from another group.</p>
+      </div>
+      <form
+        className="spread"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send("/api/v1/mobistack/commons/devices", { brand, name: model }).catch((cause: Error) => setError(cause.message));
+        }}
+      >
+        <TextField label="Brand" value={brand} onChange={(event) => setBrand(event.target.value)} required />
+        <TextField label="Model" value={model} onChange={(event) => setModel(event.target.value)} required />
+        <button className="btn" type="submit">Add model</button>
+      </form>
+      <form
+        className="spread"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send("/api/v1/mobistack/commons/components", { categoryCode: category, name: part }).catch((cause: Error) => setError(cause.message));
+        }}
+      >
+        <TextField label="Part type" value={category} onChange={(event) => setCategory(event.target.value)} required />
+        <TextField label="Part name" value={part} onChange={(event) => setPart(event.target.value)} required />
+        <button className="btn" type="submit">Add part</button>
+      </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send("/api/v1/mobistack/commons/equivalence", {
+            categoryCode: category,
+            name: groupName,
+            deviceIds: picked,
+          }).catch((cause: Error) => setError(cause.message));
+        }}
+      >
+        <TextField label="Compatibility name" value={groupName} onChange={(event) => setGroupName(event.target.value)} required />
+        <label className="form-field">
+          <span className="form-field__label">Models that share {category}</span>
+          <select
+            className="select"
+            multiple
+            value={picked}
+            onChange={(event) => setPicked(Array.from(event.target.selectedOptions, (option) => option.value))}
+          >
+            {models.rows.map((row) => (
+              <option key={row.id} value={row.id}>{row.brandName} {row.name}</option>
+            ))}
+          </select>
+        </label>
+        <button className="btn" type="submit" disabled={picked.length < 2}>Save compatibility</button>
+      </form>
+      {error && <div className="error">{error}</div>}
+      {message && <p className="faint">{message}</p>}
+    </section>
   );
 }

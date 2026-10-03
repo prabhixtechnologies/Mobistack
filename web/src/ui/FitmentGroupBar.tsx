@@ -19,7 +19,7 @@ export function FitmentGroupBar({
   groups: FitmentGroup[];
   selected: string | null;
   choose: (id: string) => void;
-  create: (name: string) => Promise<void>;
+  create: (name: string) => Promise<string | null>;
   current: FitmentGroup | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -27,15 +27,17 @@ export function FitmentGroupBar({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [issuedCode, setIssuedCode] = useState<string | null>(null);
 
   async function onCreate(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await create(name.trim());
+      const code = await create(name.trim());
       setName("");
       setCreating(false);
+      setIssuedCode(code);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create the group");
     } finally {
@@ -84,6 +86,14 @@ export function FitmentGroupBar({
         <button className="btn ghost" type="button" onClick={() => setCreating(true)}>
           New group
         </button>
+      )}
+      {issuedCode && (
+        <p className="faint">
+          Join ID <strong>{issuedCode}</strong>. Forward it to anyone who should see this group's phones and parts.
+          <button className="btn ghost sm" type="button" onClick={() => void navigator.clipboard.writeText(issuedCode)}>
+            Copy
+          </button>
+        </p>
       )}
       {current && (
         <MembersDialog

@@ -18,8 +18,13 @@ import java.util.UUID;
  */
 public interface CatalogBrandRepository extends JpaRepository<CatalogBrand, UUID> {
 
-    @Query("select b from CatalogBrand b where lower(b.name) = lower(:name)")
-    Optional<CatalogBrand> findByName(@Param("name") String name);
+    @Query("""
+            select b from CatalogBrand b
+            where b.groupId = :groupId and lower(b.name) = lower(:name)
+            """)
+    Optional<CatalogBrand> findByName(@Param("groupId") UUID groupId, @Param("name") String name);
 
-    List<CatalogBrand> findAllByOrderByNameAsc();
+    List<CatalogBrand> findByGroupIdOrderByNameAsc(UUID groupId);
+
+    long countByGroupId(UUID groupId);
 }

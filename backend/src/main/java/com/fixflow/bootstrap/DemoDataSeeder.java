@@ -244,10 +244,10 @@ public class DemoDataSeeder implements ApplicationRunner {
         );
         for (Model model : models) {
             var device = commonsCatalog.addDevice(model.brand(), model.name(), null, model.code(),
-                    model.year(), actorId);
+                    model.year(), actorId, groupId);
             for (Kind kind : kinds) {
                 var component = commonsCatalog.addComponent(kind.code(),
-                        model.name() + " " + kind.suffix(), kind.description(), Map.of(), actorId);
+                        model.name() + " " + kind.suffix(), kind.description(), Map.of(), actorId, groupId);
                 commonsCatalog.addFitment(component.getId(), device.getId(), FitQuality.EXACT, actorId, groupId);
             }
         }
@@ -261,8 +261,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                 new Cross("iPhone 12 Display Folder", "DISPLAY_FOLDER", "iPhone 12 Pro"),
                 new Cross("Redmi Note 10 Display Folder", "DISPLAY_FOLDER", "Redmi Note 10S")
         )) {
-            var component = catalogComponents.findByIdentity(row.category(), row.component()).orElse(null);
-            var device = catalogDevices.search(row.device(), org.springframework.data.domain.PageRequest.of(0, 1))
+            var component = catalogComponents.findByIdentity(groupId, row.category(), row.component()).orElse(null);
+            var device = catalogDevices.search(groupId, row.device(), org.springframework.data.domain.PageRequest.of(0, 1))
                     .getContent().stream()
                     .filter(item -> item.getName().equalsIgnoreCase(row.device()))
                     .findFirst()
@@ -380,7 +380,8 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private UUID catalogPart(String categoryCode, String name) {
-        return catalogComponents.findByIdentity(categoryCode, name).map(CatalogComponent::getId).orElse(null);
+        return catalogComponents.findByIdentity(com.fixflow.group.domain.SharingGroup.DEFAULT_ID, categoryCode, name)
+                .map(CatalogComponent::getId).orElse(null);
     }
 
     // -----------------------------------------------------------------
