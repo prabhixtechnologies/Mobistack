@@ -5,8 +5,9 @@ import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
-import { TextField } from "../ui/Field";
+import { SearchField, TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import { Panel } from "../ui/Panel";
 import type { RowAction } from "../ui/RowActions";
 import { useRowVerbs, verbs } from "../ui/rowVerbs";
 
@@ -83,6 +84,7 @@ export function SuppliersPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="truck"
         kicker="Inventory"
         title="Suppliers"
         subtitle="Who you buy glass and boards from. Purchases post against these names."
@@ -90,26 +92,32 @@ export function SuppliersPage() {
       {create.error && <div className="error">{create.error}</div>}
 
       {canWrite && (
-        <form className="card row" onSubmit={submit}>
-          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="organization" />
-          <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
-          <button className="btn" disabled={create.busy}>
-            {create.busy ? "Saving…" : "Add"}
-          </button>
-        </form>
+        <Panel icon="plus" title="Add a supplier" hint="The wholesaler or market stall you buy cartons from.">
+          <form className="composer" onSubmit={submit}>
+            <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="organization" placeholder="Nehru Place Mobiles" />
+            <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" inputMode="tel" />
+            <button className="btn" disabled={create.busy || !name.trim()}>
+              {create.busy ? "Saving…" : "Add supplier"}
+            </button>
+          </form>
+        </Panel>
       )}
 
-      <div className="card row">
-        <TextField
-          label="Search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Name or phone…"
-          autoComplete="off"
-        />
-      </div>
-
-      <div className="card tight">
+      <Panel
+        icon="truck"
+        title="All suppliers"
+        count={suppliers.total > 0 ? suppliers.total : undefined}
+        flush
+        tools={
+          <SearchField
+            label="Search suppliers"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Name or phone"
+            autoComplete="off"
+          />
+        }
+      >
         <DataTable
           columns={columns}
           rows={suppliers.loading && suppliers.rows.length === 0 ? undefined : suppliers.rows}
@@ -135,7 +143,7 @@ export function SuppliersPage() {
             noun: "suppliers",
           }}
         />
-      </div>
+      </Panel>
     </div>
   );
 }

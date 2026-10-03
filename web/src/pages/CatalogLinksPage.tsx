@@ -73,6 +73,7 @@ export function CatalogLinksPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="link"
         kicker={<Link to="/inventory">Inventory</Link>}
         title="Link to catalog part"
         subtitle="Point a shelf SKU at the shared Fitment Catalog. Stock then shows on the phone it fits."

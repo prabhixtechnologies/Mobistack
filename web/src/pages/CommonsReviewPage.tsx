@@ -41,6 +41,7 @@ export function CommonsReviewPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="check"
         kicker={<Link to="/commons">Fitment Catalog</Link>}
         title="Catalog review"
         subtitle="Granted by Prabhix. This queue changes what every shop reads."

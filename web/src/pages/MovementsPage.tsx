@@ -2,6 +2,8 @@ import { qty } from "../lib/api";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
+import { Panel } from "../ui/Panel";
+import { humanLabel } from "../lib/labels";
 import type { RowAction } from "../ui/RowActions";
 import { useRowVerbs, verbs } from "../ui/rowVerbs";
 import type { InventoryTransaction } from "../lib/types";
@@ -37,14 +39,23 @@ export function MovementsPage() {
     {
       key: "when",
       header: "When",
-      render: (row) => new Date(row.occurredAt).toLocaleString("en-IN"),
+      render: (row) =>
+        new Date(row.occurredAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
     },
-    { key: "type", header: "Type", render: (row) => row.type },
+    {
+      key: "type",
+      header: "Type",
+      render: (row) => <span className="badge neutral">{humanLabel(row.type)}</span>,
+    },
     {
       key: "delta",
       header: "Qty",
       align: "right",
-      render: (row) => (row.onHandDelta > 0 ? `+${row.onHandDelta}` : row.onHandDelta),
+      render: (row) => (
+        <span className={row.onHandDelta > 0 ? "delta delta--in" : row.onHandDelta < 0 ? "delta delta--out" : "delta"}>
+          {row.onHandDelta > 0 ? `+${row.onHandDelta}` : row.onHandDelta}
+        </span>
+      ),
     },
     { key: "balance", header: "Balance", align: "right", render: (row) => qty.format(row.balanceAfter) },
     { key: "by", header: "By", render: (row) => row.createdByName ?? "—" },
@@ -54,11 +65,12 @@ export function MovementsPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="move"
         kicker="Inventory"
-        title="Stock movements"
+        title="Stock activity"
         subtitle="Every change is a row. Nothing is overwritten."
       />
-      <div className="card tight">
+      <Panel icon="move" title="Ledger" hint="Newest first" count={movements.total > 0 ? movements.total : undefined} flush>
         <DataTable
           columns={columns}
           rows={movements.loading && movements.rows.length === 0 ? undefined : movements.rows}
@@ -82,7 +94,7 @@ export function MovementsPage() {
             noun: "movements",
           }}
         />
-      </div>
+      </Panel>
     </div>
   );
 }

@@ -5,8 +5,9 @@ import { useAction } from "../lib/useAction";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { DataTable, type Column } from "../ui/DataTable";
-import { SelectField, TextField } from "../ui/Field";
+import { SearchField, SelectField, TextField } from "../ui/Field";
 import { PageHeader } from "../ui/PageHeader";
+import { Panel } from "../ui/Panel";
 import type { RowAction } from "../ui/RowActions";
 import { useRowVerbs, verbs } from "../ui/rowVerbs";
 import { humanLabel } from "../lib/labels";
@@ -91,6 +92,7 @@ export function CustomersPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="users"
         kicker="Sell"
         title="Customers"
         subtitle="Walk-ins stay unnamed. Regulars keep a phone and an outstanding balance."
@@ -98,31 +100,37 @@ export function CustomersPage() {
       {create.error && <div className="error">{create.error}</div>}
 
       {canWrite && (
-        <form className="card row" onSubmit={submit}>
-          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
-          <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
-          <SelectField label="Type" value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="RETAIL">Retail</option>
-            <option value="WHOLESALE">Wholesale</option>
-            <option value="VIP">VIP</option>
-          </SelectField>
-          <button className="btn" disabled={create.busy}>
-            {create.busy ? "Saving…" : "Add"}
-          </button>
-        </form>
+        <Panel icon="plus" title="Add a regular" hint="Name is enough. A phone number lets the counter find them in one search.">
+          <form className="composer" onSubmit={submit}>
+            <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" placeholder="Ravi Kumar" />
+            <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" inputMode="tel" placeholder="98xxxxxx10" />
+            <SelectField label="Type" value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="RETAIL">Retail</option>
+              <option value="WHOLESALE">Wholesale</option>
+              <option value="VIP">VIP</option>
+            </SelectField>
+            <button className="btn" disabled={create.busy || !name.trim()}>
+              {create.busy ? "Saving…" : "Add customer"}
+            </button>
+          </form>
+        </Panel>
       )}
 
-      <div className="card row">
-        <TextField
-          label="Search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Name or phone…"
-          autoComplete="off"
-        />
-      </div>
-
-      <div className="card tight">
+      <Panel
+        icon="users"
+        title="All customers"
+        count={customers.total > 0 ? customers.total : undefined}
+        flush
+        tools={
+          <SearchField
+            label="Search customers"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Name or phone"
+            autoComplete="off"
+          />
+        }
+      >
         <DataTable
           columns={columns}
           rows={customers.loading && customers.rows.length === 0 ? undefined : customers.rows}
@@ -148,7 +156,7 @@ export function CustomersPage() {
             noun: "customers",
           }}
         />
-      </div>
+      </Panel>
     </div>
   );
 }

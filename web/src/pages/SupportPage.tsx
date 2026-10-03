@@ -81,6 +81,7 @@ export function SupportPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="chat"
         kicker="Support"
         title="Support"
         subtitle={`Ask the MobiStack assistant, or reach Prabhix at ${BRAND.supportEmail}.`}

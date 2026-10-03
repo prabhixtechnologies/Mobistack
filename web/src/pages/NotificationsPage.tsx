@@ -192,6 +192,7 @@ export function NotificationsPage() {
   return (
     <div className="page notify-page">
       <PageHeader
+        icon="bell"
         kicker="Support"
         title={view === "inbox" ? "Inbox" : view === "channels" ? "Notification channels" : "Delivery history"}
         subtitle={

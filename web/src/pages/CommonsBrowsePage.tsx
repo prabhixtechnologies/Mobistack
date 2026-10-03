@@ -56,6 +56,7 @@ export function CommonsBrowsePage() {
   return (
     <div className="page">
       <PageHeader
+        icon="globe"
         kicker="Fitment Catalog"
         title="Browse catalog"
         subtitle={

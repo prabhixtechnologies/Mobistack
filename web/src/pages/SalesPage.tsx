@@ -11,6 +11,8 @@ import { DataTable, type Column } from "../ui/DataTable";
 import type { RowAction } from "../ui/RowActions";
 import { ConfirmDialog } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
+import { Panel } from "../ui/Panel";
+import { Icon } from "../ui/navIcons";
 import { humanLabel } from "../lib/labels";
 import type { PartSearchHit, GlobalSearchResponse } from "../lib/types";
 
@@ -33,6 +35,13 @@ interface Line {
   quantity: number;
   unitPrice: number;
 }
+
+const PAY_METHODS = [
+  { value: "CASH", label: "Cash" },
+  { value: "UPI", label: "UPI" },
+  { value: "CARD", label: "Card" },
+  { value: "CREDIT", label: "Credit" },
+];
 
 export function SalesPage() {
   const access = useAccess();
@@ -87,6 +96,7 @@ export function SalesPage() {
   }, [settled]);
 
   const total = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
 
   /** One more of this part on the ticket, or a new line if it is not on it yet. */
   const addHit = useCallback((hit: PartSearchHit) => {
@@ -281,7 +291,10 @@ export function SalesPage() {
       render: (sale) => (
         <div className="cell-identity">
           <strong>{sale.invoiceNumber}</strong>
-          <span className="faint">{humanLabel(sale.status)}</span>
+          <span className="faint">
+            {new Date(sale.occurredAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+            {sale.status !== "COMPLETED" ? ` · ${humanLabel(sale.status)}` : ""}
+          </span>
         </div>
       ),
     },
@@ -301,13 +314,13 @@ export function SalesPage() {
       mobileLabel: "",
       align: "right",
       render: (sale) => (
-        <div className="row" style={{ justifyContent: "flex-end" }}>
-          <button className="btn ghost" type="button" onClick={() => void openInvoice(sale.id)}>
+        <div className="row-actions">
+          <button className="btn ghost sm" type="button" onClick={() => void openInvoice(sale.id)}>
             Invoice
           </button>
           {canVoid && sale.status === "COMPLETED" && (
             <button
-              className="btn ghost"
+              className="btn ghost sm row-actions__danger"
               type="button"
               disabled={voidSale.busy}
               onClick={() => setVoidTarget(sale)}
@@ -323,6 +336,7 @@ export function SalesPage() {
   return (
     <div className="page page--wide">
       <PageHeader
+        icon="cart"
         kicker="Shop"
         title="Sales"
         subtitle="Find a part, add it to the ticket, take payment. Stock leaves the ledger when the sale completes."
@@ -334,8 +348,29 @@ export function SalesPage() {
       <div className="pos">
       {canSell ? (
         <form className="pos__ticket pos__workspace" onSubmit={submit}>
-          <h2>This ticket</h2>
-          <input
+          <div className="pos__head">
+            <h2>
+              This ticket
+              {itemCount > 0 && <span className="panel__count">{itemCount}</span>}
+            </h2>
+            {lines.length > 0 && (
+              <button
+                className="btn ghost sm"
+                type="button"
+                onClick={() => {
+                  setLines([]);
+                  setScanNote("Ticket cleared.");
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="search-field search-field--lg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+              <path d="m20 20-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+            </svg>
+            <input
             ref={searchRef}
             className="field"
             value={query}
@@ -353,85 +388,134 @@ export function SalesPage() {
             aria-describedby="pos-keys"
             autoComplete="off"
           />
+          </div>
+          <p className="pos__keys" id="pos-keys">
+            <span><kbd>F2</kbd> search</span>
+            <span><kbd>F9</kbd> take payment</span>
+            <span><kbd>Esc</kbd> clear</span>
+          </p>
           {/* Announced, not just shown: at a counter nobody is watching this corner of the
               screen while holding a part and a scanner. */}
           <p className="scan-feedback" role="status" aria-live="polite">
             {scanNote}
-          </p>
-          <p className="faint" id="pos-keys">
-            Scan a barcode to add it. <kbd>F2</kbd> search · <kbd>F9</kbd> take payment ·{" "}
-            <kbd>Esc</kbd> clear
           </p>
           {hits.length > 0 && (
             <div className="pos__hits">
               {hits.map((hit) => (
                 <button
                   key={hit.variantId}
-                  className="category-row"
+                  className="pos__hit"
                   type="button"
                   onClick={() => addHit(hit)}
                 >
-                  <div>
-                    <div style={{ fontWeight: 650 }}>{hit.productName}</div>
-                    <div className="faint">
-                      {hit.sku} · {hit.availableQty} in stock
-                    </div>
-                  </div>
-                  <span>{money.format(hit.price)}</span>
+                  <span className="pos__hit-name">
+                    <strong>{hit.productName}</strong>
+                    <small>
+                      {hit.sku} ·{" "}
+                      <em className={hit.availableQty > 0 ? undefined : "is-out"}>
+                        {hit.availableQty > 0 ? `${hit.availableQty} in stock` : "No stock"}
+                      </em>
+                    </small>
+                  </span>
+                  <b>{money.format(hit.price)}</b>
                 </button>
               ))}
             </div>
           )}
           {lines.length === 0 && hits.length === 0 && (
-            <p className="faint">Search a phone part or scan a barcode to start.</p>
-          )}
-          {lines.map((line, index) => (
-            <div className="pos__line" key={line.variantId}>
-              <div>
-                {line.name}
-                <div className="faint">{money.format(line.unitPrice)}</div>
-              </div>
-              <div className="row">
-                <input
-                  className="field"
-                  style={{ width: 72 }}
-                  type="number"
-                  min={1}
-                  value={line.quantity}
-                  aria-label={`Quantity of ${line.name}`}
-                  onChange={(e) => {
-                    // Clearing the box gives an empty string, and Number("") is 0 - which sold
-                    // the part for nothing and left a zero-quantity line on the invoice.
-                    const parsed = Number.parseInt(e.target.value, 10);
-                    const quantity = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
-                    setLines((current) =>
-                      current.map((row, i) => (i === index ? { ...row, quantity } : row)),
-                    );
-                  }}
-                />
-                <button
-                  className="btn ghost"
-                  type="button"
-                  onClick={() => setLines((current) => current.filter((_, i) => i !== index))}
-                >
-                  Remove
-                </button>
-              </div>
+            <div className="pos__empty">
+              <span className="pos__empty-icon" aria-hidden>
+                <Icon name="cart" />
+              </span>
+              <strong>Ticket is empty</strong>
+              <p>Scan a barcode, or search a phone part by name or SKU.</p>
             </div>
-          ))}
-          <div className="pos__total">
-            <select className="select" value={method} onChange={(e) => setMethod(e.target.value)} style={{ width: 140, maxWidth: "100%" }} aria-label="Payment method">
-              <option value="CASH">Cash</option>
-              <option value="UPI">UPI</option>
-              <option value="CARD">Card</option>
-              <option value="CREDIT">Credit</option>
-            </select>
-            <strong>{money.format(total)}</strong>
+          )}
+          {lines.length > 0 && (
+            <ul className="pos__lines">
+              {lines.map((line, index) => (
+                <li className="pos__line" key={line.variantId}>
+                  <div className="pos__line-name">
+                    <strong>{line.name}</strong>
+                    <small>{money.format(line.unitPrice)} each</small>
+                  </div>
+                  <div className="qty-stepper">
+                    <button
+                      type="button"
+                      aria-label={`One fewer ${line.name}`}
+                      disabled={line.quantity <= 1}
+                      onClick={() =>
+                        setLines((current) =>
+                          current.map((row, i) => (i === index ? { ...row, quantity: Math.max(1, row.quantity - 1) } : row)),
+                        )
+                      }
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={line.quantity}
+                      aria-label={`Quantity of ${line.name}`}
+                      onChange={(e) => {
+                        // Clearing the box gives an empty string, and Number("") is 0 - which sold
+                        // the part for nothing and left a zero-quantity line on the invoice.
+                        const parsed = Number.parseInt(e.target.value, 10);
+                        const quantity = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+                        setLines((current) =>
+                          current.map((row, i) => (i === index ? { ...row, quantity } : row)),
+                        );
+                      }}
+                    />
+                    <button
+                      type="button"
+                      aria-label={`One more ${line.name}`}
+                      onClick={() =>
+                        setLines((current) =>
+                          current.map((row, i) => (i === index ? { ...row, quantity: row.quantity + 1 } : row)),
+                        )
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                  <b className="pos__line-total">{money.format(line.unitPrice * line.quantity)}</b>
+                  <button
+                    className="pos__remove"
+                    type="button"
+                    aria-label={`Remove ${line.name}`}
+                    onClick={() => setLines((current) => current.filter((_, i) => i !== index))}
+                  >
+                    <Icon name="close" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="pos__pay">
+            <div className="pay-methods" role="radiogroup" aria-label="Payment method">
+              {PAY_METHODS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={method === option.value}
+                  className={method === option.value ? "pay-method pay-method--on" : "pay-method"}
+                  onClick={() => setMethod(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <div className="pos__total">
+              <span>Total</span>
+              <strong>{money.format(total)}</strong>
+            </div>
+            {/* The marker the submit handler checks. Nothing else in this form may take money. */}
+            <button className="btn pos__checkout" data-checkout="true" disabled={checkout.busy || lines.length === 0}>
+              {checkout.busy ? "Saving…" : lines.length === 0 ? "Complete sale" : `Take ${money.format(total)} · ${humanLabel(method)}`}
+            </button>
           </div>
-          {/* The marker the submit handler checks. Nothing else in this form may take money. */}
-          <button className="btn" data-checkout="true" disabled={checkout.busy || lines.length === 0}>
-            {checkout.busy ? "Saving…" : "Complete sale"}
-          </button>
         </form>
       ) : (
         <div className="pos__ticket faint">
@@ -439,7 +523,7 @@ export function SalesPage() {
         </div>
       )}
 
-      <div className="pos__history">
+      <Panel icon="cart" title="Invoices" hint="Newest first" count={sales.total > 0 ? sales.total : undefined} flush className="pos__history">
         <DataTable
           columns={columns}
           rows={sales.loading && sales.rows.length === 0 ? undefined : sales.rows}
@@ -463,7 +547,7 @@ export function SalesPage() {
             noun: "invoices",
           }}
         />
-      </div>
+      </Panel>
       </div>
 
       <ConfirmDialog

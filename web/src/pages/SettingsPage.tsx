@@ -53,6 +53,7 @@ export function SettingsPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="settings"
         kicker="Workspace"
         title="Shop settings"
         subtitle="Printed on every invoice. Keep it exact."

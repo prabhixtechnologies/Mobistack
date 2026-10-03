@@ -99,6 +99,7 @@ export function SystemHealthPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="server"
         kicker="Operations"
         title="System health"
         subtitle="Live status of the services MobiStack depends on, and how hard this instance is working."

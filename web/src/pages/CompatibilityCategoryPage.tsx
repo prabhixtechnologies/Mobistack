@@ -192,6 +192,7 @@ export function CompatibilityCategoryPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="lock"
         kicker={<Link to="/compatibility">Private fitment notes</Link>}
         title={title}
         subtitle={subtitle}

@@ -5,9 +5,10 @@ import { useAction } from "../lib/useAction";
 import { usePagedList } from "../lib/usePagedList";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { LoadMore } from "../ui/DataTable";
-import { SelectField, TextField } from "../ui/Field";
+import { Field, SelectField, TextField } from "../ui/Field";
 import { Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
+import { Panel } from "../ui/Panel";
 import { humanLabel } from "../lib/labels";
 import type { PageResponse, ProductVariant } from "../lib/types";
 
@@ -34,6 +35,13 @@ const REPAIR_LANES = [
   { id: "bench", label: "On the bench", statuses: ["WAITING_FOR_PART", "IN_REPAIR"] },
   { id: "ready", label: "Ready & closed", statuses: ["READY", "DELIVERED", "CANCELLED"] },
 ] as const;
+
+function statusTone(status: string): string {
+  if (status === "READY" || status === "DELIVERED") return " status-chip--ready";
+  if (status === "WAITING_FOR_PART") return " status-chip--warn";
+  if (status === "CANCELLED") return "";
+  return " status-chip--open";
+}
 
 export function RepairsPage() {
   const access = useAccess();
@@ -131,6 +139,7 @@ export function RepairsPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="wrench"
         kicker="Shop"
         title="Repairs"
         subtitle="Take the phone in, move it through the bench, collect when it is ready for pickup."
@@ -142,40 +151,52 @@ export function RepairsPage() {
       ))}
 
       {canWrite && (
-        <form className="toolbar" onSubmit={submitJob}>
-          <strong className="visually-hidden">New job</strong>
-          <input
-            ref={problemRef}
-            className="field"
-            value={problem}
-            onChange={(e) => setProblem(e.target.value)}
-            placeholder="Cracked display"
-            required
-          />
-          <div className="grid-2">
-            <input
-              className="field"
+        <Panel icon="plus" title="Book a repair" hint="What is wrong, and what you will charge for the work. Parts are added on the bench.">
+          <form className="composer composer--repair" onSubmit={submitJob}>
+            <Field label="Problem" required>
+              {({ id, describedBy }) => (
+                <input
+                  ref={problemRef}
+                  id={id}
+                  aria-describedby={describedBy}
+                  className="field"
+                  value={problem}
+                  onChange={(e) => setProblem(e.target.value)}
+                  placeholder="Cracked display, not charging…"
+                  required
+                />
+              )}
+            </Field>
+            <TextField
+              label="IMEI"
               value={imei}
               onChange={(e) => setImei(e.target.value)}
-              placeholder="IMEI (optional)"
+              placeholder="Optional"
+              inputMode="numeric"
             />
-            <input
-              className="field"
+            <TextField
+              label="Labour charge (₹)"
               type="number"
               min={0}
+              inputMode="decimal"
               value={labor}
-              onChange={(e) => setLabor(Number(e.target.value))}
-              aria-label="Labour charge"
+              onChange={(e) => setLabor(Math.max(0, Number(e.target.value) || 0))}
             />
-          </div>
-          <button className="btn" disabled={create.busy}>
-            {create.busy ? "Opening…" : "Book repair"}
-          </button>
-        </form>
+            <button className="btn" disabled={create.busy || !problem.trim()}>
+              {create.busy ? "Opening…" : "Book repair"}
+            </button>
+          </form>
+        </Panel>
       )}
 
-      <div className="toolbar">
-        <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} style={{ width: 220, maxWidth: "100%" }} aria-label="Job status">
+      <div className="board-bar">
+        <div className="board-bar__title">
+          <h2>Bench board</h2>
+          <span className="faint">
+            {OPEN_STATUSES.includes(filter) || !filter ? "Newest first." : "Closed jobs stay for the record."}
+          </span>
+        </div>
+        <select className="select" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Job status">
           <option value="">All jobs</option>
           {STATUSES.map((status) => (
             <option key={status} value={status}>
@@ -183,9 +204,6 @@ export function RepairsPage() {
             </option>
           ))}
         </select>
-        <span className="faint">
-          {OPEN_STATUSES.includes(filter) || !filter ? "Newest first." : "Closed jobs stay for the record."}
-        </span>
       </div>
 
       {jobs.error ? (
@@ -235,32 +253,40 @@ export function RepairsPage() {
             {REPAIR_LANES.map((lane) => {
               const laneJobs = jobs.rows.filter((job) => lane.statuses.some((status) => status === job.status));
               return (
-                <section className="repair-lane" key={lane.id} aria-labelledby={`repair-lane-${lane.id}`}>
+                <section className={`repair-lane repair-lane--${lane.id}`} key={lane.id} aria-labelledby={`repair-lane-${lane.id}`}>
                   <header className="repair-lane__header">
                     <h2 id={`repair-lane-${lane.id}`}>{lane.label}</h2>
-                    <span className="badge neutral">{laneJobs.length}</span>
+                    <span className="repair-lane__count">{laneJobs.length}</span>
                   </header>
                   <div className="repair-lane__list">
                     {laneJobs.map((job) => (
-                      <article className="job-row" key={job.id}>
-                        <div className="job-row__body">
+                      <article className={`job-card${job.status === "CANCELLED" ? " job-card--muted" : ""}`} key={job.id}>
+                        <div className="job-card__top">
                           <strong>{job.jobNumber}</strong>
-                          <div className="job-row__meta">
-                            {job.customerName ?? "Walk-in"} · {job.deviceName ?? "Device unknown"}
-                          </div>
-                          <p className="job-row__problem">{job.problem}</p>
-                          <div className="muted job-row__money">
-                            {money.format(job.total)} · paid {money.format(job.paid)}
-                            {access.has("REPORT_READ") && ` · profit ${money.format(job.profit)}`}
-                          </div>
+                          <span className={`status-chip${statusTone(job.status)}`}>{humanLabel(job.status)}</span>
                         </div>
-                        <div>
-                          <span className={`status-chip${job.status === "READY" ? " status-chip--ready" : job.status === "WAITING_FOR_PART" ? " status-chip--warn" : " status-chip--open"}`}>
-                            {humanLabel(job.status)}
-                          </span>
+                        <p className="job-card__problem">{job.problem}</p>
+                        <div className="job-card__meta">
+                          {job.customerName ?? "Walk-in"} · {job.deviceName ?? "Device unknown"}
                         </div>
+                        <dl className="job-card__money">
+                          <div>
+                            <dt>Total</dt>
+                            <dd>{money.format(job.total)}</dd>
+                          </div>
+                          <div>
+                            <dt>Paid</dt>
+                            <dd>{money.format(job.paid)}</dd>
+                          </div>
+                          {access.has("REPORT_READ") && (
+                            <div>
+                              <dt>Profit</dt>
+                              <dd>{money.format(job.profit)}</dd>
+                            </div>
+                          )}
+                        </dl>
                         {canWrite && (
-                          <div className="job-row__actions">
+                          <div className="job-card__actions">
                             <select
                               className="select"
                               value={job.status}
@@ -274,11 +300,13 @@ export function RepairsPage() {
                                 </option>
                               ))}
                             </select>
-                            <button className="btn ghost" type="button" onClick={() => setPartFor(job)}>
-                              Add part
-                            </button>
+                            {OPEN_STATUSES.includes(job.status) && (
+                              <button className="btn ghost sm" type="button" onClick={() => setPartFor(job)}>
+                                Add part
+                              </button>
+                            )}
                             {job.outstanding > 0 && (
-                              <button className="btn" type="button" disabled={collect.busy} onClick={() => void collect.run(job)}>
+                              <button className="btn sm" type="button" disabled={collect.busy} onClick={() => void collect.run(job)}>
                                 {collect.busy ? "Taking…" : `Collect ${money.format(job.outstanding)}`}
                               </button>
                             )}
@@ -286,7 +314,7 @@ export function RepairsPage() {
                         )}
                       </article>
                     ))}
-                    {laneJobs.length === 0 && <p className="faint">Nothing here right now.</p>}
+                    {laneJobs.length === 0 && <p className="repair-lane__empty">Nothing here right now.</p>}
                   </div>
                 </section>
               );

@@ -165,6 +165,7 @@ export function CompatibilityPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="lock"
         kicker="Catalog"
         title="Fitment notes"
         subtitle="What this shop has seen on the bench. Propose a line when it belongs in the shared catalog."

@@ -44,6 +44,7 @@ export function CommonsComponentPage() {
         current={fitment.current}
       />
       <PageHeader
+        icon="box"
         kicker={<Link to="/commons">Fitment Catalog</Link>}
         title={component.data.name}
         subtitle={component.data.description || component.data.categoryCode.replaceAll("_", " ")}

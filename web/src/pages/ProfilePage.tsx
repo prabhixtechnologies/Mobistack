@@ -21,6 +21,7 @@ export function ProfilePage() {
   return (
     <div className="page">
       <PageHeader
+        icon="user"
         kicker="My account"
         title={user?.fullName ?? "My profile"}
         subtitle="Your identity in this workspace. Password and sessions are managed on Prabhix Identity."

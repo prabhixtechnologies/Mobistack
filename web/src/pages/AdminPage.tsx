@@ -182,6 +182,7 @@ export function AdminPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="crown"
         kicker="Platform"
         title="Platform"
         subtitle="Plans, payments, live users, support, and the native/OTA release gate."

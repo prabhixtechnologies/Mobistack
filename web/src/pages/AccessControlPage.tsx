@@ -230,6 +230,7 @@ export function AccessControlPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="key"
         kicker="Settings"
         title="Team access"
         subtitle="Assign Admin to let someone approve paid join requests. Admins have People edit permission; managers do not."

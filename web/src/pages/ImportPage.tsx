@@ -70,6 +70,7 @@ export function ImportPage() {
   return (
     <div className="page">
       <PageHeader
+        icon="upload"
         kicker="Catalog"
         title="Import"
         subtitle="Paste the old universal list. Each A = B = C line becomes a real compatibility group in the category you pick."

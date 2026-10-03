@@ -324,7 +324,13 @@ export function LoadMore({
   noun?: string;
 }) {
   if (!hasMore && loaded >= total) {
-    return total > 0 ? <div className="load-more"><span className="faint">{total} {noun}</span></div> : null;
+    return total > 0 ? (
+      <div className="load-more">
+        <span className="faint">
+          {total} {total === 1 ? noun.replace(/ies$/, "y").replace(/s$/, "") : noun}
+        </span>
+      </div>
+    ) : null;
   }
   return (
     <div className="load-more">

@@ -1,4 +1,4 @@
-import { useId, type ReactNode, type InputHTMLAttributes, type SelectHTMLAttributes } from "react";
+import { useId, type ReactNode, type InputHTMLAttributes, type Ref, type SelectHTMLAttributes } from "react";
 
 interface FieldShellProps {
   label: string;
@@ -65,6 +65,27 @@ export function TextField({ label, hint, error, required, ...input }: TextFieldP
         />
       )}
     </Field>
+  );
+}
+
+type SearchFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id" | "type"> & {
+  label: string;
+  inputRef?: Ref<HTMLInputElement>;
+};
+
+/** A search box with the magnifier inside it. The label is for screen readers only. */
+export function SearchField({ label, inputRef, className, ...input }: SearchFieldProps) {
+  const id = useId();
+  return (
+    <div className={`search-field${className ? ` ${className}` : ""}`}>
+      <label className="visually-hidden" htmlFor={id}>
+        {label}
+      </label>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+        <path d="m20 20-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+      </svg>
+      <input {...input} ref={inputRef} id={id} type="search" className="field" />
+    </div>
   );
 }
 

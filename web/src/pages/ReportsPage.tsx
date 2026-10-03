@@ -5,6 +5,7 @@ import { useAccess } from "../lib/access";
 import { useAction } from "../lib/useAction";
 import { EmptyState } from "../ui/EmptyState";
 import { PageHeader } from "../ui/PageHeader";
+import { Kpi, Panel } from "../ui/Panel";
 
 interface ReportBundle {
   sales: { sales: number; profit: number; transactions: number };
@@ -71,94 +72,188 @@ export function ReportsPage() {
     { fallbackError: "That export did not download." },
   );
 
+  const period = RANGES.find((option) => option.value === range)?.label ?? "";
+
   return (
     <div className="page">
       <PageHeader
+        icon="chart"
         kicker="Insights"
         title="Reports"
         subtitle="Profit is sale price minus ledger cost. Dead stock is inventory that has not moved."
         actions={
-          <div className="row">
-            <select
-              className="select"
-              value={range}
-              onChange={(e) => setRange(e.target.value)}
-              style={{ width: 180, maxWidth: "100%" }}
-              aria-label="Report period"
-            >
-              <option value="today">Today</option>
-              <option value="yesterday">Yesterday</option>
-              <option value="7d">7 days</option>
-              <option value="this_month">This month</option>
-              <option value="last_month">Last month</option>
-            </select>
-            {access.has("REPORT_EXPORT") && (
-              <button
-                className="btn ghost"
-                type="button"
-                disabled={exportCsv.busy}
-                onClick={() => void exportCsv.run()}
-              >
-                {exportCsv.busy ? "Exporting…" : "Export CSV"}
-              </button>
-            )}
-          </div>
+          access.has("REPORT_EXPORT") ? (
+            <button className="btn ghost" type="button" disabled={exportCsv.busy} onClick={() => void exportCsv.run()}>
+              {exportCsv.busy ? "Exporting…" : "Export CSV"}
+            </button>
+          ) : undefined
         }
       />
+
+      <div className="segmented" role="radiogroup" aria-label="Report period">
+        {RANGES.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={range === option.value}
+            className={range === option.value ? "segmented__item segmented__item--on" : "segmented__item"}
+            onClick={() => setRange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
       {error && <div className="error">{error}</div>}
       {exportCsv.error && <div className="error">{exportCsv.error}</div>}
       {loading && !data && (
-        <div className="grid-4" aria-busy="true" aria-label="Loading report">
-          <div className="skeleton skeleton--title" />
-          <div className="skeleton skeleton--title" />
-          <div className="skeleton skeleton--title" />
-          <div className="skeleton skeleton--title" />
+        <div className="kpi-grid" aria-busy="true" aria-label="Loading report">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div className="kpi" key={index}>
+              <div className="skeleton" style={{ width: "50%" }} />
+              <div className="skeleton skeleton--value" style={{ marginTop: 14 }} />
+            </div>
+          ))}
         </div>
       )}
       {data && (
-        <>
-          <div className="grid-4">
-            <Metric label="Sales" value={money.format(data.sales.sales)} />
-            <Metric label="Profit" value={money.format(data.sales.profit)} />
-            <Metric label="Purchases" value={money.format(data.purchases.sales)} />
-            <Metric label="Repair revenue" value={money.format(data.repairRevenue)} />
+        <div className={loading ? "report report--refreshing" : "report"}>
+          <div className="kpi-grid">
+            <Kpi
+              icon="cart"
+              tone="ochre"
+              label="Sales"
+              value={money.format(data.sales.sales)}
+              foot={`${qty.format(data.sales.transactions)} ${data.sales.transactions === 1 ? "invoice" : "invoices"} · ${period.toLowerCase()}`}
+            />
+            <Kpi
+              icon="pulse"
+              tone={data.sales.profit < 0 ? "rose" : "green"}
+              label="Profit"
+              value={money.format(data.sales.profit)}
+              foot={data.sales.sales > 0 ? `${Math.round((data.sales.profit / data.sales.sales) * 100)}% margin` : "No sales in this period"}
+            />
+            <Kpi
+              icon="truck"
+              tone="indigo"
+              label="Purchases"
+              value={money.format(data.purchases.sales)}
+              foot="Stock bought in"
+            />
+            <Kpi
+              icon="wrench"
+              tone="teal"
+              label="Repair revenue"
+              value={money.format(data.repairRevenue)}
+              foot={`${qty.format(data.repairs.delivered)} collected`}
+            />
           </div>
-          <div className="grid-4">
-            <Metric label="Transactions" value={qty.format(data.sales.transactions)} />
-            <Metric label="Pending repairs" value={qty.format(data.repairs.pending)} />
-            <Metric label="Ready" value={qty.format(data.repairs.ready)} />
-            <Metric label="Delivered" value={qty.format(data.repairs.delivered)} />
-          </div>
-          <section className="card tight">
-            <div className="spread" style={{ padding: "16px 18px" }}>
-              <strong>Dead stock</strong>
-            </div>
-            {data.deadStock.length === 0 ? (
-              <EmptyState compact icon="box" title="Nothing is sitting idle" hint="Dead stock appears here when inventory has not moved." />
-            ) : (
-              data.deadStock.map((row) => (
-                <div className="category-row" key={row.variantId}>
-                  <div>
-                    <div style={{ fontWeight: 650 }}>{row.name}</div>
-                    <div className="faint">{row.daysInactive} days · {row.suggestion}</div>
-                  </div>
-                  <span>{row.stock}</span>
-                  <span>{money.format(row.stockValue)}</span>
+
+          <div className="report__split">
+            <Panel icon="wrench" title="Repair pipeline" hint={period}>
+              <ul className="pipeline">
+                {PIPELINE.map((stage) => {
+                  const value = data.repairs[stage.key];
+                  const max = Math.max(1, ...PIPELINE.map((item) => data.repairs[item.key]));
+                  return (
+                    <li key={stage.key} className={`pipeline__row pipeline__row--${stage.tone}`}>
+                      <span>{stage.label}</span>
+                      <span className="pipeline__bar" aria-hidden>
+                        <span style={{ width: `${(value / max) * 100}%` }} />
+                      </span>
+                      <b>{qty.format(value)}</b>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Panel>
+
+            <Panel icon="chart" title="Counter" hint={period}>
+              <dl className="facts">
+                <div>
+                  <dt>Invoices</dt>
+                  <dd>{qty.format(data.sales.transactions)}</dd>
                 </div>
-              ))
+                <div>
+                  <dt>Average ticket</dt>
+                  <dd>{data.sales.transactions > 0 ? money.format(data.sales.sales / data.sales.transactions) : "—"}</dd>
+                </div>
+                <div>
+                  <dt>Open repairs</dt>
+                  <dd>{qty.format(data.repairs.pending)}</dd>
+                </div>
+                <div>
+                  <dt>Ready for pickup</dt>
+                  <dd>{qty.format(data.repairs.ready)}</dd>
+                </div>
+              </dl>
+            </Panel>
+          </div>
+
+          <Panel
+            icon="box"
+            title="Dead stock"
+            hint="Parts that have not moved. Money sitting on the shelf."
+            count={data.deadStock.length > 0 ? data.deadStock.length : undefined}
+            flush
+          >
+            {data.deadStock.length === 0 ? (
+              <EmptyState compact icon="check" title="Nothing is sitting idle" hint="Parts show here when they stop selling." />
+            ) : (
+              <div className="table-scroll">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Part</th>
+                      <th style={{ textAlign: "right" }}>Idle</th>
+                      <th style={{ textAlign: "right" }}>Units</th>
+                      <th style={{ textAlign: "right" }}>Value at cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.deadStock.map((row) => (
+                      <tr key={row.variantId}>
+                        <td data-label="Part">
+                          <div className="cell-identity">
+                            <strong>{row.name}</strong>
+                            <span className="faint">{row.suggestion}</span>
+                          </div>
+                        </td>
+                        <td data-label="Idle" style={{ textAlign: "right" }}>
+                          {qty.format(row.daysInactive)} days
+                        </td>
+                        <td data-label="Units" style={{ textAlign: "right" }}>
+                          {qty.format(row.stock)}
+                        </td>
+                        <td data-label="Value at cost" style={{ textAlign: "right" }}>
+                          {money.format(row.stockValue)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </section>
-        </>
+          </Panel>
+        </div>
       )}
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card">
-      <div className="metric-label">{label}</div>
-      <div className="metric-value">{value}</div>
-    </div>
-  );
-}
+const RANGES = [
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "7d", label: "7 days" },
+  { value: "this_month", label: "This month" },
+  { value: "last_month", label: "Last month" },
+];
+
+const PIPELINE: { key: "received" | "diagnosing" | "inRepair" | "ready" | "delivered"; label: string; tone: string }[] = [
+  { key: "received", label: "Received", tone: "indigo" },
+  { key: "diagnosing", label: "Diagnosing", tone: "indigo" },
+  { key: "inRepair", label: "In repair", tone: "ochre" },
+  { key: "ready", label: "Ready", tone: "teal" },
+  { key: "delivered", label: "Collected", tone: "green" },
+];
