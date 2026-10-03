@@ -33,7 +33,7 @@ ARG VITE_API_ORIGIN=
 ENV VITE_API_ORIGIN=$VITE_API_ORIGIN
 # Production issuer. A local stack passes http://localhost:8081 as a build arg.
 # Leaving the default at localhost sends every visitor's browser to their own machine.
-ARG VITE_IDENTITY_ISSUER=https://api.prabhixtechnologies.com
+ARG VITE_IDENTITY_ISSUER=https://identity.prabhixtechnologies.com
 ENV VITE_IDENTITY_ISSUER=$VITE_IDENTITY_ISSUER
 ARG VITE_STORE_URL=
 ENV VITE_STORE_URL=$VITE_STORE_URL

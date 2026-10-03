@@ -568,7 +568,7 @@ jobs:
           secrets: |
             gh_token=${{ secrets.GITHUB_TOKEN }}
           build-args: |
-            VITE_IDENTITY_ISSUER=https://api.prabhixtechnologies.com
+            VITE_IDENTITY_ISSUER=https://identity.prabhixtechnologies.com
             VITE_STORE_URL=https://store.prabhixtechnologies.com
           push: true
           tags: ${{ steps.tags.outputs.web }}
