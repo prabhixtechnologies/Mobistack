@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@prabhixtechnologies/oidc-client", () => ({
   isOidcEnabled: () => true,
   configureOidc: () => undefined,
+  beginStepUp: () => undefined,
 }));
 
 import { renewSession } from "./api";

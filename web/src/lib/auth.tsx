@@ -178,12 +178,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setReady(true);
       },
       async logout() {
+        const accessToken = getAccessToken();
         const refreshToken = getRefreshToken();
         try {
-          if (refreshToken) {
+          if (accessToken) {
             await api("/api/v1/mobistack/auth/logout", {
               method: "POST",
-              body: JSON.stringify({ refreshToken }),
+              body: JSON.stringify(refreshToken ? { refreshToken } : {}),
             });
           }
         } finally {

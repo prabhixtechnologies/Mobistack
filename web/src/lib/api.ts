@@ -3,7 +3,7 @@ import { isAbortError } from "./abort";
 import { getDeviceId } from "./device";
 import { storeGet, storeRemove, storeSet } from "./storage";
 import { IDENTITY_ISSUER } from "./config";
-import { isOidcEnabled } from "@prabhixtechnologies/oidc-client";
+import { beginStepUp, isOidcEnabled } from "@prabhixtechnologies/oidc-client";
 import "./oidc-config";
 
 /**
@@ -119,6 +119,9 @@ async function parseError(response: Response): Promise<never> {
     };
   } else if (payload.message === "Internal Server Error" && response.status >= 500) {
     payload = OFFLINE_API;
+  }
+  if (payload.code === "STEP_UP_REQUIRED" && isOidcEnabled()) {
+    void beginStepUp(`${window.location.pathname}${window.location.search}`);
   }
   throw Object.assign(new Error(payload.message), payload);
 }

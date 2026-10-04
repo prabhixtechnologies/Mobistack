@@ -19,6 +19,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,7 +43,7 @@ class JwtAuthenticationFilterTest {
     void setUp() {
         filter = new JwtAuthenticationFilter(
                 tokenVerifier, userRepository, workspaceAccessService, identityUserMirror,
-                new FixFlowProperties(), new ObjectMapper());
+                new FixFlowProperties(), new ObjectMapper(), mock(TokenDenyList.class));
     }
 
     @Test

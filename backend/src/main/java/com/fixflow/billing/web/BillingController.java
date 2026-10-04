@@ -8,6 +8,7 @@ import com.fixflow.billing.service.BillingService.VerifyPaymentRequest;
 import com.fixflow.admin.service.PlatformAdminService;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
+import com.fixflow.security.RecentAuthentication;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class BillingController {
 
     private final BillingService billingService;
     private final PlatformAdminService platformAdminService;
+    private final RecentAuthentication recentAuthentication;
 
     @GetMapping
     @PreAuthorize(Authorize.WORKSPACE_BILLING)
@@ -42,6 +44,7 @@ public class BillingController {
     @PostMapping("/orders")
     @PreAuthorize(Authorize.WORKSPACE_BILLING)
     public CheckoutOrderResponse create(@RequestBody Map<String, String> body) {
+        recentAuthentication.requireFresh();
         String code = body.get("planCode") != null && !body.get("planCode").isBlank()
                 ? body.get("planCode")
                 : body.getOrDefault("priceCode", "COMPATIBILITY");

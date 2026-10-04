@@ -5,6 +5,7 @@ import com.fixflow.common.error.ApiError;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.config.FixFlowProperties;
+import com.fixflow.security.RecentAuthentication;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
@@ -63,6 +64,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final IdentityUserMirror identityUserMirror;
     private final FixFlowProperties properties;
     private final ObjectMapper objectMapper;
+    private final TokenDenyList tokenDenyList;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -77,7 +79,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             IdentityToken identity = verify(token);
+            request.setAttribute(RecentAuthentication.TOKEN_ATTRIBUTE, identity);
             requireFreshSignIn(identity);
+            if (tokenDenyList.isRevoked(identity)) {
+                throw new ApiException(ErrorCode.SESSION_REPLACED,
+                        "This sign-in was ended. Sign in again.");
+            }
             UserPrincipal principal = authorizeIdentityToken(identity, request);
 
             var authentication = new UsernamePasswordAuthenticationToken(

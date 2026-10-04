@@ -29,7 +29,7 @@
           springdoc is only on the classpath — so the integration test is what catches it.
         -->
         <springdoc.version>3.1.0</springdoc.version>
-        <identity-client.version>1.0.0</identity-client.version>
+        <identity-client.version>1.0.1</identity-client.version>
         <!-- Same AWS SDK line as Identity/oneOps so CloudWatch export talks to the same API. -->
         <awssdk.version>2.29.52</awssdk.version>
         <!--
