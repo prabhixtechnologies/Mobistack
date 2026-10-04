@@ -148,7 +148,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
 const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   INVENTORY_ADJUST: "Adjust stock levels",
   SALES_VOID: "Void a sale",
-  COMPATIBILITY_APPROVE: "Approve private fitment notes",
+  COMPATIBILITY_APPROVE: "Review catalog contributions",
   WORKSPACE_BILLING: "Manage billing",
   USER_INVITE: "Invite people",
   USER_WRITE: "Add, edit, and approve people",

@@ -46,7 +46,7 @@ class ContributionServiceTest {
         contributions = mock(CatalogContributionRepository.class);
         contributors = mock(CatalogContributorRepository.class);
         catalog = mock(CommonsCatalogService.class);
-        service = new ContributionService(contributions, contributors, catalog);
+        service = new ContributionService(contributions, contributors, catalog, mock(CatalogCache.class));
 
         when(contributions.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(contributors.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

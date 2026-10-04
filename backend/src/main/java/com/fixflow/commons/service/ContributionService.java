@@ -44,6 +44,7 @@ public class ContributionService {
     private final CatalogContributionRepository contributions;
     private final CatalogContributorRepository contributors;
     private final CommonsCatalogService catalog;
+    private final CatalogCache cache;
 
     /**
      * Records a proposal, and applies it if the author has earned that.
@@ -242,6 +243,7 @@ public class ContributionService {
 
         contribution.setStatus(Status.APPLIED);
         contribution.setAppliedId(produced);
+        cache.evictGroupAfterCommit(contribution.getGroupId());
     }
 
     private static UUID requireTarget(CatalogContribution contribution) {

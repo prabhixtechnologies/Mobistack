@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,7 +33,23 @@ public interface CatalogComponentRepository extends JpaRepository<CatalogCompone
 
     Page<CatalogComponent> findByGroupId(UUID groupId, Pageable pageable);
 
+    List<CatalogComponent> findByGroupIdAndCategoryCodeOrderByNameAsc(UUID groupId, String categoryCode);
+
     long countByGroupId(UUID groupId);
 
     Optional<CatalogComponent> findByIdAndGroupId(UUID id, UUID groupId);
+
+    @Query("""
+            select c.categoryCode as categoryCode, count(c) as familyCount
+            from CatalogComponent c
+            where c.groupId = :groupId
+            group by c.categoryCode
+            """)
+    List<CategoryCount> countByCategory(@Param("groupId") UUID groupId);
+
+    interface CategoryCount {
+        String getCategoryCode();
+
+        long getFamilyCount();
+    }
 }

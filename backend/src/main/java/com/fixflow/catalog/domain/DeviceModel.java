@@ -51,4 +51,8 @@ public class DeviceModel extends AuditableEntity {
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    /** Shared catalog phone this shop row refers to, when the names have been matched. */
+    @Column(name = "catalog_device_id")
+    private UUID catalogDeviceId;
 }

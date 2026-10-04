@@ -1791,7 +1791,50 @@ button {
   margin-top: auto;
 }
 
-.device-hero {
+.catalog-tile__n {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.catalog-family {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.catalog-family-list {
+  display: grid;
+  gap: 14px;
+}
+
+.catalog-stock {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.catalog-home__contribute {
+  margin-top: 8px;
+}
+
+button.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-text);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a.chip {
+  text-decoration: none;
+  color: inherit;
+}
+
   display: flex;
   align-items: flex-start;
   gap: 18px;

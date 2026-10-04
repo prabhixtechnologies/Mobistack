@@ -11,8 +11,7 @@ viewports, and interaction contract.
 - Counter: sales, customers.
 - Bench: repairs.
 - Stock: inventory, catalog links, purchases, suppliers, movements.
-- Catalog: shared browse/device/component, private fitment notes, contribution standing,
-  and review.
+- Catalog: part types and brands, phone family + sell, contribution standing, and review.
 - Insights: reports, audit, system health.
 - Manage: team, access, workspaces, billing, settings, profile, notifications, support,
   and platform administration.

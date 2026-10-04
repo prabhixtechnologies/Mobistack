@@ -1,10 +1,9 @@
 package com.fixflow.commons.web;
 
 import com.fixflow.billing.service.BillingService;
-import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
+import com.fixflow.commons.service.CatalogFamilyService;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
-import com.fixflow.commons.service.EquivalenceCatalogService;
 import com.fixflow.group.service.SharingGroupService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +31,7 @@ class CommonsControllerBillingIsolationTest {
     @Mock
     private ContributionService contributions;
     @Mock
-    private EquivalenceCatalogService equivalence;
+    private CatalogFamilyService familyCatalog;
     @Mock
     private com.fixflow.shop.repository.ShopRepository shops;
     @Mock
@@ -44,12 +43,13 @@ class CommonsControllerBillingIsolationTest {
     void listingBrandsDoesNotConsultTheCompatibilityPlan() {
         UUID groupId = UUID.randomUUID();
         when(groups.requireSelected()).thenReturn(groupId);
-        when(catalog.listBrands(groupId)).thenReturn(List.of(new CatalogBrand()));
+        when(familyCatalog.brands(groupId)).thenReturn(List.of(
+                new CatalogFamilyService.BrandIndex(UUID.randomUUID(), "Apple", null, 1)));
 
-        CommonsController controller = new CommonsController(catalog, contributions, equivalence, shops, groups);
+        CommonsController controller = new CommonsController(catalog, contributions, familyCatalog, shops, groups);
         assertThat(controller.brands()).hasSize(1);
 
-        verify(catalog).listBrands(groupId);
+        verify(familyCatalog).brands(groupId);
         verifyNoInteractions(billingService);
         verify(shops, never()).count();
     }

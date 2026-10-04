@@ -106,6 +106,23 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
                                                     @Param("groupId") UUID groupId,
                                                     @Param("deviceIds") java.util.Collection<UUID> deviceIds);
 
+    @EntityGraph(attributePaths = {"product"})
+    @Query("""
+            select v from ProductVariant v
+            where v.shopId = :shopId and v.active
+              and v.product.active
+              and v.catalogComponentId in (
+                  select f.componentId from CatalogFitment f
+                  where f.groupId = :groupId
+                    and f.disputed = false
+                    and f.deviceId = :deviceId
+              )
+            order by v.product.name, v.variantName
+            """)
+    List<ProductVariant> findLinkedToCatalogDevice(@Param("shopId") UUID shopId,
+                                                   @Param("groupId") UUID groupId,
+                                                   @Param("deviceId") UUID deviceId);
+
     List<ProductVariant> findByShopIdAndCatalogComponentId(UUID shopId, UUID catalogComponentId);
 
     @EntityGraph(attributePaths = {"product"})

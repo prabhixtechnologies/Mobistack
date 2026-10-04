@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -56,4 +57,18 @@ public interface CatalogDeviceRepository extends JpaRepository<CatalogDevice, UU
     long countByGroupId(UUID groupId);
 
     Optional<CatalogDevice> findByIdAndGroupId(UUID id, UUID groupId);
+
+    @Query("""
+            select d.brandId as brandId, count(d) as deviceCount
+            from CatalogDevice d
+            where d.groupId = :groupId
+            group by d.brandId
+            """)
+    List<BrandCount> countByBrand(@Param("groupId") UUID groupId);
+
+    interface BrandCount {
+        UUID getBrandId();
+
+        long getDeviceCount();
+    }
 }

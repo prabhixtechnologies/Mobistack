@@ -4,7 +4,6 @@ import com.fixflow.catalog.domain.Brand;
 import com.fixflow.catalog.domain.Category;
 import com.fixflow.catalog.domain.DeviceModel;
 import com.fixflow.catalog.domain.Product;
-import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupRequest;
 import com.fixflow.catalog.dto.CatalogDtos.ProductVariantRequest;
 import com.fixflow.catalog.repository.BrandRepository;
 import com.fixflow.catalog.repository.CategoryRepository;
@@ -12,7 +11,6 @@ import com.fixflow.catalog.repository.DeviceModelRepository;
 import com.fixflow.catalog.repository.ProductRepository;
 import com.fixflow.catalog.repository.ProductVariantRepository;
 import com.fixflow.catalog.service.BrandService;
-import com.fixflow.catalog.service.CompatibilityGroupService;
 import com.fixflow.catalog.service.DeviceService;
 import com.fixflow.catalog.service.ProductService;
 import com.fixflow.commons.domain.CatalogEntities.CatalogComponent;
@@ -86,7 +84,6 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final DeviceService deviceService;
     private final DeviceModelRepository deviceModelRepository;
     private final CategoryRepository categoryRepository;
-    private final CompatibilityGroupService compatibilityGroupService;
     private final ProductService productService;
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
@@ -274,8 +271,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     /**
-     * Private shop stock, linked to the shared catalog. One private fitment note is kept so
-     * "Propose to shared catalog" has something to show.
+     * Private shop stock, linked to the shared catalog.
      */
     private void seedShopInventory(UUID shopId, UUID ownerId) {
         Brand realme = brandService.findOrCreate(shopId, "Realme");
@@ -291,11 +287,11 @@ public class DemoDataSeeder implements ApplicationRunner {
         vivo.setColor("#415FFF");
         brandRepository.saveAll(List.of(realme, apple, samsung, xiaomi, vivo));
 
-        DeviceModel realme6 = device(shopId, realme, "Realme 6", "RMX2001", 2020,
+        device(shopId, realme, "Realme 6", "RMX2001", 2020,
                 List.of("Realme 6i", "RMX2002", "Realme 6s"));
-        DeviceModel realme7 = device(shopId, realme, "Realme 7", "RMX2151", 2020,
+        device(shopId, realme, "Realme 7", "RMX2151", 2020,
                 List.of("Realme 7i", "RMX2103"));
-        DeviceModel realmeNarzo = device(shopId, realme, "Realme Narzo 20", "RMX2193", 2020, List.of());
+        device(shopId, realme, "Realme Narzo 20", "RMX2193", 2020, List.of());
         device(shopId, apple, "iPhone 11", "A2221", 2019, List.of("iPhone 11 2019"));
 
         UUID display = category(shopId, "DISPLAY_FOLDER");
@@ -305,14 +301,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         UUID back = category(shopId, "BACK_COVER");
         UUID frame = category(shopId, "FRAME");
         UUID flex = category(shopId, "POWER_VOLUME_FLEX");
-
-        compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                "BENCH_NOTE_REALME_DISPLAY",
-                "Realme 6 family — bench note",
-                display,
-                "Same 6.5\" IPS panel. Propose this to the shared catalog once confirmed.",
-                false, true,
-                List.of(realme6.getId(), realme7.getId(), realmeNarzo.getId()), null));
 
         Supplier a1 = supplierRepository.findByShopIdAndName(shopId, "A1 Mobile Parts").orElseThrow();
         Supplier gz = supplierRepository.findByShopIdAndName(shopId, "Guangzhou Display Hub").orElseThrow();
@@ -391,6 +379,12 @@ public class DemoDataSeeder implements ApplicationRunner {
         DeviceModel created = deviceService.findOrCreate(shopId, brand, name);
         created.setModelCode(code);
         created.setReleaseYear(year);
+        catalogDevices.search(com.fixflow.group.domain.SharingGroup.DEFAULT_ID, name,
+                        org.springframework.data.domain.PageRequest.of(0, 8))
+                .getContent().stream()
+                .filter(row -> row.getName().equalsIgnoreCase(name))
+                .findFirst()
+                .ifPresent(row -> created.setCatalogDeviceId(row.getId()));
         deviceModelRepository.save(created);
         aliases.forEach(alias -> deviceService.saveAlias(shopId, created.getId(), alias,
                 com.fixflow.catalog.domain.DeviceAlias.Source.SYSTEM));

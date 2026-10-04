@@ -51,6 +51,7 @@ public class CommonsCatalogService {
     private final CatalogDeviceAliasRepository aliases;
     private final CatalogComponentRepository components;
     private final CatalogFitmentRepository fitments;
+    private final CatalogCache cache;
 
     // --- Reads -------------------------------------------------------------------------------------
 
@@ -219,13 +220,15 @@ public class CommonsCatalogService {
     public CatalogBrand findOrCreateBrand(String name, UUID actorId, UUID groupId) {
         requireGroup(groupId);
         String trimmed = required(name, "A brand needs a name");
-        return brands.findByName(groupId, trimmed).orElseGet(() -> {
-            CatalogBrand brand = new CatalogBrand();
-            brand.setGroupId(groupId);
-            brand.setName(trimmed);
-            brand.setCreatedBy(actorId);
-            return brands.save(brand);
+        CatalogBrand brand = brands.findByName(groupId, trimmed).orElseGet(() -> {
+            CatalogBrand created = new CatalogBrand();
+            created.setGroupId(groupId);
+            created.setName(trimmed);
+            created.setCreatedBy(actorId);
+            return brands.save(created);
         });
+        cache.evictGroupAfterCommit(groupId);
+        return brand;
     }
 
     @Transactional
@@ -242,18 +245,20 @@ public class CommonsCatalogService {
 
         // Returns the existing row rather than failing. Two people adding the same phone on the same
         // day is the normal case in a commons, and a conflict error would teach them to stop trying.
-        return devices.findByIdentity(groupId, brand.getId(), trimmedName, trimmedVariant)
+        CatalogDevice device = devices.findByIdentity(groupId, brand.getId(), trimmedName, trimmedVariant)
                 .orElseGet(() -> {
-                    CatalogDevice device = new CatalogDevice();
-                    device.setGroupId(groupId);
-                    device.setBrandId(brand.getId());
-                    device.setName(trimmedName);
-                    device.setVariant(trimmedVariant);
-                    device.setModelCode(blankToNull(modelCode));
-                    device.setReleaseYear(releaseYear);
-                    device.setCreatedBy(actorId);
-                    return devices.save(device);
+                    CatalogDevice created = new CatalogDevice();
+                    created.setGroupId(groupId);
+                    created.setBrandId(brand.getId());
+                    created.setName(trimmedName);
+                    created.setVariant(trimmedVariant);
+                    created.setModelCode(blankToNull(modelCode));
+                    created.setReleaseYear(releaseYear);
+                    created.setCreatedBy(actorId);
+                    return devices.save(created);
                 });
+        cache.evictGroupAfterCommit(groupId);
+        return device;
     }
 
     /**
@@ -279,16 +284,18 @@ public class CommonsCatalogService {
         String code = required(categoryCode, "A component needs a category").toUpperCase();
         String trimmedName = required(name, "A component needs a name");
 
-        return components.findByIdentity(groupId, code, trimmedName).orElseGet(() -> {
-            CatalogComponent component = new CatalogComponent();
-            component.setGroupId(groupId);
-            component.setCategoryCode(code);
-            component.setName(trimmedName);
-            component.setDescription(blankToNull(description));
-            component.setAttributes(attributes == null ? Map.of() : attributes);
-            component.setCreatedBy(actorId);
-            return components.save(component);
+        CatalogComponent component = components.findByIdentity(groupId, code, trimmedName).orElseGet(() -> {
+            CatalogComponent created = new CatalogComponent();
+            created.setGroupId(groupId);
+            created.setCategoryCode(code);
+            created.setName(trimmedName);
+            created.setDescription(blankToNull(description));
+            created.setAttributes(attributes == null ? Map.of() : attributes);
+            created.setCreatedBy(actorId);
+            return components.save(created);
         });
+        cache.evictGroupAfterCommit(groupId);
+        return component;
     }
 
     @Transactional
@@ -303,11 +310,8 @@ public class CommonsCatalogService {
         requireComponent(groupId, componentId);
         requireDevice(groupId, deviceId);
 
-        return fitments.findByGroupIdAndComponentIdAndDeviceId(groupId, componentId, deviceId)
+        CatalogFitment saved = fitments.findByGroupIdAndComponentIdAndDeviceId(groupId, componentId, deviceId)
                 .map(existing -> {
-                    // Re-adding an edge somebody disputed is itself a confirmation, not a duplicate:
-                    // two people now disagree, and the counts should say so rather than one silently
-                    // overwriting the other.
                     existing.setConfirmations(existing.getConfirmations() + 1);
                     return fitments.save(existing);
                 })
@@ -321,6 +325,8 @@ public class CommonsCatalogService {
                     fitment.setCreatedBy(actorId);
                     return fitments.save(fitment);
                 });
+        cache.evictGroupAfterCommit(groupId);
+        return saved;
     }
 
     @Transactional
@@ -332,7 +338,9 @@ public class CommonsCatalogService {
         if (fitment.isDisputed() && fitment.getConfirmations() > fitment.getDisputes() * 2) {
             fitment.setDisputed(false);
         }
-        return fitments.save(fitment);
+        CatalogFitment saved = fitments.save(fitment);
+        cache.evictGroupAfterCommit(fitment.getGroupId());
+        return saved;
     }
 
     @Transactional
@@ -340,9 +348,9 @@ public class CommonsCatalogService {
         CatalogFitment fitment = requireFitment(fitmentId);
         fitment.setDisputes(fitment.getDisputes() + 1);
         fitment.setDisputed(true);
-        // Not deleted. An edge under dispute is information; a missing edge is not, and removing it
-        // invites the same wrong claim to be re-added next week by somebody who never saw the argument.
-        return fitments.save(fitment);
+        CatalogFitment saved = fitments.save(fitment);
+        cache.evictGroupAfterCommit(fitment.getGroupId());
+        return saved;
     }
 
     @Transactional
@@ -351,7 +359,9 @@ public class CommonsCatalogService {
         fitment.setVerifiedBy(reviewerId);
         fitment.setVerifiedAt(java.time.Instant.now());
         fitment.setDisputed(false);
-        return fitments.save(fitment);
+        CatalogFitment saved = fitments.save(fitment);
+        cache.evictGroupAfterCommit(fitment.getGroupId());
+        return saved;
     }
 
     public CatalogFitment requireFitment(UUID fitmentId) {
@@ -387,7 +397,7 @@ public class CommonsCatalogService {
         return brand;
     }
 
-    private static void requireGroup(UUID groupId) {
+    public void requireGroup(UUID groupId) {
         if (groupId == null) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "Choose a fitment group.");
         }

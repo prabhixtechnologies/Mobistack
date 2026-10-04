@@ -28,11 +28,11 @@ const SearchPage = page(() => import("./pages/SearchPage"), "SearchPage");
 const CommonsBrowsePage = page(() => import("./pages/CommonsBrowsePage"), "CommonsBrowsePage");
 const CommonsDevicePage = page(() => import("./pages/CommonsDevicePage"), "CommonsDevicePage");
 const CommonsComponentPage = page(() => import("./pages/CommonsComponentPage"), "CommonsComponentPage");
+const CommonsCategoryPage = page(() => import("./pages/CommonsCategoryPage"), "CommonsCategoryPage");
+const CommonsBrandPage = page(() => import("./pages/CommonsBrandPage"), "CommonsBrandPage");
 const CommonsStandingPage = page(() => import("./pages/CommonsStandingPage"), "CommonsStandingPage");
 const CommonsReviewPage = page(() => import("./pages/CommonsReviewPage"), "CommonsReviewPage");
 const CatalogLinksPage = page(() => import("./pages/CatalogLinksPage"), "CatalogLinksPage");
-const CompatibilityPage = page(() => import("./pages/CompatibilityPage"), "CompatibilityPage");
-const CompatibilityCategoryPage = page(() => import("./pages/CompatibilityCategoryPage"), "CompatibilityCategoryPage");
 const DevicePage = page(() => import("./pages/DevicePage"), "DevicePage");
 const InventoryPage = page(() => import("./pages/InventoryPage"), "InventoryPage");
 const MovementsPage = page(() => import("./pages/MovementsPage"), "MovementsPage");
@@ -194,6 +194,8 @@ function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user
             <Route path="/commons" element={<CommonsBrowsePage />} />
             <Route path="/commons/devices/:id" element={<CommonsDevicePage />} />
             <Route path="/commons/components/:id" element={<CommonsComponentPage />} />
+            <Route path="/commons/categories/:code" element={<CommonsCategoryPage />} />
+            <Route path="/commons/brands/:brandId" element={<CommonsBrandPage />} />
             <Route path="/commons/standing" element={<CommonsStandingPage />} />
             <Route path="/commons/review" element={<CommonsReviewPage />} />
             <Route path="/commons/devices" element={<Navigate to="/commons" replace />} />
@@ -208,8 +210,8 @@ function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user
             <Route path="/purchases" element={<PurchasesPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/suppliers" element={<SuppliersPage />} />
-            <Route path="/compatibility" element={<CompatibilityPage />} />
-            <Route path="/compatibility/:categoryId" element={<CompatibilityCategoryPage />} />
+            <Route path="/compatibility" element={<Navigate to="/commons" replace />} />
+            <Route path="/compatibility/:categoryId" element={<Navigate to="/commons" replace />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/movements" element={<MovementsPage />} />
             <Route path="/members" element={<MembersPage />} />

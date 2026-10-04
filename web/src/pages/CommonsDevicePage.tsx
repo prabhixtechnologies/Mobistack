@@ -3,29 +3,31 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAccess } from "../lib/access";
 import { useAuth } from "../lib/auth";
+import { brandMark, brandTone } from "../lib/brandTone";
 import { hasFeature } from "../lib/plan";
+import { useFitmentGroups } from "../lib/groups";
 import { useResource } from "../lib/useResource";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { Modal } from "../ui/Modal";
 import { PageHeader } from "../ui/PageHeader";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
-import { useFitmentGroups } from "../lib/groups";
 import { TextField } from "../ui/Field";
-import { brandMark, brandTone } from "../lib/brandTone";
-import type { CatalogStockRow, CommonsDevice, CommonsFit } from "../lib/types";
+import { phoneCaption } from "../ui/CatalogEditor";
+import type { CatalogStockRow, CommonsDevice, CommonsFamily, CommonsFit } from "../lib/types";
 
 export function CommonsDevicePage() {
   const { id } = useParams();
   const { user } = useAuth();
   const access = useAccess();
   const canOpenStock = hasFeature(user, "INVENTORY") && access.has("INVENTORY_READ");
+  const canSell = hasFeature(user, "SALES") && access.has("SALES_READ");
   const fitment = useFitmentGroups();
   const device = useResource<CommonsDevice>(id ? `/api/v1/mobistack/commons/devices?deviceId=${id}` : null);
-  const fits = useResource<CommonsFit[]>(
-    id && fitment.ready ? `/api/v1/mobistack/commons/devices/fits?deviceId=${id}&groupId=${fitment.selected ?? ""}` : null,
+  const families = useResource<CommonsFamily[]>(
+    id && fitment.ready ? `/api/v1/mobistack/commons/devices/family?deviceId=${id}` : null,
   );
-  const companions = useResource<{ id: string; categoryCode: string; name: string; members: { id: string; brandName: string; name: string }[] }[]>(
-    id && fitment.ready ? `/api/v1/mobistack/commons/devices/companions?deviceId=${id}` : null,
+  const fits = useResource<CommonsFit[]>(
+    id && fitment.ready ? `/api/v1/mobistack/commons/devices/fits?deviceId=${id}` : null,
   );
   const stock = useResource<CatalogStockRow[]>(
     id && canOpenStock ? `/api/v1/mobistack/inventory/catalog-links/devices/stock?catalogDeviceId=${id}` : null,
@@ -44,6 +46,7 @@ export function CommonsDevicePage() {
         body: JSON.stringify({ kind, targetId: fitmentId, reason: note || undefined }),
       });
       fits.reload();
+      families.reload();
       setDisputeFor(null);
       setReason("");
     } catch (cause) {
@@ -65,9 +68,6 @@ export function CommonsDevicePage() {
     return (
       <div className="page">
         <div className="skeleton skeleton--title" />
-        <div className="card">
-          <div className="skeleton" />
-        </div>
       </div>
     );
   }
@@ -84,78 +84,85 @@ export function CommonsDevicePage() {
         current={fitment.current}
       />
       <div className="device-hero">
-          <span className="device-hero__mark" style={brandTone(device.data.brandName)}>
+        <span className="device-hero__mark" style={brandTone(device.data.brandName)}>
           {brandMark(device.data.brandName)}
         </span>
         <PageHeader
-          kicker={<Link to="/commons">Fitment Catalog · {device.data.brandName}</Link>}
-          title={title}
-          subtitle={
-            canOpenStock
-              ? "Shared catalog phone. Confirm a fit from the bench, or open linked stock for this shop."
-              : "Shared catalog phone. Check what fits and contribute what you learn."
+          kicker={
+            <Link to={`/commons/brands/${device.data.brandId}`}>
+              Fitment Catalog · {device.data.brandName}
+            </Link>
           }
+          title={title}
+          subtitle="Compatible models sit with the spare they share. Stock is this shop’s, live."
           meta={
             <div className="device-hero__facts">
               {device.data.modelCode ? <code>{device.data.modelCode}</code> : null}
               {device.data.releaseYear ? <span className="page-stat">{device.data.releaseYear}</span> : null}
-              <span className="page-stat">{device.data.brandName}</span>
             </div>
           }
         />
       </div>
       {error && <div className="error">{error}</div>}
 
-      {(companions.data ?? []).map((group) => (
-        <section className="card tight" key={group.id}>
-          <div style={{ padding: "16px 18px" }}>
-            <strong>{group.name}</strong>
-            <div className="faint">{group.categoryCode}</div>
-          </div>
-          {group.members.map((member) => (
-            <Link key={member.id} className="category-row" to={`/commons/devices/${member.id}`}>
+      {(families.data ?? []).map((family) => {
+        const others = family.members.filter((member) => member.id !== id);
+        const stockRows = (stock.data ?? []).filter((row) => row.componentId === family.id);
+        return (
+          <section className="card catalog-family" key={family.id}>
+            <div className="spread">
               <div>
-                <div style={{ fontWeight: 650 }}>{member.name}</div>
-                <div className="faint">{member.brandName}</div>
+                <p className="page-kicker">{family.categoryName}</p>
+                <strong>{family.name}</strong>
               </div>
-            </Link>
-          ))}
-        </section>
-      ))}
+              <Link className="btn ghost" to={`/commons/components/${family.id}`}>
+                Family
+              </Link>
+            </div>
+            <div className="chips">
+              <span className="chip">{title}</span>
+              {others.map((member) => (
+                <Link className="chip" key={member.id} to={`/commons/devices/${member.id}`}>
+                  {phoneCaption(member)}
+                </Link>
+              ))}
+              {others.length === 0 && <span className="faint">No other models on this spare yet.</span>}
+            </div>
+            {canOpenStock && (
+              <div className="catalog-stock">
+                {stockRows.map((row) => (
+                  <div className="category-row" key={row.variantId}>
+                    <div>
+                      <div style={{ fontWeight: 650 }}>{row.name}</div>
+                      <div className="faint">{row.sku}</div>
+                    </div>
+                    <span className="badge GREEN">{row.available} on hand</span>
+                    {canSell && (
+                      <Link className="btn" to={`/sales?q=${encodeURIComponent(row.sku)}`}>
+                        Sell
+                      </Link>
+                    )}
+                  </div>
+                ))}
+                {stockRows.length === 0 && (
+                  <p className="faint">
+                    No linked stock. <Link to="/inventory/catalog-links">Link a SKU</Link>
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+        );
+      })}
 
-      {canOpenStock && (
-        <section className="card tight">
-          <div className="spread" style={{ padding: "16px 18px" }}>
-            <strong>This shop’s stock</strong>
-            <Link className="btn ghost" to="/inventory/catalog-links">
-              Link a part
-            </Link>
-          </div>
-          {(stock.data ?? []).map((row) => (
-            <Link key={row.variantId} className="category-row" to={`/inventory?q=${encodeURIComponent(row.sku)}`}>
-              <div>
-                <div style={{ fontWeight: 650 }}>{row.name}</div>
-                <div className="faint">{row.sku}</div>
-              </div>
-              <span className="badge GREEN">{row.available} on hand</span>
-            </Link>
-          ))}
-          {!stock.loading && (stock.data ?? []).length === 0 && (
-            <EmptyState
-              compact
-              icon="box"
-              title="No linked stock for this phone"
-              hint="Point a variant at a catalog part, then it appears here."
-            />
-          )}
-        </section>
+      {!families.loading && (families.data ?? []).length === 0 && (
+        <EmptyState compact icon="link" title="Nothing linked yet" hint="Confirm a part from the bench, or add a family." />
       )}
 
       <section className="card tight">
         <div className="spread" style={{ padding: "16px 18px" }}>
-          <strong>What fits</strong>
+          <strong>Fitment edges</strong>
         </div>
-        {fits.error && <div className="error">{fits.error}</div>}
         {(fits.data ?? []).map((fit) => (
           <div className="category-row" key={fit.fitmentId}>
             <div>
@@ -184,9 +191,6 @@ export function CommonsDevicePage() {
             </div>
           </div>
         ))}
-        {!fits.loading && (fits.data ?? []).length === 0 && (
-          <EmptyState compact icon="link" title="Nothing linked yet" hint="Confirm a part from the bench, or contribute a fitment." />
-        )}
       </section>
 
       <Modal

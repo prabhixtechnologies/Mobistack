@@ -30,7 +30,7 @@ public class PlatformCacheConfig {
     @Primary
     @ConditionalOnProperty(name = "fixflow.redis.enabled", havingValue = "false", matchIfMissing = true)
     public CacheManager simpleCacheManager() {
-        return new ConcurrentMapCacheManager("dashboard", "flags", "platform", "app-release");
+        return new ConcurrentMapCacheManager("dashboard", "flags", "platform", "app-release", "catalog");
     }
 
     @Bean
@@ -55,6 +55,7 @@ public class PlatformCacheConfig {
                 .withCacheConfiguration("flags", base.entryTtl(Duration.ofMinutes(2)))
                 .withCacheConfiguration("app-release", base.entryTtl(Duration.ofSeconds(30)))
                 .withCacheConfiguration("platform", base.entryTtl(Duration.ofMinutes(5)))
+                .withCacheConfiguration("catalog", base.entryTtl(Duration.ofMinutes(10)))
                 .build();
     }
 

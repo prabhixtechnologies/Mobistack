@@ -376,6 +376,35 @@ export interface CommonsBrand {
   id: string;
   name: string;
   logoUrl?: string | null;
+  deviceCount?: number;
+}
+
+export interface CommonsCategory {
+  code: string;
+  name: string;
+  familyCount: number;
+  deviceCount: number;
+}
+
+export interface CommonsFamilyMember {
+  id: string;
+  brandName?: string | null;
+  name: string;
+  variant?: string | null;
+  modelCode?: string | null;
+  fit: string;
+  verified: boolean;
+  disputed: boolean;
+  fitmentId?: string | null;
+}
+
+export interface CommonsFamily {
+  id: string;
+  categoryCode: string;
+  categoryName: string;
+  name: string;
+  description?: string | null;
+  members: CommonsFamilyMember[];
 }
 
 export interface CommonsDevice {
@@ -400,6 +429,7 @@ export interface CommonsFit {
   fitmentId: string;
   componentId: string;
   componentName?: string | null;
+  categoryCode?: string | null;
   deviceId: string;
   deviceName?: string | null;
   fit: string;

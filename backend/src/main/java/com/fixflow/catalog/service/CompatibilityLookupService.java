@@ -19,6 +19,7 @@ import com.fixflow.catalog.repository.DeviceModelRepository;
 import com.fixflow.catalog.repository.ProductVariantRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.config.FixFlowProperties;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.pricing.domain.PricingFlag;
 import com.fixflow.pricing.service.PriceContext;
 import com.fixflow.pricing.service.PriceQuote;
@@ -60,6 +61,7 @@ public class CompatibilityLookupService {
     private final ProductVariantRepository variantRepository;
     private final PricingService pricingService;
     private final FixFlowProperties properties;
+    private final SharingGroupService sharingGroups;
 
     @Transactional
     public DeviceCompatibilityView lookup(UUID shopId, UUID deviceModelId, PricingFlag flag) {
@@ -74,7 +76,7 @@ public class CompatibilityLookupService {
         DeviceSummary deviceSummary = toSummary(device, aliasesFor(shopId, deviceModelId));
         List<DeviceSummary> compatibleModels = loadCompatibleModels(shopId, deviceModelId);
         List<CompatibilityGroupSummary> groups = loadGroups(shopId, deviceModelId);
-        List<CategoryPartsSummary> categories = loadCategoryBreakdown(shopId, deviceModelId, effectiveFlag);
+        List<CategoryPartsSummary> categories = loadCategoryBreakdown(shopId, device, effectiveFlag);
 
         int totalAvailable = categories.stream().mapToInt(CategoryPartsSummary::totalAvailable).sum();
         int inStock = (int) categories.stream().filter(c -> c.totalAvailable() > 0).count();
@@ -134,9 +136,20 @@ public class CompatibilityLookupService {
      * Categories with no stock are still returned so the shopkeeper can see the
      * gap rather than wonder whether the search missed something.
      */
-    private List<CategoryPartsSummary> loadCategoryBreakdown(UUID shopId, UUID deviceModelId,
+    private List<CategoryPartsSummary> loadCategoryBreakdown(UUID shopId, DeviceModel device,
                                                              PricingFlag flag) {
-        List<ProductVariant> variants = variantRepository.findCompatibleWithDevice(shopId, deviceModelId);
+        Map<UUID, ProductVariant> unique = new LinkedHashMap<>();
+        for (ProductVariant variant : variantRepository.findCompatibleWithDevice(shopId, device.getId())) {
+            unique.put(variant.getId(), variant);
+        }
+        UUID groupId = sharingGroups.resolveSelected();
+        if (device.getCatalogDeviceId() != null && groupId != null) {
+            for (ProductVariant variant : variantRepository.findLinkedToCatalogDevice(
+                    shopId, groupId, device.getCatalogDeviceId())) {
+                unique.putIfAbsent(variant.getId(), variant);
+            }
+        }
+        List<ProductVariant> variants = new ArrayList<>(unique.values());
         if (variants.isEmpty()) {
             return List.of();
         }

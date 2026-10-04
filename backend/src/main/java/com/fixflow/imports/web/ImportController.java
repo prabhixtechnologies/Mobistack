@@ -1,6 +1,7 @@
 package com.fixflow.imports.web;
 
 import com.fixflow.common.web.PageResponse;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.imports.ImportService;
 import com.fixflow.imports.ImportService.ImportRequest;
 import com.fixflow.imports.domain.ImportJob;
@@ -26,6 +27,7 @@ import java.util.Map;
 public class ImportController {
 
     private final ImportService importService;
+    private final SharingGroupService groups;
 
     @GetMapping
     @PreAuthorize(Authorize.CATALOG_READ)
@@ -36,6 +38,7 @@ public class ImportController {
     @PostMapping("/compatibility")
     @PreAuthorize(Authorize.CATALOG_WRITE)
     public Map<String, Object> compatibility(@RequestBody ImportRequest request) {
-        return importService.asMap(importService.importCompatibility(CurrentUser.shopId(), request));
+        return importService.asMap(importService.importCompatibility(
+                CurrentUser.shopId(), CurrentUser.userId(), groups.requireSelected(), request));
     }
 }

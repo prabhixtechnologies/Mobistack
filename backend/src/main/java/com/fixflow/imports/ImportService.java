@@ -5,11 +5,16 @@ import tools.jackson.databind.ObjectMapper;
 import com.fixflow.audit.service.AuditAction;
 import com.fixflow.audit.service.AuditService;
 import com.fixflow.catalog.DeviceLabels;
+import com.fixflow.catalog.domain.Category;
 import com.fixflow.catalog.domain.DeviceModel;
-import com.fixflow.catalog.dto.CatalogDtos.CompatibilityGroupRequest;
-import com.fixflow.catalog.service.CompatibilityGroupService;
+import com.fixflow.catalog.repository.CategoryRepository;
+import com.fixflow.catalog.repository.DeviceModelRepository;
 import com.fixflow.catalog.service.DeviceService;
 import com.fixflow.common.error.ApiException;
+import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
+import com.fixflow.commons.service.CatalogCache;
+import com.fixflow.commons.service.CatalogFamilyService;
+import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.imports.domain.ImportJob;
 import com.fixflow.imports.repository.ImportJobRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +35,11 @@ import java.util.UUID;
 public class ImportService {
 
     private final DeviceService deviceService;
-    private final CompatibilityGroupService compatibilityGroupService;
+    private final DeviceModelRepository deviceModels;
+    private final CategoryRepository categories;
+    private final CommonsCatalogService catalog;
+    private final CatalogFamilyService families;
+    private final CatalogCache cache;
     private final AuditService auditService;
     private final ImportJobRepository importJobRepository;
     private final ObjectMapper objectMapper;
@@ -42,13 +51,18 @@ public class ImportService {
     }
 
     @Transactional
-    public ImportResult importCompatibility(UUID shopId, ImportRequest request) {
+    public ImportResult importCompatibility(UUID shopId, UUID actorId, UUID groupId, ImportRequest request) {
         if (request.text() == null || request.text().isBlank()) {
             throw ApiException.businessRule("Nothing to import.");
         }
         if (request.categoryId() == null) {
             throw ApiException.businessRule("Pick a part category for this list.");
         }
+        if (groupId == null) {
+            throw ApiException.businessRule("Choose a fitment group.");
+        }
+        Category category = categories.findByIdAndShopId(request.categoryId(), shopId)
+                .orElseThrow(() -> ApiException.notFound("Category", request.categoryId()));
         String defaultBrand = request.brand() == null || request.brand().isBlank() ? null : request.brand().trim();
         int groups = 0;
         int devices = 0;
@@ -59,30 +73,35 @@ public class ImportService {
                 warnings.add("Skipped (need at least two models): " + String.join(" = ", names));
                 continue;
             }
-            List<UUID> deviceIds = new ArrayList<>();
+            List<UUID> catalogIds = new ArrayList<>();
             DeviceModel primary = null;
             for (String name : names) {
-                DeviceModel device = deviceService.findOrCreateFromText(shopId, name, defaultBrand);
+                DeviceModel shopDevice = deviceService.findOrCreateFromText(shopId, name, defaultBrand);
                 devices++;
-                deviceIds.add(device.getId());
+                CatalogDevice catalogDevice = catalog.addDevice(
+                        shopDevice.getBrand().getName(),
+                        shopDevice.getName(),
+                        shopDevice.getVariant(),
+                        shopDevice.getModelCode(),
+                        shopDevice.getReleaseYear(),
+                        actorId,
+                        groupId);
+                if (shopDevice.getCatalogDeviceId() == null) {
+                    shopDevice.setCatalogDeviceId(catalogDevice.getId());
+                    deviceModels.save(shopDevice);
+                }
+                catalogIds.add(catalogDevice.getId());
                 if (primary == null) {
-                    primary = device;
+                    primary = shopDevice;
                 }
             }
             String groupName = trimName(primary == null
                     ? names.get(0)
                     : DeviceLabels.display(primary.getBrand().getName(), primary.getName(), primary.getVariant()));
-            compatibilityGroupService.create(shopId, new CompatibilityGroupRequest(
-                    null,
-                    groupName,
-                    request.categoryId(),
-                    "Imported",
-                    false,
-                    true,
-                    deviceIds,
-                    null));
+            families.create(groupId, category.getCode(), groupName, catalogIds, actorId);
             groups++;
         }
+        cache.evictGroupAfterCommit(groupId);
         ImportResult result = new ImportResult(groups, devices, 0, warnings);
         ImportJob job = new ImportJob();
         job.setShopId(shopId);
@@ -92,7 +111,7 @@ public class ImportService {
         job.setResultJson(asMap(result));
         importJobRepository.save(job);
         auditService.record(AuditAction.IMPORT_COMPLETED, "Import", shopId,
-                "Imported %d compatibility lines".formatted(groups));
+                "Imported %d catalog families".formatted(groups));
         return result;
     }
 

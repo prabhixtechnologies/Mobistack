@@ -76,10 +76,9 @@ export const NAV_DESTINATIONS: NavDestination[] = [
     label: "Catalog",
     icon: "globe",
     tint: "cyan",
-    owns: ["/devices"],
+    owns: ["/devices", "/compatibility"],
     tabs: [
-      { to: "/commons", label: "Shared fitment", feature: "COMPATIBILITY" },
-      { to: "/compatibility", label: "Shop notes", need: "CATALOG_READ" },
+      { to: "/commons", label: "Catalog", feature: "COMPATIBILITY" },
       { to: "/commons/standing", label: "Contributions", title: "Contributor standing", allowUnpaid: true },
       { to: "/commons/review", label: "Review queue", title: "Catalog review", commonsReviewer: true, allowUnpaid: true },
     ],
@@ -181,10 +180,12 @@ export function routeContext(pathname: string): { title: string; section: string
   if (direct) {
     return { title: direct, section: destinationFor(pathname)?.label ?? "MobiStack" };
   }
-  if (pathname.startsWith("/commons/devices/")) return { title: "Shared device", section: "Catalog" };
-  if (pathname.startsWith("/commons/components/")) return { title: "Shared part", section: "Catalog" };
+  if (pathname.startsWith("/commons/devices/")) return { title: "Phone", section: "Catalog" };
+  if (pathname.startsWith("/commons/components/")) return { title: "Family", section: "Catalog" };
+  if (pathname.startsWith("/commons/categories/")) return { title: "Part type", section: "Catalog" };
+  if (pathname.startsWith("/commons/brands/")) return { title: "Brand", section: "Catalog" };
   if (pathname.startsWith("/devices/")) return { title: "Shop phone", section: "Catalog" };
-  if (pathname.startsWith("/compatibility/")) return { title: "Fitment category", section: "Catalog" };
+  if (pathname.startsWith("/compatibility")) return { title: "Catalog", section: "Catalog" };
   return { title: "MobiStack", section: "Shop operations" };
 }
 

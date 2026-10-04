@@ -260,16 +260,9 @@ const CATALOG_TILES: { to: string; icon: NavIconName; title: string; body: strin
   {
     to: "/commons",
     icon: "globe",
-    title: "Shared fitment",
-    body: "Pick a phone and see every screen, battery and part the union says fits it.",
+    title: "Catalog",
+    body: "Part type or brand, then a phone, then every model that shares the spare.",
     tone: "teal",
-  },
-  {
-    to: "/compatibility",
-    icon: "lock",
-    title: "Shop notes",
-    body: "Your own fitment notes. Other shops never see them.",
-    tone: "indigo",
   },
   {
     to: "/commons/standing",
@@ -281,9 +274,9 @@ const CATALOG_TILES: { to: string; icon: NavIconName; title: string; body: strin
 ];
 
 const CATALOG_STEPS: { number: string; title: string; body: string }[] = [
-  { number: "01", title: "Choose the phone", body: "Search by model name, code, or the name printed on the device." },
-  { number: "02", title: "Check every fit", body: "Compare shared screens, batteries, cameras, and other compatible parts." },
-  { number: "03", title: "Keep shop knowledge", body: "Add a private note when your team learns something the union should not see." },
+  { number: "01", title: "Choose a part type or brand", body: "Tempered glass, display, battery — or Apple, Samsung, Realme." },
+  { number: "02", title: "Open the phone", body: "See every model that takes the same spare, as chips not A = B = C lines." },
+  { number: "03", title: "Sell what you have", body: "When inventory is on, linked stock and Sell sit on that family." },
 ];
 
 function CatalogHome({ shop, name, canBill }: { shop: string; name: string; canBill: boolean }) {

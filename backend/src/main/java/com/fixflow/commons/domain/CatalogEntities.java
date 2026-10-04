@@ -202,40 +202,4 @@ public final class CatalogEntities {
             return verifiedAt != null;
         }
     }
-
-    /** Models in one fitment group that take the same kind of part. */
-    @Getter
-    @Setter
-    @Entity(name = "CatalogEquivalenceGroup")
-    @Table(name = "catalog_equivalence_groups")
-    public static class CatalogEquivalenceGroup extends AuditableEntity {
-
-        @Column(name = "group_id", nullable = false)
-        private UUID groupId;
-
-        @Column(name = "category_code", nullable = false, length = 64)
-        private String categoryCode;
-
-        @Column(name = "name", nullable = false, length = 160)
-        private String name;
-
-        @Column(name = "notes")
-        private String notes;
-    }
-
-    @Getter
-    @Setter
-    @Entity(name = "CatalogEquivalenceMember")
-    @Table(name = "catalog_equivalence_group_devices")
-    public static class CatalogEquivalenceMember extends BaseEntity {
-
-        @Column(name = "equivalence_group_id", nullable = false)
-        private UUID equivalenceGroupId;
-
-        @Column(name = "device_id", nullable = false)
-        private UUID deviceId;
-
-        @Column(name = "primary_device", nullable = false)
-        private boolean primaryDevice;
-    }
 }

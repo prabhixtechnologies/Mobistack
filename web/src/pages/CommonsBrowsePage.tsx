@@ -1,75 +1,63 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { brandMark, brandTone } from "../lib/brandTone";
+import { canManageGroup, useFitmentGroups } from "../lib/groups";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { useResource } from "../lib/useResource";
 import { EmptyState } from "../ui/EmptyState";
-import { TextField } from "../ui/Field";
-import { PageHeader } from "../ui/PageHeader";
+import { AddFamilyModal, AddPhoneModal } from "../ui/CatalogEditor";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
-import { canManageGroup, useFitmentGroups } from "../lib/groups";
-import { Icon } from "../ui/navIcons";
-import { brandMark, brandTone } from "../lib/brandTone";
-import type { CommonsBrand, CommonsComponent, CommonsDevice, CommonsStats } from "../lib/types";
-
-type Tab = "devices" | "components" | "contribute";
-
-function deviceLabel(device: CommonsDevice): string {
-  return [device.name, device.variant].filter(Boolean).join(" ");
-}
+import { PageHeader } from "../ui/PageHeader";
+import { TextField } from "../ui/Field";
+import type { CommonsBrand, CommonsCategory, CommonsDevice, CommonsStats } from "../lib/types";
 
 export function CommonsBrowsePage() {
-  const [tab, setTab] = useState<Tab>("devices");
+  const [tab, setTab] = useState<"parts" | "brands">("parts");
   const [query, setQuery] = useState("");
-  const [brandId, setBrandId] = useState("");
+  const [addPhone, setAddPhone] = useState(false);
+  const [addFamily, setAddFamily] = useState(false);
   const settled = useDebounced(query);
   const fitment = useFitmentGroups();
   const stats = useResource<CommonsStats>(
     fitment.ready ? `/api/v1/mobistack/commons/stats?groupId=${fitment.selected ?? ""}` : null,
   );
-  const brands = useResource<CommonsBrand[]>(
-    fitment.ready ? `/api/v1/mobistack/commons/brands?groupId=${fitment.selected ?? ""}` : null,
+  const categories = useResource<CommonsCategory[]>(
+    fitment.ready ? "/api/v1/mobistack/commons/categories" : null,
+  );
+  const brands = useResource<CommonsBrand[]>(fitment.ready ? "/api/v1/mobistack/commons/brands" : null);
+  const searching = settled.trim().length >= 2;
+  const devices = usePagedList<CommonsDevice>(
+    searching ? `/api/v1/mobistack/commons/devices?q=${encodeURIComponent(settled.trim())}` : null,
+    { size: 24 },
   );
 
-  const devicePath = useMemo(() => {
-    const params = new URLSearchParams();
-    if (settled.trim().length >= 2) {
-      params.set("q", settled.trim());
-    } else if (brandId) {
-      params.set("brandId", brandId);
-    }
-    const suffix = params.toString();
-    return suffix ? `/api/v1/mobistack/commons/devices?${suffix}` : "/api/v1/mobistack/commons/devices";
-  }, [settled, brandId]);
-
-  const componentPath = useMemo(() => {
-    const params = new URLSearchParams();
-    if (settled.trim().length >= 2) {
-      params.set("q", settled.trim());
-    }
-    const suffix = params.toString();
-    return suffix ? `/api/v1/mobistack/commons/components?${suffix}` : "/api/v1/mobistack/commons/components";
-  }, [settled]);
-
-  const devices = usePagedList<CommonsDevice>(tab === "devices" ? devicePath : null, { size: 30 });
-  const components = usePagedList<CommonsComponent>(tab === "components" ? componentPath : null, { size: 30 });
+  function reload() {
+    categories.reload();
+    brands.reload();
+    stats.reload();
+    devices.reload();
+  }
 
   return (
-    <div className="page">
+    <div className="page catalog-home">
       <PageHeader
         icon="globe"
         kicker="Fitment Catalog"
-        title="Browse catalog"
-        subtitle={
-          stats.data?.groupName
-            ? `Shared inside ${stats.data.groupName}. Look up a phone, then open the parts that fit it.`
-            : "Look up a phone, then open the parts that fit it."
-        }
+        title={stats.data?.groupName ?? "Catalog"}
+        subtitle="Pick a part type or a brand, then a phone. Compatible models live on that phone."
         actions={
-          <Link className="btn ghost" to="/commons/standing">
-            Your standing
-          </Link>
+          canManageGroup(fitment.current) ? (
+            <div className="row">
+              <button className="btn ghost" type="button" onClick={() => setAddPhone(true)}>
+                Add phone
+              </button>
+              <button className="btn" type="button" onClick={() => setAddFamily(true)}>
+                Add family
+              </button>
+            </div>
+          ) : null
         }
         meta={
           stats.data ? (
@@ -78,10 +66,7 @@ export function CommonsBrowsePage() {
                 <strong>{stats.data.deviceCount}</strong> phones
               </span>
               <span className="page-stat">
-                <strong>{stats.data.componentCount}</strong> parts
-              </span>
-              <span className="page-stat">
-                Shared with <strong>{stats.data.shopCount}</strong> shops
+                <strong>{stats.data.componentCount}</strong> families
               </span>
             </>
           ) : null
@@ -96,204 +81,113 @@ export function CommonsBrowsePage() {
         current={fitment.current}
       />
 
-      {canManageGroup(fitment.current) && (
-        <CatalogAdmin
-          onCreated={() => {
-            brands.reload();
-            devices.reload();
-            components.reload();
-            stats.reload();
-          }}
-        />
-      )}
+      <TextField
+        label="Search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="iPhone 11, RMX2001, Galaxy A10…"
+        autoComplete="off"
+      />
 
-      <div className="method-tabs" role="tablist" aria-label="Catalog sections">
-        {(["devices", "components", "contribute"] as const).map((id) => (
-          <button
-            key={id}
-            className={`method-tab ${tab === id ? "on" : ""}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-          >
-            {id === "devices" ? "Phones" : id === "components" ? "Parts" : "Contribute"}
-          </button>
-        ))}
-      </div>
-
-      {tab !== "contribute" && (
-        <div className={tab === "devices" ? "catalog-command" : "catalog-command catalog-command--solo"}>
-          <label className="catalog-command__field">
-            <Icon name="search" />
-            <input
-              className="catalog-command__input"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={tab === "devices" ? "Search phones, model codes…" : "Search parts…"}
-              autoFocus
-              autoComplete="off"
-              aria-label={tab === "devices" ? "Search phones" : "Search parts"}
-            />
-          </label>
-          {tab === "devices" ? (
-            <label className="catalog-command__brand">
-              <span className="visually-hidden">Brand</span>
-              <select
-                className="select"
-                value={brandId}
-                aria-label="Brand"
-                onChange={(event) => setBrandId(event.target.value)}
-              >
-                <option value="">All brands</option>
-                {(brands.data ?? []).map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-        </div>
-      )}
-
-      {tab === "devices" && (
-        <section>
-          {devices.error && (
-            <div className="error" role="alert">
-              Could not load the catalog. {devices.error}
-            </div>
-          )}
-          {devices.rows.length > 0 && (
-            <div className="catalog-list">
-              <div className="catalog-list__head">
-                <span>Device</span>
-                <span>Factory code</span>
-                <span>Year</span>
-                <span />
+      {searching ? (
+        <section className="card tight">
+          {devices.rows.map((device) => (
+            <Link key={device.id} className="catalog-row" to={`/commons/devices/${device.id}`}>
+              <div className="catalog-row__device">
+                <span className="catalog-row__mark" style={brandTone(device.brandName)}>
+                  {brandMark(device.brandName)}
+                </span>
+                <div>
+                  <div className="catalog-row__name">{[device.name, device.variant].filter(Boolean).join(" ")}</div>
+                  <div className="catalog-row__brand">{device.brandName}</div>
+                </div>
               </div>
-              {devices.rows.map((device) => {
-                  return (
-                    <Link key={device.id} className="catalog-row" to={`/commons/devices/${device.id}`}>
-                      <div className="catalog-row__device">
-                        <span className="catalog-row__mark" style={brandTone(device.brandName)}>
-                        {brandMark(device.brandName)}
-                      </span>
-                      <div>
-                        <div className="catalog-row__name">{deviceLabel(device)}</div>
-                        <span className="catalog-row__brand">{device.brandName}</span>
-                      </div>
-                    </div>
-                    <span className="catalog-row__sku">{device.modelCode ?? "—"}</span>
-                    <span className="catalog-row__year">{device.releaseYear ?? "—"}</span>
-                    <span className="catalog-row__go">Fitments</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-          {devices.loading && devices.rows.length === 0 && <EmptyState compact icon="search" title="Loading phones…" />}
-          {!devices.loading && !devices.error && devices.rows.length === 0 && (
-            <EmptyState
-              compact
-              icon="search"
-              title={settled.trim() ? "No matching phone" : "No phones in the catalog yet"}
-              hint="Try a shorter model name, or contribute one."
-            />
-          )}
-          {devices.hasMore && (
-            <div className="spread" style={{ paddingTop: 8 }}>
-              <button className="btn ghost" type="button" onClick={devices.loadMore} disabled={devices.loadingMore}>
-                {devices.loadingMore ? "Loading…" : `Show more of ${devices.total}`}
-              </button>
-            </div>
+              <span className="catalog-row__sku">{device.modelCode ?? "—"}</span>
+              <span className="catalog-row__go">Open</span>
+            </Link>
+          ))}
+          {!devices.loading && devices.rows.length === 0 && (
+            <EmptyState compact icon="search" title="No phones match that" hint="Try a factory code or a shorter name." />
           )}
         </section>
-      )}
+      ) : (
+        <>
+          <div className="method-tabs" role="tablist" aria-label="Browse catalog">
+            <button className={`method-tab ${tab === "parts" ? "on" : ""}`} type="button" onClick={() => setTab("parts")}>
+              Part types
+            </button>
+            <button className={`method-tab ${tab === "brands" ? "on" : ""}`} type="button" onClick={() => setTab("brands")}>
+              Brands
+            </button>
+          </div>
 
-      {tab === "components" && (
-        <section>
-          {components.error && <div className="error">{components.error}</div>}
-          {components.rows.length > 0 && (
-            <div className="catalog-list">
-              <div className="catalog-list__head">
-                <span>Part</span>
-                <span>Category</span>
-                <span />
-                <span />
-              </div>
-              {components.rows.map((component) => {
-                  return (
-                    <Link key={component.id} className="catalog-row" to={`/commons/components/${component.id}`}>
-                      <div className="catalog-row__device">
-                        <span className="catalog-row__mark" style={brandTone(component.categoryCode)}>
-                        {brandMark(component.name)}
-                      </span>
-                      <div>
-                        <div className="catalog-row__name">{component.name}</div>
-                        <span className="catalog-row__brand">{component.categoryCode.replaceAll("_", " ")}</span>
-                      </div>
-                    </div>
-                    <span className="catalog-row__sku">{component.categoryCode.replaceAll("_", " ")}</span>
-                    <span className="catalog-row__year" />
-                    <span className="catalog-row__go">Fits phones</span>
-                  </Link>
-                );
-              })}
+          {tab === "parts" && (
+            <div className="catalog-grid">
+              {(categories.data ?? []).map((category, index) => (
+                <Link
+                  key={category.code}
+                  className="catalog-tile"
+                  to={`/commons/categories/${encodeURIComponent(category.code)}`}
+                >
+                  <span className="catalog-tile__n">{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{category.name}</strong>
+                  <p className="faint">
+                    {category.familyCount} {category.familyCount === 1 ? "family" : "families"} · {category.deviceCount} phones
+                  </p>
+                </Link>
+              ))}
             </div>
           )}
-          {components.loading && components.rows.length === 0 && <EmptyState compact icon="search" title="Loading parts…" />}
-          {!components.loading && components.rows.length === 0 && (
-            <EmptyState compact icon="search" title={settled.trim() ? "No matching part" : "No parts yet"} />
-          )}
-          {components.hasMore && (
-            <div className="spread" style={{ paddingTop: 8 }}>
-              <button className="btn ghost" type="button" onClick={components.loadMore} disabled={components.loadingMore}>
-                {components.loadingMore ? "Loading…" : `Show more of ${components.total}`}
-              </button>
+
+          {tab === "brands" && (
+            <div className="catalog-grid">
+              {(brands.data ?? []).map((brand) => (
+                <Link key={brand.id} className="catalog-tile catalog-tile--brand" to={`/commons/brands/${brand.id}`}>
+                  <span className="catalog-tile__mark" style={brandTone(brand.name)}>
+                    {brandMark(brand.name)}
+                  </span>
+                  <strong>{brand.name}</strong>
+                  <p className="faint">
+                    {brand.deviceCount ?? 0} {(brand.deviceCount ?? 0) === 1 ? "phone" : "phones"}
+                  </p>
+                </Link>
+              ))}
             </div>
           )}
-        </section>
+        </>
       )}
 
-      {tab === "contribute" && <ContributeForm brands={brands.data ?? []} />}
+      <ContributeStrip />
+
+      <AddPhoneModal open={addPhone} onClose={() => setAddPhone(false)} onCreated={reload} />
+      <AddFamilyModal open={addFamily} onClose={() => setAddFamily(false)} onCreated={reload} />
     </div>
   );
 }
 
-function ContributeForm({ brands }: { brands: CommonsBrand[] }) {
+function ContributeStrip() {
   const [kind, setKind] = useState<"ADD_DEVICE" | "ADD_COMPONENT">("ADD_DEVICE");
-  const [brand, setBrand] = useState(brands[0]?.name ?? "");
   const [name, setName] = useState("");
-  const [variant, setVariant] = useState("");
-  const [modelCode, setModelCode] = useState("");
+  const [brand, setBrand] = useState("");
   const [categoryCode, setCategoryCode] = useState("DISPLAY_FOLDER");
-  const [description, setDescription] = useState("");
-  const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
-    setMessage(null);
     try {
       const payload =
-        kind === "ADD_DEVICE"
-          ? { brand, name, variant: variant || undefined, modelCode: modelCode || undefined }
-          : { categoryCode, name, description: description || undefined };
+        kind === "ADD_DEVICE" ? { brand, name } : { categoryCode, name };
       await api("/api/v1/mobistack/commons/contributions", {
         method: "POST",
-        body: JSON.stringify({ kind, payload, reason: reason || undefined }),
+        body: JSON.stringify({ kind, payload }),
       });
-      setMessage("Submitted. Trusted contributors apply immediately; everyone else waits in the review queue.");
+      setMessage("Submitted for the shared catalog.");
       setName("");
-      setVariant("");
-      setModelCode("");
-      setDescription("");
-      setReason("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not submit that.");
     } finally {
@@ -301,131 +195,45 @@ function ContributeForm({ brands }: { brands: CommonsBrand[] }) {
     }
   }
 
+  if (!open) {
+    return (
+      <p className="faint catalog-home__contribute">
+        Missing a phone?{" "}
+        <button className="linkish" type="button" onClick={() => setOpen(true)}>
+          Propose it
+        </button>
+      </p>
+    );
+  }
+
   return (
     <form className="card catalog-contribute" onSubmit={submit}>
-      <div className="catalog-contribute__intro">
-        <p className="page-kicker">Shared catalog</p>
-        <strong>Add a phone or part</strong>
-        <p className="faint">
-          This is not your stock. It becomes a fact every shop can look up. Trusted contributors apply
-          immediately; everyone else waits in review.
-        </p>
-      </div>
+      <strong>Propose to the shared catalog</strong>
       <div className="stack">
         <label className="form-field">
           <span className="form-field__label">Kind</span>
           <select className="select" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
             <option value="ADD_DEVICE">Phone</option>
-            <option value="ADD_COMPONENT">Part</option>
+            <option value="ADD_COMPONENT">Part family</option>
           </select>
         </label>
         {kind === "ADD_DEVICE" ? (
-          <>
-            <TextField label="Brand" value={brand} onChange={(event) => setBrand(event.target.value)} required />
-            <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Realme 6" required />
-            <TextField label="Variant" value={variant} onChange={(event) => setVariant(event.target.value)} />
-            <TextField label="Factory code" value={modelCode} onChange={(event) => setModelCode(event.target.value)} placeholder="RMX2001" />
-          </>
+          <TextField label="Brand" value={brand} onChange={(event) => setBrand(event.target.value)} required />
         ) : (
-          <>
-            <TextField
-              label="Category code"
-              value={categoryCode}
-              onChange={(event) => setCategoryCode(event.target.value)}
-              placeholder="DISPLAY_FOLDER"
-              required
-            />
-            <TextField label="Part name" value={name} onChange={(event) => setName(event.target.value)} required />
-            <TextField label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
-          </>
+          <TextField label="Part type" value={categoryCode} onChange={(event) => setCategoryCode(event.target.value)} required />
         )}
-        <TextField label="Why this belongs" value={reason} onChange={(event) => setReason(event.target.value)} />
+        <TextField label="Name" value={name} onChange={(event) => setName(event.target.value)} required />
         {error && <div className="error">{error}</div>}
         {message && <p className="faint">{message}</p>}
-        <button className="btn" type="submit" disabled={busy}>
-          {busy ? "Sending…" : "Submit"}
-        </button>
+        <div className="row">
+          <button className="btn ghost" type="button" onClick={() => setOpen(false)}>
+            Close
+          </button>
+          <button className="btn" type="submit" disabled={busy}>
+            {busy ? "Sending…" : "Submit"}
+          </button>
+        </div>
       </div>
     </form>
-  );
-}
-
-function CatalogAdmin({ onCreated }: { onCreated: () => void }) {
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [category, setCategory] = useState("TEMPERED_GLASS");
-  const [part, setPart] = useState("");
-  const [groupName, setGroupName] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const models = usePagedList<CommonsDevice>("/api/v1/mobistack/commons/devices", { size: 40 });
-
-  async function send(path: string, body: unknown) {
-    setError(null);
-    setMessage(null);
-    await api(path, { method: "POST", body: JSON.stringify(body) });
-    setMessage("Saved in this fitment group.");
-    onCreated();
-    models.reload();
-  }
-
-  return (
-    <section className="card" style={{ display: "grid", gap: 16, padding: 18 }}>
-      <div>
-        <strong>Build this group's list</strong>
-        <p className="faint">Brands, models and parts stay in this group. They are not copied from another group.</p>
-      </div>
-      <form
-        className="spread"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void send("/api/v1/mobistack/commons/devices", { brand, name: model }).catch((cause: Error) => setError(cause.message));
-        }}
-      >
-        <TextField label="Brand" value={brand} onChange={(event) => setBrand(event.target.value)} required />
-        <TextField label="Model" value={model} onChange={(event) => setModel(event.target.value)} required />
-        <button className="btn" type="submit">Add model</button>
-      </form>
-      <form
-        className="spread"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void send("/api/v1/mobistack/commons/components", { categoryCode: category, name: part }).catch((cause: Error) => setError(cause.message));
-        }}
-      >
-        <TextField label="Part type" value={category} onChange={(event) => setCategory(event.target.value)} required />
-        <TextField label="Part name" value={part} onChange={(event) => setPart(event.target.value)} required />
-        <button className="btn" type="submit">Add part</button>
-      </form>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          void send("/api/v1/mobistack/commons/equivalence", {
-            categoryCode: category,
-            name: groupName,
-            deviceIds: picked,
-          }).catch((cause: Error) => setError(cause.message));
-        }}
-      >
-        <TextField label="Compatibility name" value={groupName} onChange={(event) => setGroupName(event.target.value)} required />
-        <label className="form-field">
-          <span className="form-field__label">Models that share {category}</span>
-          <select
-            className="select"
-            multiple
-            value={picked}
-            onChange={(event) => setPicked(Array.from(event.target.selectedOptions, (option) => option.value))}
-          >
-            {models.rows.map((row) => (
-              <option key={row.id} value={row.id}>{row.brandName} {row.name}</option>
-            ))}
-          </select>
-        </label>
-        <button className="btn" type="submit" disabled={picked.length < 2}>Save compatibility</button>
-      </form>
-      {error && <div className="error">{error}</div>}
-      {message && <p className="faint">{message}</p>}
-    </section>
   );
 }

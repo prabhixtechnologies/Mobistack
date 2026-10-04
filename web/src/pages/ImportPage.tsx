@@ -73,7 +73,7 @@ export function ImportPage() {
         icon="upload"
         kicker="Catalog"
         title="Import"
-        subtitle="Paste the old universal list. Each A = B = C line becomes a real compatibility group in the category you pick."
+        subtitle="Paste the old universal list. Each A = B = C line becomes one catalog family in the part type you pick."
       />
       {error && <div className="error">{error}</div>}
       {runImport.error && <div className="error">{runImport.error}</div>}

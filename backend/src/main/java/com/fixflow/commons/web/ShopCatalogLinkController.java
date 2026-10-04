@@ -5,7 +5,6 @@ import com.fixflow.catalog.repository.ProductVariantRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.commons.repository.CatalogComponentRepository;
-import com.fixflow.commons.service.EquivalenceCatalogService;
 import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
@@ -42,7 +41,6 @@ public class ShopCatalogLinkController {
 
     private final ProductVariantRepository variants;
     private final CatalogComponentRepository components;
-    private final EquivalenceCatalogService equivalence;
     private final SharingGroupService groups;
 
     /**
@@ -89,11 +87,8 @@ public class ShopCatalogLinkController {
     @Transactional(readOnly = true)
     public List<StockView> stockFor(@RequestParam UUID catalogDeviceId) {
         UUID groupId = groups.requireSelected();
-        java.util.List<UUID> deviceIds = equivalence.siblingDeviceIds(groupId, catalogDeviceId);
-        if (deviceIds.isEmpty()) {
-            return List.of();
-        }
-        return variants.findStockForCatalogDevices(CurrentUser.shopId(), groupId, deviceIds).stream()
+        return variants.findLinkedToCatalogDevice(CurrentUser.shopId(), groupId, catalogDeviceId).stream()
+                .filter(variant -> variant.available() > 0)
                 .map(StockView::of)
                 .toList();
     }

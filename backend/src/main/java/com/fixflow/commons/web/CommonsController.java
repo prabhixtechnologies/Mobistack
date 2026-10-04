@@ -6,9 +6,9 @@ import com.fixflow.commons.domain.CatalogContribution.Kind;
 import com.fixflow.commons.domain.CatalogContributor;
 import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
 import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
+import com.fixflow.commons.service.CatalogFamilyService;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
-import com.fixflow.commons.service.EquivalenceCatalogService;
 import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.security.Authorize;
 import com.fixflow.security.CurrentUser;
@@ -53,7 +53,7 @@ public class CommonsController {
 
     private final CommonsCatalogService catalog;
     private final ContributionService contributions;
-    private final EquivalenceCatalogService equivalence;
+    private final CatalogFamilyService familyCatalog;
     private final ShopRepository shops;
     private final SharingGroupService groups;
 
@@ -82,7 +82,25 @@ public class CommonsController {
     @GetMapping("/brands")
     @PreAuthorize("isAuthenticated()")
     public List<BrandView> brands() {
-        return catalog.listBrands(groups.requireSelected()).stream().map(BrandView::of).toList();
+        return familyCatalog.brands(groups.requireSelected()).stream()
+                .map(row -> new BrandView(row.id(), row.name(), row.logoUrl(), row.deviceCount()))
+                .toList();
+    }
+
+    @GetMapping("/categories")
+    @PreAuthorize("isAuthenticated()")
+    public List<CategoryView> categories() {
+        return familyCatalog.categories(groups.requireSelected()).stream()
+                .map(row -> new CategoryView(row.code(), row.name(), row.familyCount(), row.deviceCount()))
+                .toList();
+    }
+
+    @GetMapping("/families")
+    @PreAuthorize("isAuthenticated()")
+    public List<FamilyView> families(@RequestParam String categoryCode) {
+        return familyCatalog.familiesInCategory(groups.requireSelected(), categoryCode).stream()
+                .map(FamilyView::of)
+                .toList();
     }
 
     @GetMapping("/devices")
@@ -141,14 +159,24 @@ public class CommonsController {
         return answer;
     }
 
-    /** Compatibility groups in this fitment group that contain the model. */
+    /** Compatible models, grouped by the spare they share. */
+    @GetMapping("/devices/family")
+    @PreAuthorize("isAuthenticated()")
+    public List<FamilyView> family(@RequestParam UUID deviceId,
+                                   @RequestParam(required = false) String categoryCode) {
+        UUID groupId = groups.requireSelected();
+        List<FamilyView> answer = familyCatalog.forDevice(groupId, deviceId, categoryCode).stream()
+                .map(FamilyView::of)
+                .toList();
+        catalog.recordLookup(groupId, deviceId);
+        return answer;
+    }
+
+    /** @deprecated Use {@code /devices/family}. Kept so older clients still load a phone. */
     @GetMapping("/devices/companions")
     @PreAuthorize("isAuthenticated()")
-    public List<CompanionGroupView> companions(@RequestParam UUID deviceId) {
-        UUID groupId = groups.requireSelected();
-        return equivalence.groupsForDevice(groupId, deviceId).stream()
-                .map(group -> CompanionGroupView.of(group, equivalence.membersOf(groupId, group.getId()), catalog))
-                .toList();
+    public List<FamilyView> companions(@RequestParam UUID deviceId) {
+        return family(deviceId, null);
     }
 
     /** What this part fits — the other direction, for someone holding stock. */
@@ -189,13 +217,21 @@ public class CommonsController {
                 CurrentUser.userId(), groupId));
     }
 
+    @PostMapping("/families")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public FamilyView createFamily(@Valid @RequestBody FamilyRequest request) {
+        UUID groupId = managedGroup();
+        return FamilyView.of(familyCatalog.create(
+                groupId, request.categoryCode(), request.name(), request.deviceIds(), CurrentUser.userId()));
+    }
+
+    /** @deprecated Use {@code POST /families}. */
     @PostMapping("/equivalence")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("isAuthenticated()")
-    public CompanionGroupView createEquivalence(@Valid @RequestBody EquivalenceRequest request) {
-        UUID groupId = managedGroup();
-        var saved = equivalence.create(groupId, request.categoryCode(), request.name(), request.deviceIds(), CurrentUser.userId());
-        return CompanionGroupView.of(saved, equivalence.membersOf(groupId, saved.getId()), catalog);
+    public FamilyView createEquivalence(@Valid @RequestBody FamilyRequest request) {
+        return createFamily(request);
     }
 
     private UUID managedGroup() {
@@ -300,23 +336,38 @@ public class CommonsController {
                                    String description) {
     }
 
-    public record EquivalenceRequest(@NotBlank String categoryCode,
-                                     @NotBlank String name,
-                                     @NotNull List<UUID> deviceIds) {
+    public record FamilyRequest(@NotBlank String categoryCode,
+                                @NotBlank String name,
+                                @NotNull List<UUID> deviceIds) {
     }
 
-    public record CompanionMember(UUID id, String brandName, String name) {
+    public record CategoryView(String code, String name, long familyCount, long deviceCount) {
     }
 
-    public record CompanionGroupView(UUID id, String categoryCode, String name, List<CompanionMember> members) {
-        static CompanionGroupView of(com.fixflow.commons.domain.CatalogEntities.CatalogEquivalenceGroup group,
-                                     List<CatalogDevice> devices,
-                                     CommonsCatalogService catalog) {
-            var names = catalog.brandNames(devices.stream().map(CatalogDevice::getBrandId).distinct().toList());
-            return new CompanionGroupView(group.getId(), group.getCategoryCode(), group.getName(),
-                    devices.stream()
-                            .map(device -> new CompanionMember(device.getId(), names.get(device.getBrandId()), device.getName()))
-                            .toList());
+    public record MemberView(UUID id,
+                             String brandName,
+                             String name,
+                             String variant,
+                             String modelCode,
+                             String fit,
+                             boolean verified,
+                             boolean disputed,
+                             UUID fitmentId) {
+        static MemberView of(CatalogFamilyService.MemberView member) {
+            return new MemberView(member.id(), member.brandName(), member.name(), member.variant(),
+                    member.modelCode(), member.fit(), member.verified(), member.disputed(), member.fitmentId());
+        }
+    }
+
+    public record FamilyView(UUID id,
+                             String categoryCode,
+                             String categoryName,
+                             String name,
+                             String description,
+                             List<MemberView> members) {
+        static FamilyView of(CatalogFamilyService.FamilyView family) {
+            return new FamilyView(family.id(), family.categoryCode(), family.categoryName(), family.name(),
+                    family.description(), family.members().stream().map(MemberView::of).toList());
         }
     }
 
@@ -342,9 +393,9 @@ public class CommonsController {
                             long fitmentCount, UUID groupId, String groupName) {
     }
 
-    public record BrandView(UUID id, String name, String logoUrl) {
+    public record BrandView(UUID id, String name, String logoUrl, long deviceCount) {
         static BrandView of(CatalogBrand brand) {
-            return new BrandView(brand.getId(), brand.getName(), brand.getLogoUrl());
+            return new BrandView(brand.getId(), brand.getName(), brand.getLogoUrl(), 0);
         }
     }
 
