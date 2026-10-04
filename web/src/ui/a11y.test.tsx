@@ -56,6 +56,15 @@ describe("MobiStack keyboard and names", () => {
     expect(await violations(container)).toEqual([]);
   });
 
+  it("hides operator notes from an outage", () => {
+    const { getByRole, queryByText } = render(
+      <ErrorState message="Add mobistack to COMPOSE_PROFILES and set MOBISTACK_WEB_TAG." />,
+    );
+    expect(getByRole("heading", { name: "Temporarily unavailable" })).toBeTruthy();
+    expect(queryByText(/COMPOSE_PROFILES/)).toBeNull();
+    expect(queryByText(/MOBISTACK_WEB_TAG/)).toBeNull();
+  });
+
   it("names the close control on a dialog", async () => {
     const { container, getByRole } = render(
       <Modal open title="Receive stock" onClose={() => undefined}>

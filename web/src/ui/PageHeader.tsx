@@ -8,6 +8,7 @@ export function PageHeader({
   actions,
   meta,
   icon,
+  avatar,
 }: {
   kicker?: ReactNode;
   title: string;
@@ -15,10 +16,13 @@ export function PageHeader({
   actions?: ReactNode;
   meta?: ReactNode;
   icon?: NavIconName;
+  avatar?: ReactNode;
 }) {
   return (
-    <div className={`page-title${icon ? " page-title--icon" : ""}`}>
-      {icon ? (
+    <div className={`page-title${icon || avatar ? " page-title--icon" : ""}`}>
+      {avatar ? (
+        <div className="page-title__avatar">{avatar}</div>
+      ) : icon ? (
         <span className="page-title__icon" aria-hidden>
           <Icon name={icon} />
         </span>

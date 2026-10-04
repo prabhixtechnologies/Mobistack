@@ -1835,46 +1835,281 @@ a.chip {
   color: inherit;
 }
 
-.device-hero {
+.page-title__avatar {
   display: flex;
-  align-items: flex-start;
-  gap: 18px;
-}
-
-.device-hero__mark {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  font-size: 15px;
-  font-weight: 750;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
 }
 
-.device-hero .page-title {
-  flex: 1;
-  margin: 0;
-  padding: 0;
+.device-hero__mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .device-hero__facts {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.page-title__meta .device-hero__facts {
-  margin-top: 0;
+  margin-top: 6px;
 }
 
 .device-hero__facts code {
   font-family: var(--mono);
   font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 7px;
+  padding: 3px 8px;
+  border-radius: 6px;
   background: var(--bg-muted);
   color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.catalog-kicker-nav {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+
+.catalog-kicker-nav a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.catalog-kicker-nav a:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.catalog-kicker-sep {
+  opacity: 0.4;
+  font-weight: 400;
+}
+
+.catalog-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  margin: 12px 0 6px;
+  scrollbar-width: thin;
+}
+
+.catalog-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.catalog-filter-chip:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--bg-elevated));
+}
+
+.catalog-filter-chip.active {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+  font-weight: 650;
+}
+
+.catalog-filter-active-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  font-size: 13.5px;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+
+.catalog-family-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px 22px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.catalog-family-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
+}
+
+.catalog-family-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.catalog-family-card__category {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-muted);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.catalog-family-card__title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.catalog-section-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+
+.catalog-companion-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalog-companion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.16s ease;
+}
+
+.catalog-companion-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-soft-ink);
+  transform: translateY(-1px);
+}
+
+.catalog-companion-chip__mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.catalog-companion-chip__arrow {
+  font-size: 12px;
+  opacity: 0.5;
+  transition: transform 0.16s ease;
+}
+
+.catalog-companion-chip:hover .catalog-companion-chip__arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.catalog-unique-callout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: var(--bg-muted);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.catalog-stock-box {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.catalog-stock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-muted);
+}
+
+.catalog-no-stock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-faint);
+  padding: 4px 0;
+}
+
+.catalog-edges-card {
+  margin-top: 24px;
+  border: 1px dashed var(--line);
+  background: transparent;
+  border-radius: var(--radius);
+}
+
+.catalog-edges-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink-soft);
 }
 
 .catalog-contribute {

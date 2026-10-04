@@ -88,7 +88,7 @@ const OFFLINE_API: ApiError = {
   code: "UNAVAILABLE",
   message: API_ORIGIN
     ? `The API is not running. Start the backend on ${API_ORIGIN}, then try again.`
-    : "The API is not reachable. Check that mobistack-backend is healthy, then try again.",
+    : "MobiStack is temporarily unavailable. Try again shortly.",
 };
 
 const SIGN_IN_UNREACHABLE: ApiError = {
@@ -105,11 +105,12 @@ async function parseError(response: Response): Promise<never> {
       payload = JSON.parse(raw) as ApiError;
     }
   } catch {
-    if (raw.trim()) {
-      // Spring CORS and a few other filters return plain text, not ApiError JSON.
-      payload = { code: "HTTP_" + response.status, message: raw.trim() };
-    } else if (response.status === 502 || response.status === 503 || response.status === 504) {
+    // A proxy outage is plain text written for an operator (image tags, compose
+    // profiles). Shop staff get the same sentence nginx already returns.
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
       payload = OFFLINE_API;
+    } else if (raw.trim()) {
+      payload = { code: "HTTP_" + response.status, message: raw.trim() };
     }
   }
   if (!payload.message) {

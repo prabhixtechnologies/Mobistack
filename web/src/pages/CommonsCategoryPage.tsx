@@ -70,7 +70,11 @@ export function CommonsCategoryPage() {
             </div>
             <div className="chips">
               {family.members.slice(0, 8).map((member) => (
-                <Link className="chip" key={member.id} to={`/commons/devices/${member.id}`}>
+                <Link
+                  className="chip"
+                  key={member.id}
+                  to={`/commons/devices/${member.id}${code ? `?category=${encodeURIComponent(code)}` : ""}`}
+                >
                   {phoneCaption(member)}
                 </Link>
               ))}

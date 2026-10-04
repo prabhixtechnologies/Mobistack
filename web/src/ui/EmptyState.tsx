@@ -45,18 +45,26 @@ export function ErrorState({
   onRetry?: () => void;
   correlationId?: string;
 }) {
-  const technical = /(?:network|failed to fetch|http \d{3}|syntaxerror|typeerror|stack trace)/i.test(message);
+  // Proxy pages mention compose profiles and image tags. Those are for whoever
+  // runs the server. A shop owner only needs to know the screen will load again.
+  const operatorNote = /compose_profiles|not deployed on this host|_tag\b|container is running behind/i.test(message);
+  const network = /(?:network|failed to fetch|http \d{3}|syntaxerror|typeerror|stack trace)/i.test(message);
+  const unavailable = operatorNote || /temporarily unavailable/i.test(message);
 
   return (
     <div className="empty-state empty-state--error">
       <div className="empty-state__icon">
         <Icon name="alert" />
       </div>
-      <h2 className="empty-state__title">That didn't load</h2>
+      <h2 className="empty-state__title">{unavailable ? "Temporarily unavailable" : "That didn't load"}</h2>
       <p className="muted">
-        {technical ? "MobiStack could not reach the service. Check the connection and try again." : message}
+        {unavailable
+          ? "This usually clears in a moment. Try again, and contact support if it stays this way."
+          : network
+            ? "MobiStack could not reach the service. Check the connection and try again."
+            : message}
       </p>
-      {technical && (
+      {network && (
         <details className="error-details">
           <summary>Technical details</summary>
           <code>{message}</code>

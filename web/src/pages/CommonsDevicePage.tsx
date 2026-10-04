@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAccess } from "../lib/access";
 import { useAuth } from "../lib/auth";
@@ -17,11 +17,15 @@ import type { CatalogStockRow, CommonsDevice, CommonsFamily, CommonsFit } from "
 
 export function CommonsDevicePage() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoryFilter = searchParams.get("category");
+
   const { user } = useAuth();
   const access = useAccess();
   const canOpenStock = hasFeature(user, "INVENTORY") && access.has("INVENTORY_READ");
   const canSell = hasFeature(user, "SALES") && access.has("SALES_READ");
   const fitment = useFitmentGroups();
+
   const device = useResource<CommonsDevice>(id ? `/api/v1/mobistack/commons/devices?deviceId=${id}` : null);
   const families = useResource<CommonsFamily[]>(
     id && fitment.ready ? `/api/v1/mobistack/commons/devices/family?deviceId=${id}` : null,
@@ -32,10 +36,45 @@ export function CommonsDevicePage() {
   const stock = useResource<CatalogStockRow[]>(
     id && canOpenStock ? `/api/v1/mobistack/inventory/catalog-links/devices/stock?catalogDeviceId=${id}` : null,
   );
+
   const [disputeFor, setDisputeFor] = useState<CommonsFit | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const allFamilies = families.data ?? [];
+
+  // Extract distinct categories available for this phone
+  const availableCategories = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; count: number }>();
+    for (const f of allFamilies) {
+      const code = f.categoryCode.toUpperCase();
+      const existing = map.get(code);
+      if (existing) {
+        existing.count++;
+      } else {
+        map.set(code, { code: f.categoryCode, name: f.categoryName, count: 1 });
+      }
+    }
+    return Array.from(map.values());
+  }, [allFamilies]);
+
+  // Active category object, if filter is set
+  const activeCategoryObj = useMemo(() => {
+    if (!categoryFilter) return null;
+    return availableCategories.find(
+      (c) => c.code.toUpperCase() === categoryFilter.toUpperCase(),
+    );
+  }, [availableCategories, categoryFilter]);
+
+  // Filtered families
+  const displayedFamilies = useMemo(() => {
+    if (!categoryFilter) return allFamilies;
+    const match = allFamilies.filter(
+      (f) => f.categoryCode.toUpperCase() === categoryFilter.toUpperCase(),
+    );
+    return match;
+  }, [allFamilies, categoryFilter]);
 
   async function contribute(kind: "CONFIRM_FITMENT" | "DISPUTE_FITMENT", fitmentId: string, note?: string) {
     setBusy(true);
@@ -83,115 +122,228 @@ export function CommonsDevicePage() {
         create={fitment.create}
         current={fitment.current}
       />
-      <div className="device-hero">
-        <span className="device-hero__mark" style={brandTone(device.data.brandName)}>
-          {brandMark(device.data.brandName)}
-        </span>
-        <PageHeader
-          kicker={
-            <Link to={`/commons/brands/${device.data.brandId}`}>
-              Fitment Catalog · {device.data.brandName}
-            </Link>
-          }
-          title={title}
-          subtitle="Compatible models sit with the spare they share. Stock is this shop’s, live."
-          meta={
-            <div className="device-hero__facts">
-              {device.data.modelCode ? <code>{device.data.modelCode}</code> : null}
-              {device.data.releaseYear ? <span className="page-stat">{device.data.releaseYear}</span> : null}
-            </div>
-          }
-        />
-      </div>
+
+      <PageHeader
+        avatar={
+          <span className="device-hero__mark" style={brandTone(device.data.brandName)}>
+            {brandMark(device.data.brandName)}
+          </span>
+        }
+        kicker={
+          <div className="catalog-kicker-nav">
+            <Link to="/commons">Fitment Catalog</Link>
+            <span className="catalog-kicker-sep">/</span>
+            <Link to={`/commons/brands/${device.data.brandId}`}>{device.data.brandName}</Link>
+            {categoryFilter && (
+              <>
+                <span className="catalog-kicker-sep">/</span>
+                <Link to={`/commons/categories/${encodeURIComponent(categoryFilter)}`}>
+                  {activeCategoryObj?.name ?? categoryFilter}
+                </Link>
+              </>
+            )}
+          </div>
+        }
+        title={title}
+        subtitle="Compatible models sit with the spare they share. Live shop inventory shown below."
+        meta={
+          <div className="device-hero__facts">
+            {device.data.modelCode ? <code>{device.data.modelCode}</code> : null}
+            {device.data.releaseYear ? <span className="page-stat">{device.data.releaseYear}</span> : null}
+          </div>
+        }
+      />
+
       {error && <div className="error">{error}</div>}
 
-      {(families.data ?? []).map((family) => {
-        const others = family.members.filter((member) => member.id !== id);
-        const stockRows = (stock.data ?? []).filter((row) => row.componentId === family.id);
-        return (
-          <section className="card catalog-family" key={family.id}>
-            <div className="spread">
-              <div>
-                <p className="page-kicker">{family.categoryName}</p>
-                <strong>{family.name}</strong>
-              </div>
-              <Link className="btn ghost" to={`/commons/components/${family.id}`}>
-                Family
-              </Link>
-            </div>
-            <div className="chips">
-              <span className="chip">{title}</span>
-              {others.map((member) => (
-                <Link className="chip" key={member.id} to={`/commons/devices/${member.id}`}>
-                  {phoneCaption(member)}
-                </Link>
-              ))}
-              {others.length === 0 && <span className="faint">No other models on this spare yet.</span>}
-            </div>
-            {canOpenStock && (
-              <div className="catalog-stock">
-                {stockRows.map((row) => (
-                  <div className="category-row" key={row.variantId}>
-                    <div>
-                      <div style={{ fontWeight: 650 }}>{row.name}</div>
-                      <div className="faint">{row.sku}</div>
-                    </div>
-                    <span className="badge GREEN">{row.available} on hand</span>
-                    {canSell && (
-                      <Link className="btn" to={`/sales?q=${encodeURIComponent(row.sku)}`}>
-                        Sell
-                      </Link>
-                    )}
-                  </div>
-                ))}
-                {stockRows.length === 0 && (
-                  <p className="faint">
-                    No linked stock. <Link to="/inventory/catalog-links">Link a SKU</Link>
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
-        );
-      })}
-
-      {!families.loading && (families.data ?? []).length === 0 && (
-        <EmptyState compact icon="link" title="Nothing linked yet" hint="Confirm a part from the bench, or add a family." />
+      {/* Category filter bar */}
+      {availableCategories.length > 1 && (
+        <div className="catalog-filter-bar">
+          <button
+            type="button"
+            className={`catalog-filter-chip ${!categoryFilter ? "active" : ""}`}
+            onClick={() => setSearchParams({})}
+          >
+            All Spares ({allFamilies.length})
+          </button>
+          {availableCategories.map((cat) => (
+            <button
+              type="button"
+              key={cat.code}
+              className={`catalog-filter-chip ${categoryFilter?.toUpperCase() === cat.code.toUpperCase() ? "active" : ""}`}
+              onClick={() => setSearchParams({ category: cat.code })}
+            >
+              {cat.name} ({cat.count})
+            </button>
+          ))}
+        </div>
       )}
 
-      <section className="card tight">
-        <div className="spread" style={{ padding: "16px 18px" }}>
-          <strong>Fitment edges</strong>
+      {/* Active filter notification banner */}
+      {categoryFilter && (
+        <div className="catalog-filter-active-notice">
+          <div>
+            Showing <strong>{activeCategoryObj?.name ?? categoryFilter}</strong> compatibility ({displayedFamilies.length} spare{displayedFamilies.length === 1 ? "" : "s"}).
+          </div>
+          <button
+            className="btn ghost compact"
+            type="button"
+            onClick={() => setSearchParams({})}
+          >
+            Show all {allFamilies.length} spares
+          </button>
         </div>
-        {(fits.data ?? []).map((fit) => (
-          <div className="category-row" key={fit.fitmentId}>
-            <div>
-              <Link to={`/commons/components/${fit.componentId}`} style={{ fontWeight: 650 }}>
-                {fit.componentName ?? "Part"}
-              </Link>
-              <div className="faint">
-                {fit.fit}
-                {fit.verified ? " · Verified" : ""}
-                {fit.disputed ? " · Disputed" : ""}
-                {` · ${fit.confirmations} confirm · ${fit.disputes} dispute`}
+      )}
+
+      {/* Spares and compatible models */}
+      <div className="stack" style={{ gap: 16 }}>
+        {displayedFamilies.map((family) => {
+          const others = family.members.filter((member) => member.id !== id);
+          const stockRows = (stock.data ?? []).filter((row) => row.componentId === family.id);
+          return (
+            <section className="catalog-family-card" key={family.id}>
+              <div className="catalog-family-card__head">
+                <div>
+                  <span className="catalog-family-card__category">{family.categoryName}</span>
+                  <h3 className="catalog-family-card__title">{family.name}</h3>
+                </div>
+                <Link className="btn ghost compact" to={`/commons/components/${family.id}`}>
+                  View spare details →
+                </Link>
+              </div>
+
+              <div className="catalog-family-card__compat">
+                <div className="catalog-section-label">
+                  Compatible Phone Models {others.length > 0 ? `(${others.length})` : ""}
+                </div>
+                {others.length > 0 ? (
+                  <div className="catalog-companion-grid">
+                    {others.map((member) => (
+                      <Link
+                        className="catalog-companion-chip"
+                        key={member.id}
+                        to={`/commons/devices/${member.id}${categoryFilter ? `?category=${encodeURIComponent(categoryFilter)}` : ""}`}
+                        title={`Open ${phoneCaption(member)}`}
+                      >
+                        <span className="catalog-companion-chip__mark" style={brandTone(member.brandName)}>
+                          {brandMark(member.brandName)}
+                        </span>
+                        <span>{phoneCaption(member)}</span>
+                        <span className="catalog-companion-chip__arrow">→</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="catalog-unique-callout">
+                    <span>Unique to {title} — no other models share this spare yet in this group.</span>
+                  </div>
+                )}
+              </div>
+
+              {canOpenStock && (
+                <div className="catalog-stock-box">
+                  <div className="catalog-section-label">Shop Inventory & Pricing</div>
+                  {stockRows.length > 0 ? (
+                    stockRows.map((row) => (
+                      <div className="catalog-stock-row" key={row.variantId}>
+                        <div>
+                          <div style={{ fontWeight: 650 }}>{row.name}</div>
+                          <div className="faint">{row.sku}</div>
+                        </div>
+                        <div className="row" style={{ alignItems: "center", gap: 12 }}>
+                          <span className="badge GREEN">{row.available} on hand</span>
+                          {canSell && (
+                            <Link className="btn compact" to={`/sales?q=${encodeURIComponent(row.sku)}`}>
+                              Sell
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="catalog-no-stock">
+                      <span>No shop SKU linked to this spare yet.</span>
+                      <Link className="linkish" to="/inventory/catalog-links">
+                        Link inventory SKU →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      {!families.loading && displayedFamilies.length === 0 && (
+        <EmptyState
+          compact
+          icon="link"
+          title={categoryFilter ? `No ${activeCategoryObj?.name ?? categoryFilter} spares` : "Nothing linked yet"}
+          hint={
+            categoryFilter
+              ? "No spares in this category are linked to this model yet."
+              : "Confirm a part from the bench, or add a family."
+          }
+          action={
+            categoryFilter ? (
+              <button className="btn" type="button" onClick={() => setSearchParams({})}>
+                View all spares
+              </button>
+            ) : undefined
+          }
+        />
+      )}
+
+      {/* Technical fitment edges (collapsible for clean presentation) */}
+      <details className="catalog-edges-card card">
+        <summary className="catalog-edges-summary">
+          <span>Technical fitment data ({fits.data?.length ?? 0} edges)</span>
+          <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>
+            Community confirmations & disputes ▾
+          </span>
+        </summary>
+        <div style={{ padding: "0 18px 16px" }}>
+          {(fits.data ?? []).map((fit) => (
+            <div className="category-row" key={fit.fitmentId}>
+              <div>
+                <Link to={`/commons/components/${fit.componentId}`} style={{ fontWeight: 650 }}>
+                  {fit.componentName ?? "Part"}
+                </Link>
+                <div className="faint">
+                  {fit.fit}
+                  {fit.verified ? " · Verified" : ""}
+                  {fit.disputed ? " · Disputed" : ""}
+                  {` · ${fit.confirmations} confirm · ${fit.disputes} dispute`}
+                </div>
+              </div>
+              <div className="row">
+                <button
+                  className="btn ghost compact"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void contribute("CONFIRM_FITMENT", fit.fitmentId)}
+                >
+                  Confirm
+                </button>
+                <button
+                  className="btn ghost compact"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setDisputeFor(fit)}
+                >
+                  Dispute
+                </button>
               </div>
             </div>
-            <div className="row">
-              <button
-                className="btn ghost"
-                type="button"
-                disabled={busy}
-                onClick={() => void contribute("CONFIRM_FITMENT", fit.fitmentId)}
-              >
-                Confirm
-              </button>
-              <button className="btn ghost" type="button" disabled={busy} onClick={() => setDisputeFor(fit)}>
-                Dispute
-              </button>
-            </div>
-          </div>
-        ))}
-      </section>
+          ))}
+          {(fits.data ?? []).length === 0 && (
+            <p className="faint" style={{ margin: "12px 0 0" }}>
+              No technical fitment edges recorded.
+            </p>
+          )}
+        </div>
+      </details>
 
       <Modal
         open={disputeFor != null}
