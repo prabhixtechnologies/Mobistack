@@ -56,7 +56,7 @@ public class CatalogFamilyService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME, key = "#groupId + ':categories'")
+    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v2:' + #groupId + ':categories'")
     public List<CategoryIndex> categories(UUID groupId) {
         catalog.requireGroup(groupId);
         Map<String, Long> families = components.countByCategory(groupId).stream()
@@ -89,17 +89,17 @@ public class CatalogFamilyService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME, key = "#groupId + ':families:' + #categoryCode")
+    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v2:' + #groupId + ':families:' + #categoryCode")
     public List<FamilyView> familiesInCategory(UUID groupId, String categoryCode) {
         catalog.requireGroup(groupId);
         String code = requiredCode(categoryCode);
         List<CatalogComponent> found = components.findByGroupIdAndCategoryCodeOrderByNameAsc(groupId, code);
-        return found.stream().map(component -> familyOf(groupId, component)).toList();
+        return new ArrayList<>(found.stream().map(component -> familyOf(groupId, component)).toList());
     }
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CatalogCache.NAME,
-            key = "#groupId + ':family:' + #deviceId + ':' + (#categoryCode == null ? '' : #categoryCode)")
+            key = "'v2:' + #groupId + ':family:' + #deviceId + ':' + (#categoryCode == null ? '' : #categoryCode)")
     public List<FamilyView> forDevice(UUID groupId, UUID deviceId, String categoryCode) {
         catalog.requireDevice(groupId, deviceId);
         String code = categoryCode == null || categoryCode.isBlank() ? null : requiredCode(categoryCode);
@@ -123,15 +123,15 @@ public class CatalogFamilyService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME, key = "#groupId + ':brands'")
+    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v2:' + #groupId + ':brands'")
     public List<BrandIndex> brands(UUID groupId) {
         Map<UUID, Long> counts = devices.countByBrand(groupId).stream()
                 .collect(Collectors.toMap(CatalogDeviceRepository.BrandCount::getBrandId,
                         CatalogDeviceRepository.BrandCount::getDeviceCount));
-        return catalog.listBrands(groupId).stream()
+        return new ArrayList<>(catalog.listBrands(groupId).stream()
                 .map(brand -> new BrandIndex(brand.getId(), brand.getName(), brand.getLogoUrl(),
                         counts.getOrDefault(brand.getId(), 0L)))
-                .toList();
+                .toList());
     }
 
     private FamilyView familyOf(UUID groupId, CatalogComponent component) {
@@ -142,7 +142,7 @@ public class CatalogFamilyService {
         List<CatalogDevice> members = deviceIds.isEmpty() ? List.of() : devices.findAllById(deviceIds);
         Map<UUID, String> brandNames = catalog.brandNames(members.stream()
                 .map(CatalogDevice::getBrandId).distinct().toList());
-        List<MemberView> memberViews = members.stream()
+        List<MemberView> memberViews = new ArrayList<>(members.stream()
                 .sorted(Comparator.comparing((CatalogDevice d) -> brandNames.getOrDefault(d.getBrandId(), ""))
                         .thenComparing(CatalogDevice::getName))
                 .map(device -> {
@@ -158,7 +158,7 @@ public class CatalogFamilyService {
                             edge != null && edge.isDisputed(),
                             edge == null ? null : edge.getId());
                 })
-                .toList();
+                .toList());
         return new FamilyView(
                 component.getId(),
                 component.getCategoryCode(),

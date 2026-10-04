@@ -1,6 +1,10 @@
 package com.fixflow.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import tools.jackson.databind.DefaultTyping;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
+import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 import com.fixflow.presence.MemoryPresenceStore;
 import com.fixflow.presence.PresenceStore;
 import com.fixflow.presence.RedisPresenceStore;
@@ -18,6 +22,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
@@ -40,14 +45,14 @@ public class PlatformCacheConfig {
         RedisCacheConfiguration base = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 // The unsuffixed serializer is the Jackson 3 one; GenericJackson2JsonRedisSerializer
-                // is deprecated alongside Jackson 2 itself. Both write the same shape, and cache
-                // entries are disposable in any case, so no migration of existing keys is needed.
+                // is deprecated alongside Jackson 2 itself. Cache entries are disposable.
                 //
-                // It takes the mapper rather than making its own, which is the better arrangement
-                // anyway: cached values now serialise exactly as API responses do, instead of under
-                // whatever a default mapper happens to be configured with.
+                // The API mapper writes records as plain objects. Read back through the cache, which
+                // only knows Object, those become maps, and a list of catalog rows then fails the
+                // cast in the controller — the page stays blank while the counts, which are not
+                // cached this way, still load. A copy of the mapper adds type names for records.
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJacksonJsonRedisSerializer(objectMapper)))
+                        .fromSerializer(redisSerializer(objectMapper)))
                 .disableCachingNullValues()
                 .entryTtl(properties.getRedis().getDashboardTtl());
         return RedisCacheManager.builder(factory)
@@ -69,5 +74,21 @@ public class PlatformCacheConfig {
             return new RedisPresenceStore(template, objectMapper, ttl);
         }
         return new MemoryPresenceStore(ttl);
+    }
+
+    /**
+     * Cache values have to round-trip as the class that was stored. The API mapper does not write
+     * type names, which is correct for responses and wrong for a cache that reads them as Object.
+     */
+    static RedisSerializer<Object> redisSerializer(ObjectMapper objectMapper) {
+        PolymorphicTypeValidator types = BasicPolymorphicTypeValidator.builder()
+                .allowIfSubType("com.fixflow.")
+                .allowIfSubType("java.util.")
+                .allowIfSubType("java.time.")
+                .build();
+        ObjectMapper typed = objectMapper.rebuild()
+                .activateDefaultTyping(types, DefaultTyping.NON_FINAL_AND_RECORDS, JsonTypeInfo.As.PROPERTY)
+                .build();
+        return new GenericJacksonJsonRedisSerializer(typed);
     }
 }

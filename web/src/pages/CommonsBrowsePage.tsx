@@ -6,7 +6,7 @@ import { canManageGroup, useFitmentGroups } from "../lib/groups";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
 import { useResource } from "../lib/useResource";
-import { EmptyState } from "../ui/EmptyState";
+import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { AddFamilyModal, AddPhoneModal } from "../ui/CatalogEditor";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
 import { PageHeader } from "../ui/PageHeader";
@@ -121,7 +121,10 @@ export function CommonsBrowsePage() {
             </button>
           </div>
 
-          {tab === "parts" && (
+          {tab === "parts" && categories.error && (
+            <ErrorState message={categories.error} onRetry={categories.reload} />
+          )}
+          {tab === "parts" && !categories.error && (
             <div className="catalog-grid">
               {(categories.data ?? []).map((category, index) => (
                 <Link
@@ -139,7 +142,10 @@ export function CommonsBrowsePage() {
             </div>
           )}
 
-          {tab === "brands" && (
+          {tab === "brands" && brands.error && (
+            <ErrorState message={brands.error} onRetry={brands.reload} />
+          )}
+          {tab === "brands" && !brands.error && (
             <div className="catalog-grid">
               {(brands.data ?? []).map((brand) => (
                 <Link key={brand.id} className="catalog-tile catalog-tile--brand" to={`/commons/brands/${brand.id}`}>
