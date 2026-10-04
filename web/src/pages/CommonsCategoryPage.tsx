@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { canManageGroup, useFitmentGroups } from "../lib/groups";
+import { usePagedList } from "../lib/usePagedList";
 import { useResource } from "../lib/useResource";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { AddFamilyModal, phoneCaption } from "../ui/CatalogEditor";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
+import { LoadMore } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
 import type { CommonsCategory, CommonsFamily } from "../lib/types";
 
@@ -15,8 +17,9 @@ export function CommonsCategoryPage() {
   const categories = useResource<CommonsCategory[]>(
     fitment.ready ? "/api/v1/mobistack/commons/categories" : null,
   );
-  const families = useResource<CommonsFamily[]>(
+  const families = usePagedList<CommonsFamily>(
     fitment.ready && code ? `/api/v1/mobistack/commons/families?categoryCode=${encodeURIComponent(code)}` : null,
+    { size: 24 },
   );
   const category = (categories.data ?? []).find((row) => row.code === code);
 
@@ -54,8 +57,9 @@ export function CommonsCategoryPage() {
           ) : null
         }
       />
+      {families.loading && <p className="muted">Loading families…</p>}
       <div className="catalog-family-list">
-        {(families.data ?? []).map((family) => (
+        {families.rows.map((family) => (
           <article className="catalog-family" key={family.id}>
             <div className="spread">
               <div>
@@ -83,13 +87,21 @@ export function CommonsCategoryPage() {
           </article>
         ))}
       </div>
-      {!families.loading && (families.data ?? []).length === 0 && (
+      {!families.loading && families.rows.length === 0 && (
         <EmptyState
           icon="link"
           title="No families yet"
           hint="Add phones that take the same spare, then save them as one family."
         />
       )}
+      <LoadMore
+        loaded={families.rows.length}
+        total={families.total}
+        hasMore={families.hasMore}
+        loadingMore={families.loadingMore}
+        onLoadMore={families.loadMore}
+        noun="families"
+      />
       <AddFamilyModal
         open={addFamily}
         categoryCode={code}

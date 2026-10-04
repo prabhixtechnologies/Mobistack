@@ -33,7 +33,7 @@ public interface CatalogComponentRepository extends JpaRepository<CatalogCompone
 
     Page<CatalogComponent> findByGroupId(UUID groupId, Pageable pageable);
 
-    List<CatalogComponent> findByGroupIdAndCategoryCodeOrderByNameAsc(UUID groupId, String categoryCode);
+    Page<CatalogComponent> findByGroupIdAndCategoryCode(UUID groupId, String categoryCode, Pageable pageable);
 
     long countByGroupId(UUID groupId);
 

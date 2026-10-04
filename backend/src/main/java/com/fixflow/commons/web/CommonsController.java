@@ -97,10 +97,12 @@ public class CommonsController {
 
     @GetMapping("/families")
     @PreAuthorize("isAuthenticated()")
-    public List<FamilyView> families(@RequestParam String categoryCode) {
-        return familyCatalog.familiesInCategory(groups.requireSelected(), categoryCode).stream()
-                .map(FamilyView::of)
-                .toList();
+    public PageResponse<FamilyView> families(@RequestParam String categoryCode,
+                                             @RequestParam(defaultValue = "0") int page,
+                                             @RequestParam(defaultValue = "24") int size) {
+        return PageResponse.of(
+                familyCatalog.familiesInCategory(groups.requireSelected(), categoryCode, page, size),
+                FamilyView::of);
     }
 
     @GetMapping("/devices")

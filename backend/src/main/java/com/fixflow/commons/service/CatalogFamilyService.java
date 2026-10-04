@@ -12,6 +12,10 @@ import com.fixflow.commons.repository.CatalogDeviceRepository;
 import com.fixflow.commons.repository.CatalogFitmentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +24,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -88,13 +93,24 @@ public class CatalogFamilyService {
         return rows;
     }
 
+    /**
+     * One page of families, assembled in a handful of queries.
+     *
+     * <p>Tempered glass alone is a few thousand families. Loading every one, and then walking each
+     * family's phones in its own query, never returns — the category page sits blank under a header
+     * that already knows the count. A page is small enough to answer immediately, and the phones for
+     * that page are loaded together.
+     */
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v2:' + #groupId + ':families:' + #categoryCode")
-    public List<FamilyView> familiesInCategory(UUID groupId, String categoryCode) {
+    public Page<FamilyView> familiesInCategory(UUID groupId, String categoryCode, int page, int size) {
         catalog.requireGroup(groupId);
         String code = requiredCode(categoryCode);
-        List<CatalogComponent> found = components.findByGroupIdAndCategoryCodeOrderByNameAsc(groupId, code);
-        return new ArrayList<>(found.stream().map(component -> familyOf(groupId, component)).toList());
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 40);
+        Page<CatalogComponent> found = components.findByGroupIdAndCategoryCode(
+                groupId, code, PageRequest.of(safePage, safeSize, Sort.by("name").ascending()));
+        List<FamilyView> rows = assemble(groupId, found.getContent());
+        return new PageImpl<>(rows, found.getPageable(), found.getTotalElements());
     }
 
     @Transactional(readOnly = true)
@@ -134,16 +150,56 @@ public class CatalogFamilyService {
                 .toList());
     }
 
+    private List<FamilyView> assemble(UUID groupId, List<CatalogComponent> found) {
+        if (found.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> componentIds = found.stream().map(CatalogComponent::getId).toList();
+        Map<UUID, List<CatalogFitment>> edgesByComponent = fitments.findForComponents(groupId, componentIds).stream()
+                .collect(Collectors.groupingBy(CatalogFitment::getComponentId));
+        List<UUID> deviceIds = edgesByComponent.values().stream()
+                .flatMap(List::stream)
+                .map(CatalogFitment::getDeviceId)
+                .distinct()
+                .toList();
+        Map<UUID, CatalogDevice> devicesById = deviceIds.isEmpty()
+                ? Map.of()
+                : this.devices.findAllById(deviceIds).stream()
+                        .collect(Collectors.toMap(CatalogDevice::getId, device -> device));
+        Map<UUID, String> brandNames = catalog.brandNames(devicesById.values().stream()
+                .map(CatalogDevice::getBrandId)
+                .distinct()
+                .toList());
+        return found.stream()
+                .map(component -> toFamily(component,
+                        edgesByComponent.getOrDefault(component.getId(), List.of()),
+                        devicesById,
+                        brandNames))
+                .toList();
+    }
+
     private FamilyView familyOf(UUID groupId, CatalogComponent component) {
         List<CatalogFitment> edges = fitments.findForComponent(groupId, component.getId());
-        List<UUID> deviceIds = edges.stream().map(CatalogFitment::getDeviceId).toList();
-        Map<UUID, CatalogFitment> edgeByDevice = edges.stream()
-                .collect(Collectors.toMap(CatalogFitment::getDeviceId, e -> e, (a, b) -> a));
-        List<CatalogDevice> members = deviceIds.isEmpty() ? List.of() : devices.findAllById(deviceIds);
-        Map<UUID, String> brandNames = catalog.brandNames(members.stream()
+        List<UUID> deviceIds = edges.stream().map(CatalogFitment::getDeviceId).distinct().toList();
+        Map<UUID, CatalogDevice> devicesById = deviceIds.isEmpty()
+                ? Map.of()
+                : devices.findAllById(deviceIds).stream()
+                        .collect(Collectors.toMap(CatalogDevice::getId, device -> device));
+        Map<UUID, String> brandNames = catalog.brandNames(devicesById.values().stream()
                 .map(CatalogDevice::getBrandId).distinct().toList());
-        List<MemberView> memberViews = new ArrayList<>(members.stream()
-                .sorted(Comparator.comparing((CatalogDevice d) -> brandNames.getOrDefault(d.getBrandId(), ""))
+        return toFamily(component, edges, devicesById, brandNames);
+    }
+
+    private static FamilyView toFamily(CatalogComponent component,
+                                       List<CatalogFitment> edges,
+                                       Map<UUID, CatalogDevice> devicesById,
+                                       Map<UUID, String> brandNames) {
+        Map<UUID, CatalogFitment> edgeByDevice = edges.stream()
+                .collect(Collectors.toMap(CatalogFitment::getDeviceId, edge -> edge, (a, b) -> a));
+        List<MemberView> memberViews = edgeByDevice.keySet().stream()
+                .map(devicesById::get)
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing((CatalogDevice device) -> brandNames.getOrDefault(device.getBrandId(), ""))
                         .thenComparing(CatalogDevice::getName))
                 .map(device -> {
                     CatalogFitment edge = edgeByDevice.get(device.getId());
@@ -158,7 +214,7 @@ public class CatalogFamilyService {
                             edge != null && edge.isDisputed(),
                             edge == null ? null : edge.getId());
                 })
-                .toList());
+                .toList();
         return new FamilyView(
                 component.getId(),
                 component.getCategoryCode(),

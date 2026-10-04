@@ -40,6 +40,13 @@ public interface CatalogFitmentRepository extends JpaRepository<CatalogFitment, 
     List<CatalogFitment> findByComponentIdIn(Collection<UUID> componentIds);
 
     @Query("""
+            select f from CatalogFitment f
+            where f.groupId = :groupId and f.componentId in :componentIds
+            """)
+    List<CatalogFitment> findForComponents(@Param("groupId") UUID groupId,
+                                           @Param("componentIds") Collection<UUID> componentIds);
+
+    @Query("""
             select c.categoryCode as categoryCode, count(distinct f.deviceId) as deviceCount
             from CatalogFitment f, CatalogComponent c
             where f.componentId = c.id and f.groupId = :groupId
