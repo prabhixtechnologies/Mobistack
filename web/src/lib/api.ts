@@ -12,6 +12,10 @@ import "./oidc-config";
  */
 let accessTokenMemory: string | null = null;
 
+function onAuthCallback(): boolean {
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/auth/callback");
+}
+
 const API_ORIGIN = (import.meta.env.VITE_API_ORIGIN as string | undefined) ?? "";
 
 const ANONYMOUS_API = new Set<string>();
@@ -121,7 +125,7 @@ async function parseError(response: Response): Promise<never> {
   } else if (payload.message === "Internal Server Error" && response.status >= 500) {
     payload = OFFLINE_API;
   }
-  if (payload.code === "STEP_UP_REQUIRED" && isOidcEnabled()) {
+  if (payload.code === "STEP_UP_REQUIRED" && isOidcEnabled() && !onAuthCallback()) {
     void beginStepUp(`${window.location.pathname}${window.location.search}`);
   }
   throw Object.assign(new Error(payload.message), payload);
