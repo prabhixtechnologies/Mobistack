@@ -3,6 +3,7 @@ import { isAbortError } from "./abort";
 import { getDeviceId } from "./device";
 import { storeGet, storeRemove, storeSet } from "./storage";
 import { IDENTITY_ISSUER } from "./config";
+import { loginPathFor, safeAppPath } from "./safePath";
 import { beginStepUp, isOidcEnabled } from "@prabhixtechnologies/oidc-client";
 import "./oidc-config";
 
@@ -125,8 +126,8 @@ async function parseError(response: Response): Promise<never> {
   } else if (payload.message === "Internal Server Error" && response.status >= 500) {
     payload = OFFLINE_API;
   }
-  if (payload.code === "STEP_UP_REQUIRED" && isOidcEnabled() && !onAuthCallback()) {
-    void beginStepUp(`${window.location.pathname}${window.location.search}`);
+  if (payload.code === "STEP_UP_REQUIRED") {
+    askForFreshProof();
   }
   throw Object.assign(new Error(payload.message), payload);
 }
@@ -152,23 +153,46 @@ function withDevice(headers: Headers): Headers {
 }
 
 function endSession(reason: "session" | "expired", message?: string): void {
+  const here = window.location.pathname;
+  const search = window.location.search;
   clearSession();
   const security = message?.toLowerCase().includes("security update");
-  if (security && !window.location.pathname.startsWith("/security-sign-in")) {
-    window.location.assign("/security-sign-in");
+  if (security && !here.startsWith("/security-sign-in")) {
+    const back = safeAppPath(`${here}${search}`);
+    window.location.assign(back === "/" ? "/security-sign-in" : `/security-sign-in?return=${encodeURIComponent(back)}`);
     return;
   }
-  if (!window.location.pathname.startsWith("/login")) {
-    window.location.assign(`/login?reason=${reason}`);
+  if (!here.startsWith("/login")) {
+    window.location.assign(loginPathFor(here, search, { reason }));
   }
 }
 
 /**
  * `signed-out` is the only answer that ends a session: the server looked at the credential and
- * refused it. A network that is still waking up, a deploy, or a rate limit is `unavailable`, and
- * the 30-day sign-in survives it — the same way a Google tab does not log out when Wi-Fi drops.
+ * refused it. `step-up` means the cookie is still valid and Identity wants a passkey or a
+ * one-time code; the browser is sent there and the local session stays. A network that is still
+ * waking up, a deploy, or a rate limit is `unavailable`, and the sign-in survives it.
  */
-export type RenewResult = "ok" | "signed-out" | "unavailable";
+export type RenewResult = "ok" | "signed-out" | "step-up" | "unavailable";
+
+let stepUpStarted = false;
+
+function askForFreshProof(): void {
+  if (stepUpStarted || !isOidcEnabled() || onAuthCallback()) {
+    return;
+  }
+  stepUpStarted = true;
+  void beginStepUp(`${window.location.pathname}${window.location.search}`);
+}
+
+async function responseCode(response: Response): Promise<string | null> {
+  try {
+    const payload = (await response.clone().json()) as { code?: unknown };
+    return typeof payload.code === "string" ? payload.code : null;
+  } catch {
+    return null;
+  }
+}
 
 const RETRY_DELAYS_MS = [0, 1500, 4000, 8000];
 
@@ -217,6 +241,10 @@ async function renewOnce(): Promise<RenewResult> {
         })();
   } catch {
     return "unavailable";
+  }
+  if (response.status === 403 && (await responseCode(response)) === "STEP_UP_REQUIRED") {
+    askForFreshProof();
+    return "step-up";
   }
   if (refusedCredential(response.status)) {
     return "signed-out";
@@ -375,6 +403,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     } else if (renewed === "signed-out") {
       endSession("expired", expiryMessage);
       await parseError(response);
+    } else if (renewed === "step-up") {
+      throw Object.assign(new Error("Confirm it is you, then try this again."), {
+        code: "STEP_UP_REQUIRED",
+      });
     } else {
       throw Object.assign(new Error(SIGN_IN_UNREACHABLE.message), SIGN_IN_UNREACHABLE);
     }

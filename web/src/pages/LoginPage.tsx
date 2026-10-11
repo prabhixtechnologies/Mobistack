@@ -2,6 +2,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState, type ReactNode } from "react";
 import { beginLogin, beginSignup, beginSilentLogin, isOidcEnabled } from "@prabhixtechnologies/oidc-client";
 import "../lib/oidc-config";
+import { returnPathFrom } from "../lib/safePath";
 import { LogoMark } from "../ui/LogoMark";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { SkipLink } from "../ui/SkipLink";
@@ -14,8 +15,8 @@ import { BRAND, copyrightLine } from "../lib/brand";
  * flow; the white panel is the interaction surface, not a second password form.
  *
  * If Identity already has a session, we never show the Welcome card: a silent
- * `prompt=none` authorize recovers it. `?sso=0` is the bounce from a failed
- * silent check so we do not loop.
+ * `prompt=none` authorize recovers it and returns to the page that was open.
+ * `?sso=0` is the bounce from a failed silent check so we do not loop.
  */
 export function LoginPage() {
   if (!isOidcEnabled()) return <MissingIssuer />;
@@ -25,24 +26,26 @@ export function LoginPage() {
 
 function LoginGateway() {
   const [searchParams] = useSearchParams();
+  const returnTo = returnPathFrom(searchParams);
   if (searchParams.get("sso") === "0") {
     return (
       <AuthGate>
-        <LoginActions />
+        <LoginActions returnTo={returnTo} />
       </AuthGate>
     );
   }
-  return <SilentSso />;
+  return <SilentSso returnTo={returnTo} />;
 }
 
-function SilentSso() {
+function SilentSso({ returnTo }: { returnTo: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void beginSilentLogin("/").catch((cause) => {
+    rememberReturn(returnTo);
+    void beginSilentLogin(returnTo).catch((cause) => {
       setError(cause instanceof Error ? cause.message : "Could not continue sign-in.");
     });
-  }, []);
+  }, [returnTo]);
 
   if (error) {
     return (
@@ -67,7 +70,7 @@ function SilentSso() {
   return <SessionRestore />;
 }
 
-function LoginActions() {
+function LoginActions({ returnTo }: { returnTo: string }) {
   const [busy, setBusy] = useState<"login" | "signup" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,10 +78,11 @@ function LoginActions() {
     setBusy(kind);
     setError(null);
     try {
+      rememberReturn(returnTo);
       if (kind === "login") {
-        await beginLogin(window.location.pathname === "/login" ? "/" : undefined);
+        await beginLogin(returnTo);
       } else {
-        await beginSignup("/");
+        await beginSignup(returnTo);
       }
     } catch (cause) {
       setBusy(null);
@@ -140,7 +144,18 @@ export function MissingIssuer() {
   );
 }
 
-/** Shown while the Identity session cookie is exchanged for an access token. */
+const PENDING_RETURN = "mobistack.returnTo";
+
+/** Kept beside the provider's own copy, which a failed silent check deletes before we can read it. */
+export function rememberReturn(path: string): void {
+  sessionStorage.setItem(PENDING_RETURN, path);
+}
+
+export function rememberedReturn(): string {
+  return returnPathFrom(new URLSearchParams({ return: sessionStorage.getItem(PENDING_RETURN) ?? "" }));
+}
+
+/** Shown while a real sign-in round trip is in progress. A refresh does not use this. */
 export function SessionRestore() {
   return (
     <AuthGate>

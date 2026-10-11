@@ -1,12 +1,16 @@
+import { useSearchParams } from "react-router-dom";
 import { beginLogin } from "@prabhixtechnologies/oidc-client";
 import { useAuth } from "../lib/auth";
-import { AuthGate } from "./LoginPage";
+import { returnPathFrom } from "../lib/safePath";
+import { AuthGate, rememberReturn } from "./LoginPage";
 
 /**
  * Shown when the API rejects an older Identity token after a security cutover.
  */
 export function SecuritySignInPage() {
   const { logout } = useAuth();
+  const [searchParams] = useSearchParams();
+  const returnTo = returnPathFrom(searchParams);
 
   return (
     <AuthGate>
@@ -19,7 +23,10 @@ export function SecuritySignInPage() {
         <button
           className="auth-submit"
           type="button"
-          onClick={() => void beginLogin("/").catch(() => undefined)}
+          onClick={() => {
+            rememberReturn(returnTo);
+            void beginLogin(returnTo).catch(() => undefined);
+          }}
         >
           Continue to Identity
         </button>

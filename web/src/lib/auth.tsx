@@ -79,7 +79,11 @@ function applyWorkspaceChange(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(getStoredUser);
   const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>(getStoredWorkspaces);
-  const [ready, setReady] = useState(() => atOidcCallback() || Boolean(getAccessToken()) || !isOidcEnabled());
+  // A saved account means this tab already signed in. Stay on the open page and renew the
+  // access token behind it. The login screen is only for a cookie the server actually refused.
+  const [ready, setReady] = useState(
+    () => atOidcCallback() || Boolean(getAccessToken()) || Boolean(getStoredUser()) || !isOidcEnabled(),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -100,9 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           return;
         }
-        if (restored === "unavailable") {
-          // The cookie was not refused, only unreachable. Keep the saved account on screen;
-          // the next request renews again once the network is back.
+        if (restored === "step-up" || restored === "unavailable") {
+          // Neither answer refused the cookie. Step-up is already navigating to the proof.
+          // An unreachable Identity keeps the saved account until the network returns.
           if (!cancelled) {
             setReady(true);
           }

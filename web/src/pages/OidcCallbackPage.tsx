@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { completeLogin, isSilentLoginError, rememberIdToken } from "@prabhixtechnologies/oidc-client";
 import "../lib/oidc-config";
 import { useAuth } from "../lib/auth";
-import { AuthGate, AuthGateLink } from "./LoginPage";
+import { AuthGate, AuthGateLink, rememberedReturn } from "./LoginPage";
+import { loginPathFor } from "../lib/safePath";
 import { BRAND, copyrightLine } from "../lib/brand";
 import { LogoMark } from "../ui/LogoMark";
 
@@ -32,7 +33,7 @@ export function OidcCallbackPage() {
         navigate(returnTo, { replace: true });
       } catch (err) {
         if (isSilentLoginError(err)) {
-          navigate("/login?sso=0", { replace: true });
+          navigate(loginPathFor(rememberedReturn(), "", { sso: "0" }), { replace: true });
           return;
         }
         setMessage(err instanceof Error ? err.message : "Sign-in did not complete.");

@@ -1,5 +1,5 @@
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { RouteError } from "./ui/RouteError";
 import { useAuth } from "./lib/auth";
 import { selectedWorkspaceId } from "./lib/types";
@@ -9,7 +9,8 @@ import { BrandFooter, BrandMark } from "./ui/BrandMark";
 import { ThemeToggle } from "./ui/ThemeToggle";
 import { SkipLink } from "./ui/SkipLink";
 import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
-import { LoginPage, SessionRestore } from "./pages/LoginPage";
+import { LoginPage } from "./pages/LoginPage";
+import { loginPathFor } from "./lib/safePath";
 import { OidcCallbackPage } from "./pages/OidcCallbackPage";
 import { ShopJourneyPage, useShopGate } from "./pages/ShopJourneyPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
@@ -77,6 +78,23 @@ function RouteFallback() {
   );
 }
 
+function SignedOut() {
+  const location = useLocation();
+  return (
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<OidcCallbackPage />} />
+        {LegalRoutes()}
+        <Route
+          path="*"
+          element={<Navigate to={loginPathFor(location.pathname, location.search)} replace />}
+        />
+      </Routes>
+    </Suspense>
+  );
+}
+
 function LegalRoutes() {
   return (
     <>
@@ -120,23 +138,14 @@ export function App() {
         <Routes>
           <Route path="/auth/callback" element={<OidcCallbackPage />} />
           {LegalRoutes()}
-          <Route path="*" element={<SessionRestore />} />
+          <Route path="*" element={<RouteFallback />} />
         </Routes>
       </Suspense>
     );
   }
 
   if (!user) {
-    return (
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/callback" element={<OidcCallbackPage />} />
-          {LegalRoutes()}
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Suspense>
-    );
+    return <SignedOut />;
   }
 
   if (user.mustChangePassword) {
@@ -158,7 +167,7 @@ function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user
   const gate = useShopGate();
 
   if (gate === "loading") {
-    return <SessionRestore />;
+    return <RouteFallback />;
   }
 
   if (gate === "start" || gate === "waitingShop") {

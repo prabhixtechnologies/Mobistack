@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const beginStepUp = vi.hoisted(() => vi.fn(() => Promise.resolve()));
+
 vi.mock("@prabhixtechnologies/oidc-client", () => ({
   isOidcEnabled: () => true,
   configureOidc: () => undefined,
-  beginStepUp: () => undefined,
+  beginStepUp,
 }));
 
 import { renewSession } from "./api";
@@ -21,6 +23,7 @@ describe("renewing a 30-day sign-in", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    beginStepUp.mockClear();
   });
 
   it("survives a server hiccup and a dropped network, then renews", async () => {
@@ -43,6 +46,17 @@ describe("renewing a 30-day sign-in", () => {
 
     expect(await settle(renewSession())).toBe("signed-out");
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(beginStepUp).not.toHaveBeenCalled();
+  });
+
+  it("asks for a fresh proof when staff change network, and keeps the sign-in", async () => {
+    vi.useFakeTimers();
+    const fetch = vi.fn().mockResolvedValue(reply(403, { code: "STEP_UP_REQUIRED" }));
+    vi.stubGlobal("fetch", fetch);
+
+    expect(await settle(renewSession())).toBe("step-up");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(beginStepUp).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the sign-in when the network never comes back", async () => {
