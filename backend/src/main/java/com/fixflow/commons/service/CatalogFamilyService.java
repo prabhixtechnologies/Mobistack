@@ -21,10 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -115,7 +117,7 @@ public class CatalogFamilyService {
 
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CatalogCache.NAME,
-            key = "'v2:' + #groupId + ':family:' + #deviceId + ':' + (#categoryCode == null ? '' : #categoryCode)")
+            key = "'v3:' + #groupId + ':family:' + #deviceId + ':' + (#categoryCode == null ? '' : #categoryCode)")
     public List<FamilyView> forDevice(UUID groupId, UUID deviceId, String categoryCode) {
         catalog.requireDevice(groupId, deviceId);
         String code = categoryCode == null || categoryCode.isBlank() ? null : requiredCode(categoryCode);
@@ -135,7 +137,46 @@ public class CatalogFamilyService {
             }
             rows.add(familyOf(groupId, component));
         }
-        return rows;
+        return withoutCoveredDuplicates(rows, byId);
+    }
+
+    /** Keeps the shared family when an exact one-phone spare lists only phones that family already has. */
+    private static List<FamilyView> withoutCoveredDuplicates(List<FamilyView> rows,
+                                                               Map<UUID, CatalogComponent> components) {
+        Map<UUID, String> categories = new LinkedHashMap<>();
+        Map<UUID, Set<UUID>> devices = new LinkedHashMap<>();
+        Set<UUID> canonicalImports = new HashSet<>();
+        Set<UUID> generatedPlaceholders = new HashSet<>();
+        for (FamilyView row : rows) {
+            categories.put(row.id(), row.categoryCode());
+            devices.put(row.id(), row.members().stream().map(MemberView::id).collect(Collectors.toCollection(HashSet::new)));
+            CatalogComponent component = components.get(row.id());
+            if (component != null && "Combo Support".equals(component.getAttributes().get("source"))) {
+                canonicalImports.add(row.id());
+            }
+            if (component != null && isGeneratedPlaceholder(row, component)) {
+                generatedPlaceholders.add(row.id());
+            }
+        }
+        Set<UUID> drop = SubsumedComponents.subsumed(
+                categories, devices, canonicalImports, generatedPlaceholders);
+        if (drop.isEmpty()) {
+            return rows;
+        }
+        return rows.stream().filter(row -> !drop.contains(row.id())).toList();
+    }
+
+    private static boolean isGeneratedPlaceholder(FamilyView row, CatalogComponent component) {
+        if (row.members().size() != 1) {
+            return false;
+        }
+        MemberView member = row.members().get(0);
+        String expected = String.join(" ",
+                member.brandName() == null ? "" : member.brandName(),
+                member.name(),
+                member.variant() == null ? "" : member.variant(),
+                row.categoryName()).replaceAll("\\s+", " ").trim();
+        return component.getName().equalsIgnoreCase(expected);
     }
 
     @Transactional(readOnly = true)
