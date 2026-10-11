@@ -150,11 +150,17 @@ const UNPAID_ALLOWED = new Set([
   "/commons/components",
 ]);
 
-export function allowedWhileUnpaid(pathname: string): boolean {
-  if (UNPAID_ALLOWED.has(pathname)) {
+export function allowedWhileUnpaid(pathname: string, search = ""): boolean {
+  if (UNPAID_ALLOWED.has(pathname) || pathname.startsWith("/commons/")) {
     return true;
   }
-  return pathname.startsWith("/commons/");
+  // The catalog home stays on the paid plan. A brand or part-type filter is the
+  // same browse those paths used to be, so an unpaid shop can still open it.
+  if (pathname === "/commons") {
+    const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+    return params.has("brands") || params.has("category");
+  }
+  return false;
 }
 
 const EXTRA_LABELS: Record<string, string> = {

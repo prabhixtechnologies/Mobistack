@@ -1,5 +1,6 @@
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { brandMark, brandTone } from "../lib/brandTone";
+import { commonsBrowsePath } from "../lib/commonsQuery";
 import { useFitmentGroups } from "../lib/groups";
 import { usePagedList } from "../lib/usePagedList";
 import { useResource } from "../lib/useResource";
@@ -8,10 +9,7 @@ import { FitmentGroupBar } from "../ui/FitmentGroupBar";
 import { PageHeader } from "../ui/PageHeader";
 import type { CommonsBrand, CommonsCategory, CommonsDevice } from "../lib/types";
 
-export function CommonsBrandPage() {
-  const { brandId } = useParams();
-  const [searchParams] = useSearchParams();
-  const category = searchParams.get("category");
+export function CommonsBrandPage({ brandId, category }: { brandId: string; category?: string | null }) {
   const fitment = useFitmentGroups();
   const brands = useResource<CommonsBrand[]>(
     fitment.ready
@@ -54,7 +52,7 @@ export function CommonsBrandPage() {
             <span>
               <Link to="/commons">Fitment Catalog</Link>
               <span className="catalog-kicker-sep"> / </span>
-              <Link to={`/commons/categories/${encodeURIComponent(category)}`}>{partName}</Link>
+              <Link to={commonsBrowsePath({ category })}>{partName}</Link>
             </span>
           ) : (
             <Link to="/commons">Fitment Catalog</Link>

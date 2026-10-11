@@ -41,5 +41,10 @@ describe("navigation", () => {
     expect(allowedWhileUnpaid("/billing")).toBe(true);
     expect(allowedWhileUnpaid("/support")).toBe(true);
     expect(allowedWhileUnpaid("/sales")).toBe(false);
+    expect(allowedWhileUnpaid("/commons")).toBe(false);
+    expect(allowedWhileUnpaid("/commons", "?category=DISPLAY_CONNECTOR")).toBe(true);
+    expect(allowedWhileUnpaid("/commons", "?brands=692f18b7-d045-4fd0-9755-d3ba68183c8f&category=DISPLAY_CONNECTOR")).toBe(
+      true,
+    );
   });
 });

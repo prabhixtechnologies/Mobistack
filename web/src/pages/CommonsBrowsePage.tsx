@@ -1,7 +1,8 @@
 import { FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { brandMark, brandTone } from "../lib/brandTone";
+import { commonsBrowsePath } from "../lib/commonsQuery";
 import { canManageGroup, useFitmentGroups } from "../lib/groups";
 import { useDebounced } from "../lib/useDebounced";
 import { usePagedList } from "../lib/usePagedList";
@@ -12,8 +13,19 @@ import { FitmentGroupBar } from "../ui/FitmentGroupBar";
 import { PageHeader } from "../ui/PageHeader";
 import { TextField } from "../ui/Field";
 import type { CommonsCategory, CommonsDevice, CommonsStats } from "../lib/types";
+import { CommonsBrandPage } from "./CommonsBrandPage";
+import { CommonsCategoryPage } from "./CommonsCategoryPage";
 
 export function CommonsBrowsePage() {
+  const [params] = useSearchParams();
+  const brands = params.get("brands")?.trim() ?? "";
+  const category = params.get("category")?.trim() ?? "";
+  if (brands) return <CommonsBrandPage brandId={brands} category={category || null} />;
+  if (category) return <CommonsCategoryPage code={category} />;
+  return <CatalogHome />;
+}
+
+function CatalogHome() {
   const [query, setQuery] = useState("");
   const [addPhone, setAddPhone] = useState(false);
   const [addFamily, setAddFamily] = useState(false);
@@ -116,7 +128,7 @@ export function CommonsBrowsePage() {
                 <Link
                   key={category.code}
                   className="catalog-tile"
-                  to={`/commons/categories/${encodeURIComponent(category.code)}`}
+                  to={commonsBrowsePath({ category: category.code })}
                 >
                   <span className="catalog-tile__n">{String(index + 1).padStart(2, "0")}</span>
                   <strong>{category.name}</strong>

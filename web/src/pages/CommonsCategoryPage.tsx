@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { brandMark, brandTone } from "../lib/brandTone";
+import { commonsBrowsePath } from "../lib/commonsQuery";
 import { canManageGroup, useFitmentGroups } from "../lib/groups";
 import { usePagedList } from "../lib/usePagedList";
 import { useResource } from "../lib/useResource";
@@ -11,8 +12,7 @@ import { LoadMore } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
 import type { CommonsBrand, CommonsCategory, CommonsFamily } from "../lib/types";
 
-export function CommonsCategoryPage() {
-  const { code } = useParams();
+export function CommonsCategoryPage({ code }: { code: string }) {
   const fitment = useFitmentGroups();
   const [addFamily, setAddFamily] = useState(false);
   const categories = useResource<CommonsCategory[]>(
@@ -65,7 +65,7 @@ export function CommonsCategoryPage() {
             <Link
               key={brand.id}
               className="catalog-tile catalog-tile--brand"
-              to={`/commons/brands/${brand.id}?category=${encodeURIComponent(code ?? "")}`}
+              to={commonsBrowsePath({ brands: brand.id, category: code })}
             >
               <span className="catalog-tile__mark" style={brandTone(brand.name)}>
                 {brandMark(brand.name)}

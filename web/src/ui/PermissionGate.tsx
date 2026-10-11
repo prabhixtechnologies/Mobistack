@@ -49,9 +49,9 @@ export function PermissionGate({ need, anyOf, allOf, fallback = null, children }
 export function RequirePermission({ need }: { need?: Permission }) {
   const access = useAccess();
   const { user } = useAuth();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
 
-  if (user?.paymentRequired && !allowedWhileUnpaid(pathname)) {
+  if (user?.paymentRequired && !allowedWhileUnpaid(pathname, search)) {
     // Only someone who can actually pay is sent to Billing; everyone else would
     // just bounce into a second denial there, so tell them who to ask instead.
     return access.has("WORKSPACE_BILLING") ? (

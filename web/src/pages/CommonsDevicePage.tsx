@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useAccess } from "../lib/access";
 import { useAuth } from "../lib/auth";
 import { brandMark, brandTone } from "../lib/brandTone";
+import { commonsBrowsePath } from "../lib/commonsQuery";
 import { hasFeature } from "../lib/plan";
 import { useFitmentGroups } from "../lib/groups";
 import { useResource } from "../lib/useResource";
@@ -144,16 +145,17 @@ export function CommonsDevicePage() {
             <Link to="/commons">Fitment Catalog</Link>
             <span className="catalog-kicker-sep">/</span>
             <Link
-              to={`/commons/brands/${device.data.brandId}${
-                categoryFilter ? `?category=${encodeURIComponent(categoryFilter)}` : ""
-              }`}
+              to={commonsBrowsePath({
+                brands: device.data.brandId,
+                category: categoryFilter,
+              })}
             >
               {device.data.brandName}
             </Link>
             {categoryFilter && (
               <>
                 <span className="catalog-kicker-sep">/</span>
-                <Link to={`/commons/categories/${encodeURIComponent(categoryFilter)}`}>
+                <Link to={commonsBrowsePath({ category: categoryFilter })}>
                   {activeCategoryObj?.name ?? categoryFilter}
                 </Link>
               </>

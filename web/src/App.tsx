@@ -1,5 +1,6 @@
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { legacyCommonsTarget } from "./lib/commonsQuery";
 import { RouteError } from "./ui/RouteError";
 import { useAuth } from "./lib/auth";
 import { selectedWorkspaceId } from "./lib/types";
@@ -29,8 +30,6 @@ const SearchPage = page(() => import("./pages/SearchPage"), "SearchPage");
 const CommonsBrowsePage = page(() => import("./pages/CommonsBrowsePage"), "CommonsBrowsePage");
 const CommonsDevicePage = page(() => import("./pages/CommonsDevicePage"), "CommonsDevicePage");
 const CommonsComponentPage = page(() => import("./pages/CommonsComponentPage"), "CommonsComponentPage");
-const CommonsCategoryPage = page(() => import("./pages/CommonsCategoryPage"), "CommonsCategoryPage");
-const CommonsBrandPage = page(() => import("./pages/CommonsBrandPage"), "CommonsBrandPage");
 const CommonsStandingPage = page(() => import("./pages/CommonsStandingPage"), "CommonsStandingPage");
 const CommonsReviewPage = page(() => import("./pages/CommonsReviewPage"), "CommonsReviewPage");
 const CatalogLinksPage = page(() => import("./pages/CatalogLinksPage"), "CatalogLinksPage");
@@ -176,6 +175,12 @@ export function App() {
   return <SignedIn user={user} />;
 }
 
+function LegacyCommonsRedirect() {
+  const location = useLocation();
+  const next = legacyCommonsTarget(location.pathname, location.search);
+  return <Navigate to={next ?? "/commons"} replace />;
+}
+
 function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user"]> }) {
   const gate = useShopGate();
 
@@ -216,8 +221,8 @@ function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user
             <Route path="/commons" element={<CommonsBrowsePage />} />
             <Route path="/commons/devices/:id" element={<CommonsDevicePage />} />
             <Route path="/commons/components/:id" element={<CommonsComponentPage />} />
-            <Route path="/commons/categories/:code" element={<CommonsCategoryPage />} />
-            <Route path="/commons/brands/:brandId" element={<CommonsBrandPage />} />
+            <Route path="/commons/categories/:code" element={<LegacyCommonsRedirect />} />
+            <Route path="/commons/brands/:brandId" element={<LegacyCommonsRedirect />} />
             <Route path="/commons/standing" element={<CommonsStandingPage />} />
             <Route path="/commons/review" element={<CommonsReviewPage />} />
             <Route path="/commons/devices" element={<Navigate to="/commons" replace />} />
