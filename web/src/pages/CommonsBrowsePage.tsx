@@ -10,8 +10,9 @@ import { useResource } from "../lib/useResource";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { AddFamilyModal, AddPhoneModal } from "../ui/CatalogEditor";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
-import { PageHeader } from "../ui/PageHeader";
-import { TextField } from "../ui/Field";
+import { SearchField, TextField } from "../ui/Field";
+import { Icon } from "../ui/navIcons";
+import { PartIcon, partTone } from "../ui/PartCategory";
 import type { CommonsCategory, CommonsDevice, CommonsStats } from "../lib/types";
 import { CommonsBrandPage } from "./CommonsBrandPage";
 import { CommonsCategoryPage } from "./CommonsCategoryPage";
@@ -49,54 +50,73 @@ function CatalogHome() {
     devices.reload();
   }
 
+  const parts = categories.data ?? [];
+  const measured = parts.filter((part) => part.totalDeviceCount > 0);
+  const coverage = measured.length
+    ? Math.round(
+        (measured.reduce((sum, part) => sum + part.mappedDeviceCount / part.totalDeviceCount, 0) / measured.length) * 100,
+      )
+    : null;
+
   return (
-    <div className="page catalog-home">
-      <PageHeader
-        icon="globe"
-        kicker="Fitment Catalog"
-        title={stats.data?.groupName ?? "Catalog"}
-        subtitle="Pick the spare first, then a brand, then a phone. The phone shows that spare only."
-        actions={
-          canManageGroup(fitment.current) ? (
-            <div className="row">
-              <button className="btn ghost" type="button" onClick={() => setAddPhone(true)}>
+    <div className="page fx-home">
+      <section className="fx-hero">
+        <div className="fx-hero__top">
+          <span className="fx-hero__icon" aria-hidden>
+            <Icon name="globe" />
+          </span>
+          <div className="fx-hero__copy">
+            <p className="fx-hero__kicker">Fitment Catalog</p>
+            <h1>{stats.data?.groupName ?? "Catalog"}</h1>
+            <p className="fx-hero__sub">Pick a spare, then a brand, then a phone.</p>
+          </div>
+          <div className="fx-hero__stats">
+            {stats.data && (
+              <>
+                <span className="fx-stat fx-stat--a">
+                  <strong>{formatCount(stats.data.deviceCount)}</strong> phones
+                </span>
+                <span className="fx-stat fx-stat--b">
+                  <strong>{formatCount(stats.data.componentCount)}</strong> families
+                </span>
+              </>
+            )}
+            {coverage !== null && (
+              <span className="fx-stat fx-stat--c">
+                <strong>{coverage}%</strong> mapped
+              </span>
+            )}
+          </div>
+          {canManageGroup(fitment.current) && (
+            <div className="fx-hero__actions">
+              <button className="btn ghost sm" type="button" onClick={() => setAddPhone(true)}>
                 Add phone
               </button>
-              <button className="btn" type="button" onClick={() => setAddFamily(true)}>
+              <button className="btn sm" type="button" onClick={() => setAddFamily(true)}>
                 Add family
               </button>
             </div>
-          ) : null
-        }
-        meta={
-          stats.data ? (
-            <>
-              <span className="page-stat">
-                <strong>{stats.data.deviceCount}</strong> phones
-              </span>
-              <span className="page-stat">
-                <strong>{stats.data.componentCount}</strong> families
-              </span>
-            </>
-          ) : null
-        }
-      />
-
-      <FitmentGroupBar
-        groups={fitment.groups}
-        selected={fitment.selected}
-        choose={fitment.choose}
-        create={fitment.create}
-        current={fitment.current}
-      />
-
-      <TextField
-        label="Search"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="iPhone 11, RMX2001, Galaxy A10…"
-        autoComplete="off"
-      />
+          )}
+        </div>
+        <div className="fx-hero__tools">
+          <SearchField
+            className="fx-search"
+            label="Search phones"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search a phone: iPhone 11, RMX2001, Galaxy A10…"
+            autoComplete="off"
+          />
+          <FitmentGroupBar
+            compact
+            groups={fitment.groups}
+            selected={fitment.selected}
+            choose={fitment.choose}
+            create={fitment.create}
+            current={fitment.current}
+          />
+        </div>
+      </section>
 
       {searching ? (
         <section className="card tight">
@@ -123,24 +143,52 @@ function CatalogHome() {
         <>
           {categories.error && <ErrorState message={categories.error} onRetry={categories.reload} />}
           {!categories.error && (
-            <div className="catalog-grid">
-              {(categories.data ?? []).map((category, index) => (
-                <Link
-                  key={category.code}
-                  className="catalog-tile"
-                  to={commonsBrowsePath({ category: category.code })}
-                >
-                  <span className="catalog-tile__n">{String(index + 1).padStart(2, "0")}</span>
-                  <strong>{category.name}</strong>
-                  <p className="faint">
-                    {category.totalDeviceCount} phones · {category.mappedDeviceCount} mapped
-                  </p>
-                  <p className="faint">
-                    {category.familyCount} {category.familyCount === 1 ? "shared family" : "shared families"}
-                  </p>
-                </Link>
-              ))}
-            </div>
+            <>
+              <div className="fx-section">
+                <h2>Spare parts</h2>
+                <span>{parts.length} types · tap one to pick a brand</span>
+              </div>
+              <div className="fx-grid">
+                {parts.map((category) => {
+                  const share = category.totalDeviceCount
+                    ? Math.round((category.mappedDeviceCount / category.totalDeviceCount) * 100)
+                    : 0;
+                  const empty = category.mappedDeviceCount === 0;
+                  return (
+                    <Link
+                      key={category.code}
+                      className={`fx-tile${empty ? " fx-tile--empty" : ""}`}
+                      style={partTone(category.code)}
+                      to={commonsBrowsePath({ category: category.code })}
+                    >
+                      <span className="fx-tile__head">
+                        <span className="fx-tile__icon">
+                          <PartIcon code={category.code} />
+                        </span>
+                        <span className="fx-tile__name">{category.name}</span>
+                      </span>
+                      <span className="fx-tile__bar" aria-hidden>
+                        <span style={{ width: `${share}%` }} />
+                      </span>
+                      <span className="fx-tile__meta">
+                        {empty ? (
+                          <span>Not mapped yet</span>
+                        ) : (
+                          <span>
+                            <strong>{formatCount(category.mappedDeviceCount)}</strong> phones ·{" "}
+                            {formatCount(category.familyCount)} {category.familyCount === 1 ? "family" : "families"}
+                          </span>
+                        )}
+                        <span className="fx-tile__pct">{share}%</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+                {categories.loading &&
+                  parts.length === 0 &&
+                  Array.from({ length: 10 }, (_, index) => <span key={index} className="fx-tile fx-tile--ghost" />)}
+              </div>
+            </>
           )}
         </>
       )}
@@ -151,6 +199,10 @@ function CatalogHome() {
       <AddFamilyModal open={addFamily} onClose={() => setAddFamily(false)} onCreated={reload} />
     </div>
   );
+}
+
+function formatCount(value: number): string {
+  return value.toLocaleString("en-IN");
 }
 
 function ContributeStrip() {

@@ -4375,3 +4375,311 @@ kbd,
     width: 100%;
   }
 }
+
+/* Fitment catalog home */
+.fx-home {
+  display: grid;
+  gap: 14px;
+}
+
+.fx-hero {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--finish-hairline);
+  border-radius: var(--finish-r-xl);
+  background:
+    radial-gradient(26rem 9rem at 100% 0%, color-mix(in oklab, var(--px-fuchsia-400) 22%, transparent), transparent 70%),
+    radial-gradient(22rem 9rem at 55% 0%, color-mix(in oklab, var(--px-ochre-400) 24%, transparent), transparent 70%),
+    radial-gradient(20rem 8rem at 0% 100%, color-mix(in oklab, var(--px-teal-400) 18%, transparent), transparent 70%),
+    var(--surface);
+  box-shadow: var(--finish-shadow-2);
+}
+
+.fx-hero__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.fx-hero__icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: var(--finish-r-md);
+  background: linear-gradient(140deg, var(--px-ochre-500), var(--px-rose-500) 60%, var(--px-violet-600));
+  color: var(--px-sand-50);
+  box-shadow: 0 6px 16px -6px color-mix(in oklab, var(--px-rose-600) 70%, transparent);
+}
+
+.fx-hero__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.fx-hero__copy {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.fx-hero__kicker {
+  margin: 0;
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.fx-hero h1 {
+  margin: 1px 0 0;
+  font-size: clamp(19px, 1.6vw, 23px);
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.fx-hero__sub {
+  margin: 2px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.fx-hero__stats,
+.fx-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.fx-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid var(--stat-line);
+  border-radius: 999px;
+  background: var(--stat-bg);
+  color: var(--stat-ink);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.fx-stat strong {
+  font-size: 14px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-stat--a { --stat-bg: var(--px-tag-ochre-bg); --stat-ink: var(--px-tag-ochre-ink); --stat-line: var(--px-tag-ochre-border); }
+.fx-stat--b { --stat-bg: var(--px-tag-violet-bg); --stat-ink: var(--px-tag-violet-ink); --stat-line: var(--px-tag-violet-border); }
+.fx-stat--c { --stat-bg: var(--px-tag-teal-bg); --stat-ink: var(--px-tag-teal-ink); --stat-line: var(--px-tag-teal-border); }
+
+.fx-hero__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.fx-hero__tools .fx-search {
+  flex: 1 1 320px;
+  width: auto;
+}
+
+.fx-hero__tools .fx-search .field {
+  width: 100%;
+  min-height: 40px;
+  padding-left: 38px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface) 88%, transparent);
+}
+
+.fitment-bar--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.fitment-bar--compact .form-field {
+  margin: 0;
+}
+
+.fx-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 2px;
+}
+
+.fx-section h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.fx-section span {
+  color: var(--ink-faint);
+  font-size: 12.5px;
+}
+
+.fx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.fx-tile {
+  display: grid;
+  gap: 10px;
+  min-height: 108px;
+  padding: 12px 13px 11px;
+  border: 1px solid color-mix(in oklab, var(--part-line, var(--line)) 80%, var(--line));
+  border-radius: var(--finish-r-lg);
+  background:
+    linear-gradient(155deg, color-mix(in oklab, var(--part-bg, var(--bg-muted)) 75%, transparent), transparent 62%),
+    var(--surface);
+  color: inherit;
+  box-shadow: var(--finish-shadow-1);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.fx-tile:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--part-ink) 45%, transparent);
+  box-shadow: var(--finish-shadow-3);
+}
+
+.fx-tile:focus-visible {
+  outline: 2px solid var(--part-ink);
+  outline-offset: 2px;
+}
+
+.fx-tile__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fx-tile__icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--part-line);
+  border-radius: 10px;
+  background: var(--part-bg);
+  color: var(--part-ink);
+}
+
+.fx-tile__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.fx-tile__name {
+  font-size: 14px;
+  font-weight: 680;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.fx-tile__bar {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--part-bg) 85%, var(--bg-muted));
+  align-self: end;
+}
+
+.fx-tile__bar > span {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--part-ink) 65%, transparent), var(--part-ink));
+}
+
+.fx-tile__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.fx-tile__meta strong {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-tile__pct {
+  color: var(--part-ink);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.fx-tile--empty {
+  border-style: dashed;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.fx-tile--empty .fx-tile__meta {
+  color: var(--ink-faint);
+}
+
+.fx-tile--ghost {
+  border-color: var(--line);
+  background: linear-gradient(90deg, var(--bg-muted), var(--surface), var(--bg-muted));
+  background-size: 200% 100%;
+  animation: fx-shimmer 1.4s linear infinite;
+}
+
+@keyframes fx-shimmer {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-tile,
+  .fx-tile--ghost {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .fx-hero {
+    padding: 12px;
+  }
+
+  .fx-hero__sub {
+    display: none;
+  }
+
+  .fx-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .fx-tile {
+    min-height: 96px;
+    padding: 10px;
+  }
+
+  .fx-tile__name {
+    font-size: 13px;
+  }
+}

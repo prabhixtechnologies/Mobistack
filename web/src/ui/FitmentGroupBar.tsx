@@ -15,12 +15,15 @@ export function FitmentGroupBar({
   choose,
   create,
   current,
+  compact = false,
 }: {
   groups: FitmentGroup[];
   selected: string | null;
   choose: (id: string) => void;
   create: (name: string) => Promise<string | null>;
   current: FitmentGroup | null;
+  /** Sits inside a toolbar: no own margin, and a lone group's name is left to the page title. */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -46,7 +49,10 @@ export function FitmentGroupBar({
   }
 
   return (
-    <div className="spread" style={{ marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+    <div
+      className={compact ? "fitment-bar--compact" : "spread"}
+      style={compact ? undefined : { marginBottom: 16, gap: 12, flexWrap: "wrap" }}
+    >
       {creating && (
         <form className="spread" onSubmit={(event) => void onCreate(event)}>
           <TextField label="Group name" value={name} onChange={(event) => setName(event.target.value)} />
@@ -74,16 +80,16 @@ export function FitmentGroupBar({
             </button>
           ))}
         </div>
-      ) : (
+      ) : compact ? null : (
         <strong>{groups[0]?.name}</strong>
       )}
       {canManageGroup(current) && (
-        <button className="btn ghost" type="button" onClick={() => setOpen(true)}>
+        <button className={`btn ghost${compact ? " sm" : ""}`} type="button" onClick={() => setOpen(true)}>
           Members
         </button>
       )}
       {!creating && (
-        <button className="btn ghost" type="button" onClick={() => setCreating(true)}>
+        <button className={`btn ghost${compact ? " sm" : ""}`} type="button" onClick={() => setCreating(true)}>
           New group
         </button>
       )}
