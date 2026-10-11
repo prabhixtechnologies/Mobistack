@@ -11,10 +11,9 @@ import { AddFamilyModal, AddPhoneModal } from "../ui/CatalogEditor";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
 import { PageHeader } from "../ui/PageHeader";
 import { TextField } from "../ui/Field";
-import type { CommonsBrand, CommonsCategory, CommonsDevice, CommonsStats } from "../lib/types";
+import type { CommonsCategory, CommonsDevice, CommonsStats } from "../lib/types";
 
 export function CommonsBrowsePage() {
-  const [tab, setTab] = useState<"parts" | "brands">("parts");
   const [query, setQuery] = useState("");
   const [addPhone, setAddPhone] = useState(false);
   const [addFamily, setAddFamily] = useState(false);
@@ -26,7 +25,6 @@ export function CommonsBrowsePage() {
   const categories = useResource<CommonsCategory[]>(
     fitment.ready ? "/api/v1/mobistack/commons/categories" : null,
   );
-  const brands = useResource<CommonsBrand[]>(fitment.ready ? "/api/v1/mobistack/commons/brands" : null);
   const searching = settled.trim().length >= 2;
   const devices = usePagedList<CommonsDevice>(
     searching ? `/api/v1/mobistack/commons/devices?q=${encodeURIComponent(settled.trim())}` : null,
@@ -35,7 +33,6 @@ export function CommonsBrowsePage() {
 
   function reload() {
     categories.reload();
-    brands.reload();
     stats.reload();
     devices.reload();
   }
@@ -46,7 +43,7 @@ export function CommonsBrowsePage() {
         icon="globe"
         kicker="Fitment Catalog"
         title={stats.data?.groupName ?? "Catalog"}
-        subtitle="Pick a part type or a brand, then a phone. Compatible models live on that phone."
+        subtitle="Pick the spare first, then a brand, then a phone. The phone shows that spare only."
         actions={
           canManageGroup(fitment.current) ? (
             <div className="row">
@@ -112,19 +109,8 @@ export function CommonsBrowsePage() {
         </section>
       ) : (
         <>
-          <div className="method-tabs" role="tablist" aria-label="Browse catalog">
-            <button className={`method-tab ${tab === "parts" ? "on" : ""}`} type="button" onClick={() => setTab("parts")}>
-              Part types
-            </button>
-            <button className={`method-tab ${tab === "brands" ? "on" : ""}`} type="button" onClick={() => setTab("brands")}>
-              Brands
-            </button>
-          </div>
-
-          {tab === "parts" && categories.error && (
-            <ErrorState message={categories.error} onRetry={categories.reload} />
-          )}
-          {tab === "parts" && !categories.error && (
+          {categories.error && <ErrorState message={categories.error} onRetry={categories.reload} />}
+          {!categories.error && (
             <div className="catalog-grid">
               {(categories.data ?? []).map((category, index) => (
                 <Link
@@ -136,25 +122,6 @@ export function CommonsBrowsePage() {
                   <strong>{category.name}</strong>
                   <p className="faint">
                     {category.familyCount} {category.familyCount === 1 ? "family" : "families"} · {category.deviceCount} phones
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {tab === "brands" && brands.error && (
-            <ErrorState message={brands.error} onRetry={brands.reload} />
-          )}
-          {tab === "brands" && !brands.error && (
-            <div className="catalog-grid">
-              {(brands.data ?? []).map((brand) => (
-                <Link key={brand.id} className="catalog-tile catalog-tile--brand" to={`/commons/brands/${brand.id}`}>
-                  <span className="catalog-tile__mark" style={brandTone(brand.name)}>
-                    {brandMark(brand.name)}
-                  </span>
-                  <strong>{brand.name}</strong>
-                  <p className="faint">
-                    {brand.deviceCount ?? 0} {(brand.deviceCount ?? 0) === 1 ? "phone" : "phones"}
                   </p>
                 </Link>
               ))}

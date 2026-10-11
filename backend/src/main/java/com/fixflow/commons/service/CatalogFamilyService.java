@@ -150,6 +150,23 @@ public class CatalogFamilyService {
                 .toList());
     }
 
+    /** Brands that have at least one phone taking this part. Counts are those phones, not the whole brand. */
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CatalogCache.NAME,
+            key = "'v2:' + #groupId + ':brands:' + #categoryCode")
+    public List<BrandIndex> brandsInCategory(UUID groupId, String categoryCode) {
+        catalog.requireGroup(groupId);
+        String code = requiredCode(categoryCode);
+        Map<UUID, Long> counts = devices.countByBrandAndCategory(groupId, code).stream()
+                .collect(Collectors.toMap(CatalogDeviceRepository.BrandCount::getBrandId,
+                        CatalogDeviceRepository.BrandCount::getDeviceCount));
+        return catalog.listBrands(groupId).stream()
+                .filter(brand -> counts.containsKey(brand.getId()))
+                .map(brand -> new BrandIndex(brand.getId(), brand.getName(), brand.getLogoUrl(),
+                        counts.get(brand.getId())))
+                .toList();
+    }
+
     private List<FamilyView> assemble(UUID groupId, List<CatalogComponent> found) {
         if (found.isEmpty()) {
             return List.of();

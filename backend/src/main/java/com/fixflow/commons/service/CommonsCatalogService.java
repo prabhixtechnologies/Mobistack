@@ -84,8 +84,23 @@ public class CommonsCatalogService {
 
     @Transactional(readOnly = true)
     public Page<CatalogDevice> devicesForBrand(UUID groupId, UUID brandId, int page, int size) {
+        return devicesForBrand(groupId, brandId, null, page, size);
+    }
+
+    /**
+     * @param categoryCode when set, only phones that take that part. The catalog walk is
+     *                     part type, then brand, then phone — dropping the part type here
+     *                     is what makes the phone screen list every spare.
+     */
+    @Transactional(readOnly = true)
+    public Page<CatalogDevice> devicesForBrand(UUID groupId, UUID brandId, String categoryCode, int page, int size) {
         CatalogBrand brand = requireBrand(groupId, brandId);
-        return devices.findByGroupIdAndBrandIdOrderByNameAsc(brand.getGroupId(), brand.getId(), pageable(page, size));
+        if (categoryCode == null || categoryCode.isBlank()) {
+            return devices.findByGroupIdAndBrandIdOrderByNameAsc(brand.getGroupId(), brand.getId(),
+                    PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name")));
+        }
+        return devices.findByBrandAndCategory(brand.getGroupId(), brand.getId(), categoryCode.trim().toUpperCase(),
+                PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name")));
     }
 
     @Transactional(readOnly = true)

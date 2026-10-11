@@ -33,6 +33,7 @@ export function CommonsComponentPage() {
       </div>
     );
   }
+  const categoryCode = component.data.categoryCode;
 
   return (
     <div className="page">
@@ -55,7 +56,11 @@ export function CommonsComponentPage() {
         </div>
         {devices.error && <div className="error">{devices.error}</div>}
         {(devices.data ?? []).map((device) => (
-          <Link key={device.id} className="category-row" to={`/commons/devices/${device.id}`}>
+          <Link
+            key={device.id}
+            className="category-row"
+            to={`/commons/devices/${device.id}?category=${encodeURIComponent(categoryCode)}`}
+          >
             <div>
               <div style={{ fontWeight: 650 }}>{deviceLabel(device)}</div>
               <div className="faint">{device.modelCode ?? "No factory code"}</div>

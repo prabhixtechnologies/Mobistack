@@ -28,7 +28,11 @@ export function CommonsDevicePage() {
 
   const device = useResource<CommonsDevice>(id ? `/api/v1/mobistack/commons/devices?deviceId=${id}` : null);
   const families = useResource<CommonsFamily[]>(
-    id && fitment.ready ? `/api/v1/mobistack/commons/devices/family?deviceId=${id}` : null,
+    id && fitment.ready
+      ? `/api/v1/mobistack/commons/devices/family?deviceId=${id}${
+          categoryFilter ? `&categoryCode=${encodeURIComponent(categoryFilter)}` : ""
+        }`
+      : null,
   );
   const fits = useResource<CommonsFit[]>(
     id && fitment.ready ? `/api/v1/mobistack/commons/devices/fits?deviceId=${id}` : null,
@@ -69,12 +73,18 @@ export function CommonsDevicePage() {
 
   // Filtered families
   const displayedFamilies = useMemo(() => {
-    if (!categoryFilter) return allFamilies;
-    const match = allFamilies.filter(
-      (f) => f.categoryCode.toUpperCase() === categoryFilter.toUpperCase(),
+    if (!categoryFilter) return [];
+    return allFamilies.filter(
+      (family) => family.categoryCode.toUpperCase() === categoryFilter.toUpperCase(),
     );
-    return match;
   }, [allFamilies, categoryFilter]);
+  const displayedFits = useMemo(() => {
+    const rows = fits.data ?? [];
+    if (!categoryFilter) return rows;
+    return rows.filter(
+      (fit) => (fit.categoryCode ?? "").toUpperCase() === categoryFilter.toUpperCase(),
+    );
+  }, [fits.data, categoryFilter]);
 
   async function contribute(kind: "CONFIRM_FITMENT" | "DISPUTE_FITMENT", fitmentId: string, note?: string) {
     setBusy(true);
@@ -133,7 +143,13 @@ export function CommonsDevicePage() {
           <div className="catalog-kicker-nav">
             <Link to="/commons">Fitment Catalog</Link>
             <span className="catalog-kicker-sep">/</span>
-            <Link to={`/commons/brands/${device.data.brandId}`}>{device.data.brandName}</Link>
+            <Link
+              to={`/commons/brands/${device.data.brandId}${
+                categoryFilter ? `?category=${encodeURIComponent(categoryFilter)}` : ""
+              }`}
+            >
+              {device.data.brandName}
+            </Link>
             {categoryFilter && (
               <>
                 <span className="catalog-kicker-sep">/</span>
@@ -145,7 +161,11 @@ export function CommonsDevicePage() {
           </div>
         }
         title={title}
-        subtitle="Compatible models sit with the spare they share. Live shop inventory shown below."
+        subtitle={
+          categoryFilter
+            ? `${activeCategoryObj?.name ?? categoryFilter} for this phone, and the other models that take the same spare.`
+            : "Choose the spare. This phone is not a list of every component."
+        }
         meta={
           <div className="device-hero__facts">
             {device.data.modelCode ? <code>{device.data.modelCode}</code> : null}
@@ -156,42 +176,18 @@ export function CommonsDevicePage() {
 
       {error && <div className="error">{error}</div>}
 
-      {/* Category filter bar */}
-      {availableCategories.length > 1 && (
+      {!categoryFilter && availableCategories.length > 0 && (
         <div className="catalog-filter-bar">
-          <button
-            type="button"
-            className={`catalog-filter-chip ${!categoryFilter ? "active" : ""}`}
-            onClick={() => setSearchParams({})}
-          >
-            All Spares ({allFamilies.length})
-          </button>
           {availableCategories.map((cat) => (
             <button
               type="button"
               key={cat.code}
-              className={`catalog-filter-chip ${categoryFilter?.toUpperCase() === cat.code.toUpperCase() ? "active" : ""}`}
+              className="catalog-filter-chip"
               onClick={() => setSearchParams({ category: cat.code })}
             >
               {cat.name} ({cat.count})
             </button>
           ))}
-        </div>
-      )}
-
-      {/* Active filter notification banner */}
-      {categoryFilter && (
-        <div className="catalog-filter-active-notice">
-          <div>
-            Showing <strong>{activeCategoryObj?.name ?? categoryFilter}</strong> compatibility ({displayedFamilies.length} spare{displayedFamilies.length === 1 ? "" : "s"}).
-          </div>
-          <button
-            className="btn ghost compact"
-            type="button"
-            onClick={() => setSearchParams({})}
-          >
-            Show all {allFamilies.length} spares
-          </button>
         </div>
       )}
 
@@ -275,22 +271,23 @@ export function CommonsDevicePage() {
         })}
       </div>
 
-      {!families.loading && displayedFamilies.length === 0 && (
+      {!families.loading && (categoryFilter || availableCategories.length === 0) && displayedFamilies.length === 0 && (
         <EmptyState
           compact
           icon="link"
-          title={categoryFilter ? `No ${activeCategoryObj?.name ?? categoryFilter} spares` : "Nothing linked yet"}
+          title={
+            categoryFilter
+              ? `No ${activeCategoryObj?.name ?? categoryFilter} on this phone`
+              : availableCategories.length > 0
+                ? "Pick a spare"
+                : "Nothing linked yet"
+          }
           hint={
             categoryFilter
-              ? "No spares in this category are linked to this model yet."
-              : "Confirm a part from the bench, or add a family."
-          }
-          action={
-            categoryFilter ? (
-              <button className="btn" type="button" onClick={() => setSearchParams({})}>
-                View all spares
-              </button>
-            ) : undefined
+              ? "This model has no family for the spare you already chose."
+              : availableCategories.length > 0
+                ? "The part type comes first. The list below is that spare, not every component on the phone."
+                : "Confirm a part from the bench, or add a family."
           }
         />
       )}
@@ -298,13 +295,13 @@ export function CommonsDevicePage() {
       {/* Technical fitment edges (collapsible for clean presentation) */}
       <details className="catalog-edges-card card">
         <summary className="catalog-edges-summary">
-          <span>Technical fitment data ({fits.data?.length ?? 0} edges)</span>
+          <span>Technical fitment data ({displayedFits.length} edges)</span>
           <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>
             Community confirmations & disputes ▾
           </span>
         </summary>
         <div style={{ padding: "0 18px 16px" }}>
-          {(fits.data ?? []).map((fit) => (
+          {displayedFits.map((fit) => (
             <div className="category-row" key={fit.fitmentId}>
               <div>
                 <Link to={`/commons/components/${fit.componentId}`} style={{ fontWeight: 650 }}>
@@ -337,7 +334,7 @@ export function CommonsDevicePage() {
               </div>
             </div>
           ))}
-          {(fits.data ?? []).length === 0 && (
+          {displayedFits.length === 0 && (
             <p className="faint" style={{ margin: "12px 0 0" }}>
               No technical fitment edges recorded.
             </p>

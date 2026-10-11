@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { brandMark, brandTone } from "../lib/brandTone";
 import { canManageGroup, useFitmentGroups } from "../lib/groups";
 import { usePagedList } from "../lib/usePagedList";
 import { useResource } from "../lib/useResource";
@@ -8,7 +9,7 @@ import { AddFamilyModal, phoneCaption } from "../ui/CatalogEditor";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
 import { LoadMore } from "../ui/DataTable";
 import { PageHeader } from "../ui/PageHeader";
-import type { CommonsCategory, CommonsFamily } from "../lib/types";
+import type { CommonsBrand, CommonsCategory, CommonsFamily } from "../lib/types";
 
 export function CommonsCategoryPage() {
   const { code } = useParams();
@@ -21,7 +22,11 @@ export function CommonsCategoryPage() {
     fitment.ready && code ? `/api/v1/mobistack/commons/families?categoryCode=${encodeURIComponent(code)}` : null,
     { size: 24 },
   );
+  const brands = useResource<CommonsBrand[]>(
+    fitment.ready && code ? `/api/v1/mobistack/commons/brands?categoryCode=${encodeURIComponent(code)}` : null,
+  );
   const category = (categories.data ?? []).find((row) => row.code === code);
+  const partName = category?.name ?? code ?? "Part type";
 
   if (families.error) {
     return (
@@ -43,12 +48,8 @@ export function CommonsCategoryPage() {
       <PageHeader
         icon="globe"
         kicker={<Link to="/commons">Fitment Catalog</Link>}
-        title={category?.name ?? code ?? "Part type"}
-        subtitle={
-          category
-            ? `${category.familyCount} families · ${category.deviceCount} phones that share this spare.`
-            : "Phones that take the same part."
-        }
+        title={partName}
+        subtitle="Pick a brand, then a phone. The phone stays on this spare."
         actions={
           canManageGroup(fitment.current) ? (
             <button className="btn" type="button" onClick={() => setAddFamily(true)}>
@@ -57,7 +58,32 @@ export function CommonsCategoryPage() {
           ) : null
         }
       />
+      {brands.error && <ErrorState message={brands.error} onRetry={brands.reload} />}
+      {!brands.error && (
+        <div className="catalog-grid">
+          {(brands.data ?? []).map((brand) => (
+            <Link
+              key={brand.id}
+              className="catalog-tile catalog-tile--brand"
+              to={`/commons/brands/${brand.id}?category=${encodeURIComponent(code ?? "")}`}
+            >
+              <span className="catalog-tile__mark" style={brandTone(brand.name)}>
+                {brandMark(brand.name)}
+              </span>
+              <strong>{brand.name}</strong>
+              <p className="faint">
+                {brand.deviceCount ?? 0} {(brand.deviceCount ?? 0) === 1 ? "phone" : "phones"}
+              </p>
+            </Link>
+          ))}
+        </div>
+      )}
+      {!brands.loading && (brands.data ?? []).length === 0 && !brands.error && (
+        <EmptyState compact icon="search" title={`No phones take ${partName} yet`} />
+      )}
+
       {families.loading && <p className="muted">Loading families…</p>}
+      {families.rows.length > 0 && <h2 className="catalog-section-label">Spares in this part type</h2>}
       <div className="catalog-family-list">
         {families.rows.map((family) => (
           <article className="catalog-family" key={family.id}>

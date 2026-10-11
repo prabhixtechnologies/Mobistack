@@ -81,10 +81,19 @@ public class CommonsController {
 
     @GetMapping("/brands")
     @PreAuthorize("isAuthenticated()")
-    public List<BrandView> brands() {
-        return familyCatalog.brands(groups.requireSelected()).stream()
+    public List<BrandView> brands(@RequestParam(required = false) String categoryCode) {
+        UUID groupId = groups.requireSelected();
+        var rows = categoryCode == null || categoryCode.isBlank()
+                ? familyCatalog.brands(groupId)
+                : familyCatalog.brandsInCategory(groupId, categoryCode);
+        return rows.stream()
                 .map(row -> new BrandView(row.id(), row.name(), row.logoUrl(), row.deviceCount()))
                 .toList();
+    }
+
+    /** Keeps direct callers and older tests source-compatible with the unfiltered endpoint. */
+    public List<BrandView> brands() {
+        return brands(null);
     }
 
     @GetMapping("/categories")
@@ -109,12 +118,13 @@ public class CommonsController {
     @PreAuthorize("isAuthenticated()")
     public PageResponse<DeviceView> devices(@RequestParam(required = false) String q,
                                             @RequestParam(required = false) UUID brandId,
+                                            @RequestParam(required = false) String categoryCode,
                                             @RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "20") int size) {
         UUID groupId = groups.requireSelected();
         boolean blank = q == null || q.isBlank();
         var result = brandId != null && blank
-                ? catalog.devicesForBrand(groupId, brandId, page, size)
+                ? catalog.devicesForBrand(groupId, brandId, categoryCode, page, size)
                 : blank ? catalog.listDevices(groupId, page, size) : catalog.searchDevices(groupId, q, page, size);
         var names = catalog.brandNames(result.getContent().stream()
                 .map(CatalogDevice::getBrandId)

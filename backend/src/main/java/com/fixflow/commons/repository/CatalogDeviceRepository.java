@@ -52,6 +52,52 @@ public interface CatalogDeviceRepository extends JpaRepository<CatalogDevice, UU
 
     Page<CatalogDevice> findByGroupIdAndBrandIdOrderByNameAsc(UUID groupId, UUID brandId, Pageable pageable);
 
+    /**
+     * Phones of one brand that actually take the spare the shop already chose.
+     * A brand list that ignores the part type sends the next screen every component.
+     */
+    @Query(value = """
+            select d from CatalogDevice d
+            where d.groupId = :groupId
+              and d.brandId = :brandId
+              and exists (
+                select 1 from CatalogFitment f, CatalogComponent c
+                where f.deviceId = d.id
+                  and f.componentId = c.id
+                  and f.groupId = :groupId
+                  and c.categoryCode = :categoryCode)
+            """,
+            countQuery = """
+            select count(d) from CatalogDevice d
+            where d.groupId = :groupId
+              and d.brandId = :brandId
+              and exists (
+                select 1 from CatalogFitment f, CatalogComponent c
+                where f.deviceId = d.id
+                  and f.componentId = c.id
+                  and f.groupId = :groupId
+                  and c.categoryCode = :categoryCode)
+            """)
+    Page<CatalogDevice> findByBrandAndCategory(@Param("groupId") UUID groupId,
+                                               @Param("brandId") UUID brandId,
+                                               @Param("categoryCode") String categoryCode,
+                                               Pageable pageable);
+
+    @Query("""
+            select d.brandId as brandId, count(distinct d.id) as deviceCount
+            from CatalogDevice d
+            where d.groupId = :groupId
+              and exists (
+                select 1 from CatalogFitment f, CatalogComponent c
+                where f.deviceId = d.id
+                  and f.componentId = c.id
+                  and f.groupId = :groupId
+                  and c.categoryCode = :categoryCode)
+            group by d.brandId
+            """)
+    List<BrandCount> countByBrandAndCategory(@Param("groupId") UUID groupId,
+                                             @Param("categoryCode") String categoryCode);
+
     Page<CatalogDevice> findByGroupId(UUID groupId, Pageable pageable);
 
     long countByGroupId(UUID groupId);
