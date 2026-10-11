@@ -1,21 +1,17 @@
 import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../lib/api";
-import { useAccess } from "../lib/access";
-import { useAuth } from "../lib/auth";
 import { brandMark, brandTone } from "../lib/brandTone";
 import { commonsBrowsePath } from "../lib/commonsQuery";
-import { hasFeature } from "../lib/plan";
 import { useFitmentGroups } from "../lib/groups";
 import { useResource } from "../lib/useResource";
 import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { Modal } from "../ui/Modal";
-import { PageHeader } from "../ui/PageHeader";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
 import { TextField } from "../ui/Field";
 import { phoneCaption } from "../ui/CatalogEditor";
 import { Icon } from "../ui/navIcons";
-import type { CatalogStockRow, CommonsDevice, CommonsFamily, CommonsFit } from "../lib/types";
+import type { CommonsDevice, CommonsFamily, CommonsFit } from "../lib/types";
 
 /** Drops a generated one-phone placeholder after its imported Combo Support family supersedes it. */
 function canonicalFamilies(rows: CommonsFamily[]): CommonsFamily[] {
@@ -53,25 +49,14 @@ export function CommonsDevicePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryFilter = searchParams.get("category");
 
-  const { user } = useAuth();
-  const access = useAccess();
-  const canOpenStock = hasFeature(user, "INVENTORY") && access.has("INVENTORY_READ");
-  const canSell = hasFeature(user, "SALES") && access.has("SALES_READ");
   const fitment = useFitmentGroups();
 
   const device = useResource<CommonsDevice>(id ? `/api/v1/mobistack/commons/devices?deviceId=${id}` : null);
   const families = useResource<CommonsFamily[]>(
-    id && fitment.ready
-      ? `/api/v1/mobistack/commons/devices/family?deviceId=${id}${
-          categoryFilter ? `&categoryCode=${encodeURIComponent(categoryFilter)}` : ""
-        }`
-      : null,
+    id && fitment.ready ? `/api/v1/mobistack/commons/devices/family?deviceId=${id}` : null,
   );
   const fits = useResource<CommonsFit[]>(
     id && fitment.ready ? `/api/v1/mobistack/commons/devices/fits?deviceId=${id}` : null,
-  );
-  const stock = useResource<CatalogStockRow[]>(
-    id && canOpenStock ? `/api/v1/mobistack/inventory/catalog-links/devices/stock?catalogDeviceId=${id}` : null,
   );
 
   const [disputeFor, setDisputeFor] = useState<CommonsFit | null>(null);
@@ -112,6 +97,10 @@ export function CommonsDevicePage() {
       (family) => family.categoryCode.toUpperCase() === categoryFilter.toUpperCase(),
     );
   }, [allFamilies, categoryFilter]);
+  const supportingFamilies = useMemo(
+    () => displayedFamilies.filter((family) => family.members.some((member) => member.id !== id)),
+    [displayedFamilies, id],
+  );
   const displayedFits = useMemo(() => {
     const familyIds = new Set(displayedFamilies.map((family) => family.id));
     return (fits.data ?? []).filter((fit) => familyIds.has(fit.componentId));
@@ -131,6 +120,34 @@ export function CommonsDevicePage() {
     }
     return deviceIds.size;
   }, [summaryFamilies, id]);
+  const compatiblePhones = useMemo(() => {
+    const phones = new Map<
+      string,
+      { member: CommonsFamily["members"][number]; sharedFamilies: number }
+    >();
+    for (const family of supportingFamilies) {
+      for (const member of family.members) {
+        if (member.id === id) continue;
+        const existing = phones.get(member.id);
+        if (existing) {
+          existing.sharedFamilies += 1;
+        } else {
+          phones.set(member.id, { member, sharedFamilies: 1 });
+        }
+      }
+    }
+    return Array.from(phones.values()).sort(
+      (left, right) =>
+        right.sharedFamilies - left.sharedFamilies ||
+        phoneCaption(left.member).localeCompare(phoneCaption(right.member)),
+    );
+  }, [supportingFamilies, id]);
+  const confirmationCount = useMemo(() => {
+    const familyIds = new Set((categoryFilter ? supportingFamilies : allFamilies).map((family) => family.id));
+    return (fits.data ?? [])
+      .filter((fit) => familyIds.has(fit.componentId))
+      .reduce((total, fit) => total + fit.confirmations, 0);
+  }, [fits.data, categoryFilter, supportingFamilies, allFamilies]);
 
   async function contribute(kind: "CONFIRM_FITMENT" | "DISPUTE_FITMENT", fitmentId: string, note?: string) {
     setBusy(true);
@@ -179,269 +196,225 @@ export function CommonsDevicePage() {
         current={fitment.current}
       />
 
-      <div className="device-catalog-hero">
-        <div className="device-catalog-hero__glow" aria-hidden />
-        <div className="device-catalog-hero__content">
-          <PageHeader
-            avatar={
-              <span className="device-hero__mark" style={brandTone(device.data.brandName)}>
-                {brandMark(device.data.brandName)}
-              </span>
-            }
-            kicker={
-              <div className="catalog-kicker-nav">
-                <Link to="/commons">Fitment Catalog</Link>
-                <span className="catalog-kicker-sep">/</span>
-                <Link
-                  to={commonsBrowsePath({
-                    brands: device.data.brandId,
-                    category: categoryFilter,
-                  })}
-                >
-                  {device.data.brandName}
-                </Link>
-                {categoryFilter && (
-                  <>
-                    <span className="catalog-kicker-sep">/</span>
-                    <Link to={commonsBrowsePath({ category: categoryFilter })}>
-                      {activeCategoryName}
-                    </Link>
-                  </>
-                )}
+      <header className="dv-hero">
+        <nav className="dv-crumbs" aria-label="Catalog path">
+          <Link to="/commons">Fitment catalog</Link>
+          <Icon name="chevronRight" />
+          <Link to={commonsBrowsePath({ brands: device.data.brandId, category: categoryFilter })}>
+            {device.data.brandName}
+          </Link>
+          {categoryFilter && (
+            <>
+              <Icon name="chevronRight" />
+              <Link to={commonsBrowsePath({ category: categoryFilter })}>{activeCategoryName}</Link>
+            </>
+          )}
+        </nav>
+
+        <div className="dv-hero__body">
+          <div className="dv-hero__identity">
+            <span className="dv-hero__mark" style={brandTone(device.data.brandName)} aria-hidden>
+              {brandMark(device.data.brandName)}
+            </span>
+            <div className="dv-hero__copy">
+              <h1>{title}</h1>
+              <p>
+                {categoryFilter
+                  ? `${activeCategoryName} parts that fit this phone, and the other models that take the same part.`
+                  : "Verified spare families for this phone, and every model that shares them."}
+              </p>
+              <div className="dv-hero__tags">
+                <span className="dv-tag">{device.data.brandName}</span>
+                {device.data.modelCode ? <code className="dv-tag dv-tag--mono">{device.data.modelCode}</code> : null}
+                {device.data.releaseYear ? <span className="dv-tag">Released {device.data.releaseYear}</span> : null}
               </div>
-            }
-            title={title}
-            subtitle={
-              categoryFilter
-                ? `${activeCategoryName} compatibility for this phone. Shared models appear when they are confirmed.`
-                : "Explore verified spare families and every phone model that shares them."
-            }
-            meta={
-              <div className="device-hero__facts">
-                {device.data.modelCode ? <code>{device.data.modelCode}</code> : null}
-                {device.data.releaseYear ? <span className="page-stat">{device.data.releaseYear}</span> : null}
+            </div>
+          </div>
+
+          <dl className="dv-stats">
+            <div className="dv-stat dv-stat--models">
+              <span className="dv-stat__icon"><Icon name="people" /></span>
+              <div>
+                <dt>{compatibleModelCount === 1 ? "Compatible phone" : "Compatible phones"}</dt>
+                <dd>{compatibleModelCount}</dd>
               </div>
-            }
-          />
+            </div>
+            <div className="dv-stat dv-stat--proof">
+              <span className="dv-stat__icon"><Icon name="shield" /></span>
+              <div>
+                <dt>{confirmationCount === 1 ? "Community confirmation" : "Community confirmations"}</dt>
+                <dd>{confirmationCount}</dd>
+              </div>
+            </div>
+          </dl>
         </div>
-        <div className="device-catalog-hero__stats">
-          <div className="device-catalog-stat">
-            <span className="device-catalog-stat__icon"><Icon name="box" /></span>
-            <span><strong>{summaryFamilies.length}</strong> spare {summaryFamilies.length === 1 ? "family" : "families"}</span>
-          </div>
-          <div className="device-catalog-stat">
-            <span className="device-catalog-stat__icon"><Icon name="link" /></span>
-            <span><strong>{compatibleModelCount}</strong> compatible {compatibleModelCount === 1 ? "model" : "models"}</span>
-          </div>
-          <div className="device-catalog-stat">
-            <span className="device-catalog-stat__icon"><Icon name="shield" /></span>
-            <span>Community fitment data</span>
-          </div>
-        </div>
-      </div>
+      </header>
 
       {error && <div className="error">{error}</div>}
 
       {!categoryFilter && availableCategories.length > 0 && (
-        <div className="catalog-filter-bar">
-          {availableCategories.map((cat) => (
-            <button
-              type="button"
-              key={cat.code}
-              className="catalog-filter-chip"
-              onClick={() => setSearchParams({ category: cat.code })}
-            >
-              {cat.name} ({cat.count})
-            </button>
-          ))}
+        <div className="dv-tabs" role="tablist" aria-label="Part type">
+          {availableCategories.map((cat) => {
+            const active = categoryFilter?.toUpperCase() === cat.code.toUpperCase();
+            return (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={active}
+                key={cat.code}
+                className={`dv-tab${active ? " is-active" : ""}`}
+                onClick={() => setSearchParams({ category: cat.code })}
+              >
+                <span>{cat.name}</span>
+                <span className="dv-tab__count">{cat.count}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Spares and compatible models */}
-      {displayedFamilies.length > 0 && (
-        <div className="catalog-results-heading">
-          <div>
-            <span className="catalog-results-heading__eyebrow">Compatibility results</span>
-            <h2>{categoryFilter ? activeCategoryName : "Available spares"}</h2>
+      {categoryFilter && compatiblePhones.length > 0 && (
+        <section className="dv-compatible" aria-labelledby="compatible-phone-heading">
+          <div className="dv-compatible__intro">
+            <span className="dv-compatible__eyebrow">
+              <Icon name="link" />
+              Quick compatibility
+            </span>
+            <h2 id="compatible-phone-heading">
+              Phones that share this {activeCategoryName}
+            </h2>
+            <p>
+              Pick a phone to open its fitment. These models appear because they share at least one
+              catalog compatibility record with {title}.
+            </p>
           </div>
-          <p>
-            {displayedFamilies.length === 1
-              ? "One spare family covers this phone. Compatible models are the other phones on that same spare."
-              : `${displayedFamilies.length} spare families cover this phone. Each card is a part the others do not fully replace.`}
-          </p>
-        </div>
-      )}
-      <div className="catalog-family-list">
-        {displayedFamilies.map((family, index) => {
-          const others = family.members.filter((member) => member.id !== id);
-          const ownMember = family.members.find((member) => member.id === id);
-          const fit = fitByComponent.get(family.id);
-          const fitmentId = fit?.fitmentId ?? ownMember?.fitmentId;
-          const disputeFit: CommonsFit | null = fit ?? (fitmentId && id
-            ? {
-                fitmentId,
-                componentId: family.id,
-                componentName: family.name,
-                categoryCode: family.categoryCode,
-                deviceId: id,
-                fit: ownMember?.fit ?? "COMPATIBLE",
-                confirmations: 0,
-                disputes: 0,
-                disputed: ownMember?.disputed ?? false,
-                verified: ownMember?.verified ?? false,
-              }
-            : null);
-          const stockRows = (stock.data ?? []).filter((row) => row.componentId === family.id);
-          return (
-            <section className="catalog-family-card" key={family.id}>
-              <div className="catalog-family-card__head">
-                <div className="catalog-family-card__identity">
-                  <span className="catalog-family-card__number" aria-hidden>
-                    {String(index + 1).padStart(2, "0")}
+          <div className="dv-compatible__grid">
+            {compatiblePhones.map(({ member, sharedFamilies }) => (
+              <Link
+                className="dv-compatible-phone"
+                key={member.id}
+                to={`/commons/devices/${member.id}?category=${encodeURIComponent(categoryFilter)}`}
+              >
+                <span className="dv-compatible-phone__mark" style={brandTone(member.brandName)} aria-hidden>
+                  {brandMark(member.brandName)}
+                </span>
+                <span className="dv-compatible-phone__copy">
+                  <strong>
+                    {member.brandName === device.data?.brandName
+                      ? [member.name, member.variant].filter(Boolean).join(" ")
+                      : phoneCaption(member)}
+                  </strong>
+                  <span>
+                    {member.modelCode ? <code>{member.modelCode}</code> : null}
+                    {sharedFamilies > 1 ? <small>{sharedFamilies} independent matches</small> : null}
                   </span>
-                  <div>
-                    <span className="catalog-family-card__category">{family.categoryName}</span>
-                    <h3 className="catalog-family-card__title">{family.name}</h3>
-                    <div className="catalog-family-card__summary">
-                      <Icon name={others.length > 0 ? "people" : "user"} />
-                      {others.length > 0
-                        ? `Shared with ${others.length} other ${others.length === 1 ? "model" : "models"}`
-                        : `Specific to ${title}`}
-                    </div>
-                  </div>
-                </div>
-                <Link className="catalog-family-card__action" to={`/commons/components/${family.id}`}>
-                  <span>Spare details</span>
+                </span>
+                <span className="dv-compatible-phone__open">
+                  Open
                   <Icon name="chevronRight" />
-                </Link>
-              </div>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
-              {fitmentId && (
-                <div className="catalog-fit-bar">
-                  <div className="catalog-fit-bar__status">
-                    <span className={`catalog-fit-quality${fit?.disputed || ownMember?.disputed ? " is-disputed" : ""}`}>
-                      {(fit?.fit ?? ownMember?.fit ?? "COMPATIBLE").replaceAll("_", " ")}
-                    </span>
+      {supportingFamilies.length > 0 && (
+        <details className="dv-evidence">
+          <summary>
+            <span className="dv-evidence__icon"><Icon name="shield" /></span>
+            <span className="dv-evidence__summary">
+              <strong>Community evidence</strong>
+              <small>
+                {supportingFamilies.length} {supportingFamilies.length === 1 ? "record supports" : "records support"}
+                {" "}the phone list
+              </small>
+            </span>
+            <Icon name="chevronDown" className="dv-evidence__chevron" />
+          </summary>
+          <div className="dv-evidence__body">
+            {supportingFamilies.map((family) => {
+              const others = family.members.filter((member) => member.id !== id);
+              const ownMember = family.members.find((member) => member.id === id);
+              const fit = fitByComponent.get(family.id);
+              const fitmentId = fit?.fitmentId ?? ownMember?.fitmentId;
+              const disputeFit: CommonsFit | null = fit ?? (fitmentId && id
+                ? {
+                    fitmentId,
+                    componentId: family.id,
+                    componentName: family.name,
+                    categoryCode: family.categoryCode,
+                    deviceId: id,
+                    fit: ownMember?.fit ?? "COMPATIBLE",
+                    confirmations: 0,
+                    disputes: 0,
+                    disputed: ownMember?.disputed ?? false,
+                    verified: ownMember?.verified ?? false,
+                  }
+                : null);
+              const disputed = fit?.disputed || ownMember?.disputed;
+              return (
+                <div className="dv-evidence-row" key={family.id}>
+                  <span className={`dv-evidence-row__status${disputed ? " is-disputed" : ""}`}>
+                    <Icon name={disputed ? "alert" : "check"} />
+                  </span>
+                  <div className="dv-evidence-row__copy">
+                    <strong>{family.name}</strong>
                     <span>
-                      {fit ? `${fit.confirmations} confirmations · ${fit.disputes} disputes` : "Community fitment"}
-                      {(fit?.verified || ownMember?.verified) && " · Verified"}
-                      {(fit?.disputed || ownMember?.disputed) && " · Disputed"}
+                      {categoryLabel(fit?.fit ?? ownMember?.fit ?? "COMPATIBLE")} · connects{" "}
+                      {others.length + 1} phones
+                      {fit ? ` · ${fit.confirmations} confirmed · ${fit.disputes} disputed` : ""}
                     </span>
                   </div>
-                  <div className="catalog-fit-bar__actions">
-                    <button
-                      className="btn ghost compact"
-                      type="button"
-                      disabled={busy || fit?.confirmedByMe === true}
-                      onClick={() => void contribute("CONFIRM_FITMENT", fitmentId)}
-                    >
-                      {fit?.confirmedByMe ? "Confirmed" : "Confirm"}
-                    </button>
-                    <button
-                      className="btn ghost compact"
-                      type="button"
-                      disabled={busy || !disputeFit || fit?.disputedByMe === true}
-                      onClick={() => disputeFit && setDisputeFor(disputeFit)}
-                    >
-                      {fit?.disputedByMe ? "Disputed" : "Dispute"}
-                    </button>
+                  <div className="dv-evidence-row__actions">
+                    {fit?.confirmedByMe ? (
+                      <span className="dv-evidence-row__mine"><Icon name="check" /> Confirmed by you</span>
+                    ) : fit?.disputedByMe ? (
+                      <span className="dv-evidence-row__mine is-disputed"><Icon name="alert" /> Disputed by you</span>
+                    ) : fitmentId ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void contribute("CONFIRM_FITMENT", fitmentId)}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          className="is-dispute"
+                          type="button"
+                          disabled={busy || !disputeFit}
+                          onClick={() => disputeFit && setDisputeFor(disputeFit)}
+                        >
+                          Dispute
+                        </button>
+                      </>
+                    ) : null}
+                    <Link to={`/commons/components/${family.id}`} aria-label={`Open ${family.name} details`}>
+                      Details <Icon name="chevronRight" />
+                    </Link>
                   </div>
                 </div>
-              )}
+              );
+            })}
+          </div>
+        </details>
+      )}
 
-              <div className="catalog-family-card__compat">
-                <div className="catalog-section-heading">
-                  <div>
-                    <span className="catalog-section-label">Compatible phone models</span>
-                    <span className="catalog-section-hint">
-                      {others.length > 0 ? "Select a model to explore its fitment" : "No shared models in this family"}
-                    </span>
-                  </div>
-                  {others.length > 0 && <span className="catalog-count-pill">{others.length}</span>}
-                </div>
-                {others.length > 0 ? (
-                  <div className="catalog-companion-grid">
-                    {others.map((member) => (
-                      <Link
-                        className="catalog-companion-chip"
-                        key={member.id}
-                        to={`/commons/devices/${member.id}${categoryFilter ? `?category=${encodeURIComponent(categoryFilter)}` : ""}`}
-                        title={`Open ${phoneCaption(member)}`}
-                      >
-                        <span className="catalog-companion-chip__mark" style={brandTone(member.brandName)}>
-                          {brandMark(member.brandName)}
-                        </span>
-                        <span className="catalog-companion-chip__copy">
-                          <strong>{phoneCaption(member)}</strong>
-                          {member.modelCode ? <small>{member.modelCode}</small> : null}
-                        </span>
-                        <span className="catalog-companion-chip__arrow"><Icon name="chevronRight" /></span>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="catalog-unique-callout">
-                    <span className="catalog-unique-callout__icon"><Icon name="shield" /></span>
-                    <div>
-                      <strong>Dedicated fitment</strong>
-                      <span>Only {title} uses this spare in the current catalog group.</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {canOpenStock && (
-                <div className="catalog-stock-box">
-                  <div className="catalog-section-label">Shop Inventory & Pricing</div>
-                  {stockRows.length > 0 ? (
-                    stockRows.map((row) => (
-                      <div className="catalog-stock-row" key={row.variantId}>
-                        <div>
-                          <div style={{ fontWeight: 650 }}>{row.name}</div>
-                          <div className="faint">{row.sku}</div>
-                        </div>
-                        <div className="row" style={{ alignItems: "center", gap: 12 }}>
-                          <span className="badge GREEN">{row.available} on hand</span>
-                          {canSell && (
-                            <Link className="btn compact" to={`/sales?q=${encodeURIComponent(row.sku)}`}>
-                              Sell
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="catalog-no-stock">
-                      <span><Icon name="box" /> No shop SKU linked to this spare yet.</span>
-                      <Link className="linkish" to="/inventory/catalog-links">
-                        Link inventory SKU →
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
-
-      {!families.loading && (categoryFilter || availableCategories.length === 0) && displayedFamilies.length === 0 && (
+      {!families.loading &&
+        ((categoryFilter && compatiblePhones.length === 0) || availableCategories.length === 0) && (
         <EmptyState
           compact
           icon="link"
           title={
             categoryFilter
-              ? `${activeCategoryName} is model-specific for now`
-              : availableCategories.length > 0
-                ? "Pick a spare"
-                : "No compatibility data yet"
+              ? `No compatible phones for ${activeCategoryName} yet`
+              : "No compatibility data yet"
           }
           hint={
             categoryFilter
-              ? "This phone is still included in the catalog. No shared models are confirmed for this spare yet."
-              : availableCategories.length > 0
-                ? "The part type comes first. The list below is that spare, not every component on the phone."
-                : "The phone is listed, but no shared spare families have been confirmed yet."
+              ? "This phone is listed, but no other phone is confirmed to use the same part."
+              : "The phone is listed, but no compatible phone models have been confirmed yet."
           }
         />
       )}
