@@ -2240,8 +2240,8 @@ a.chip {
 }
 
 .catalog-fit-quality.is-disputed {
-  background: color-mix(in srgb, var(--warn, #b45309) 16%, var(--bg-elevated));
-  color: var(--warn, #b45309);
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
 .catalog-fit-bar__actions {
