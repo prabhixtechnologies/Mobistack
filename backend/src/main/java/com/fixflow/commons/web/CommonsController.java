@@ -130,7 +130,7 @@ public class CommonsController {
                         ? catalog.devicesForBrand(groupId, brandId, categoryCode, page, size)
                         : catalog.searchInBrand(groupId, brandId, q, page, size)
                 : blank ? catalog.listDevices(groupId, page, size) : catalog.searchDevices(groupId, q, page, size);
-        var names = catalog.brandNames(result.getContent().stream()
+        var names = catalog.brandNames(groupId, result.getContent().stream()
                 .map(CatalogDevice::getBrandId)
                 .distinct()
                 .toList());
@@ -140,8 +140,9 @@ public class CommonsController {
     @GetMapping(value = "/devices", params = "deviceId")
     @PreAuthorize("isAuthenticated()")
     public DeviceView device(@RequestParam UUID deviceId) {
-        CatalogDevice device = catalog.requireDevice(groups.requireSelected(), deviceId);
-        var names = catalog.brandNames(List.of(device.getBrandId()));
+        UUID groupId = groups.requireSelected();
+        CatalogDevice device = catalog.viewDevice(groupId, deviceId);
+        var names = catalog.brandNames(groupId, List.of(device.getBrandId()));
         return DeviceView.of(device, names.get(device.getBrandId()));
     }
 
@@ -160,7 +161,7 @@ public class CommonsController {
     @GetMapping(value = "/components", params = "componentId")
     @PreAuthorize("isAuthenticated()")
     public ComponentView component(@RequestParam UUID componentId) {
-        return ComponentView.of(catalog.requireComponent(groups.requireSelected(), componentId));
+        return ComponentView.of(catalog.viewComponent(groups.requireSelected(), componentId));
     }
 
     /** What fits this phone. The question the commons exists to answer. */
@@ -203,8 +204,9 @@ public class CommonsController {
     @GetMapping("/components/devices")
     @PreAuthorize("isAuthenticated()")
     public List<DeviceView> devicesFor(@RequestParam UUID componentId) {
-        List<CatalogDevice> found = catalog.devicesForComponent(componentId, groups.requireSelected());
-        var names = catalog.brandNames(found.stream().map(CatalogDevice::getBrandId).distinct().toList());
+        UUID groupId = groups.requireSelected();
+        List<CatalogDevice> found = catalog.devicesForComponent(componentId, groupId);
+        var names = catalog.brandNames(groupId, found.stream().map(CatalogDevice::getBrandId).distinct().toList());
         return found.stream().map(device -> DeviceView.of(device, names.get(device.getBrandId()))).toList();
     }
 

@@ -11,7 +11,6 @@ import com.fixflow.commons.repository.CatalogComponentRepository;
 import com.fixflow.commons.repository.CatalogDeviceRepository;
 import com.fixflow.commons.repository.CatalogFitmentRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -20,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -43,6 +43,7 @@ public class CatalogFamilyService {
     private final CatalogFitmentRepository fitments;
     private final CatalogDeviceRepository devices;
     private final CatalogCache cache;
+    private final CatalogSnapshotStore snapshots;
 
     @Transactional
     public FamilyView create(UUID groupId,
@@ -62,9 +63,11 @@ public class CatalogFamilyService {
         return familyOf(groupId, component);
     }
 
-    @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v3:' + #groupId + ':categories'")
     public List<CategoryIndex> categories(UUID groupId) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.categories();
+        }
         catalog.requireGroup(groupId);
         long totalPhones = catalog.deviceCount(groupId);
         Map<String, Long> families = components.countByCategory(groupId).stream()
@@ -73,6 +76,10 @@ public class CatalogFamilyService {
         Map<String, Long> phones = fitments.countDevicesByCategory(groupId).stream()
                 .collect(Collectors.toMap(CatalogFitmentRepository.CategoryCount::getCategoryCode,
                         CatalogFitmentRepository.CategoryCount::getDeviceCount));
+        return categoryIndex(totalPhones, families, phones);
+    }
+
+    static List<CategoryIndex> categoryIndex(long totalPhones, Map<String, Long> families, Map<String, Long> phones) {
         List<CategoryIndex> rows = new ArrayList<>();
         for (DefaultCategories.Template template : DefaultCategories.ALL) {
             if (!template.compatibilityRelevant() && !families.containsKey(template.code())) {
@@ -105,8 +112,11 @@ public class CatalogFamilyService {
      * that already knows the count. A page is small enough to answer immediately, and the phones for
      * that page are loaded together.
      */
-    @Transactional(readOnly = true)
     public Page<FamilyView> familiesInCategory(UUID groupId, String categoryCode, int page, int size) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.familiesInCategory(categoryCode, page, size);
+        }
         catalog.requireGroup(groupId);
         String code = requiredCode(categoryCode);
         int safePage = Math.max(page, 0);
@@ -117,10 +127,11 @@ public class CatalogFamilyService {
         return new PageImpl<>(rows, found.getPageable(), found.getTotalElements());
     }
 
-    @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME,
-            key = "'v3:' + #groupId + ':family:' + #deviceId + ':' + (#categoryCode == null ? '' : #categoryCode)")
     public List<FamilyView> forDevice(UUID groupId, UUID deviceId, String categoryCode) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.forDevice(deviceId, categoryCode);
+        }
         catalog.requireDevice(groupId, deviceId);
         String code = categoryCode == null || categoryCode.isBlank() ? null : requiredCode(categoryCode);
         List<CatalogFitment> edges = fitments.findForDevice(groupId, deviceId);
@@ -143,7 +154,7 @@ public class CatalogFamilyService {
     }
 
     /** Keeps the shared family when an exact one-phone spare lists only phones that family already has. */
-    private static List<FamilyView> withoutCoveredDuplicates(List<FamilyView> rows,
+    static List<FamilyView> withoutCoveredDuplicates(List<FamilyView> rows,
                                                                Map<UUID, CatalogComponent> components) {
         Map<UUID, String> categories = new LinkedHashMap<>();
         Map<UUID, Set<UUID>> devices = new LinkedHashMap<>();
@@ -181,9 +192,11 @@ public class CatalogFamilyService {
         return component.getName().equalsIgnoreCase(expected);
     }
 
-    @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v2:' + #groupId + ':brands'")
     public List<BrandIndex> brands(UUID groupId) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.brands();
+        }
         Map<UUID, Long> counts = devices.countByBrand(groupId).stream()
                 .collect(Collectors.toMap(CatalogDeviceRepository.BrandCount::getBrandId,
                         CatalogDeviceRepository.BrandCount::getDeviceCount));
@@ -199,10 +212,11 @@ public class CatalogFamilyService {
      * phones have a known family; the remaining phones are shown as model-specific until somebody
      * records shared compatibility.
      */
-    @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME,
-            key = "'v3:' + #groupId + ':brands:' + #categoryCode")
     public List<BrandIndex> brandsInCategory(UUID groupId, String categoryCode) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.brandsInCategory(categoryCode);
+        }
         catalog.requireGroup(groupId);
         String code = requiredCode(categoryCode);
         Map<UUID, Long> mappedCounts = devices.countByBrandAndCategory(groupId, code).stream()
@@ -258,7 +272,7 @@ public class CatalogFamilyService {
         return toFamily(component, edges, devicesById, brandNames);
     }
 
-    private static FamilyView toFamily(CatalogComponent component,
+    static FamilyView toFamily(CatalogComponent component,
                                        List<CatalogFitment> edges,
                                        Map<UUID, CatalogDevice> devicesById,
                                        Map<UUID, String> brandNames) {
@@ -292,7 +306,15 @@ public class CatalogFamilyService {
                 memberViews);
     }
 
-    private static String requiredCode(String categoryCode) {
+    private CatalogGroupSnapshot live(UUID groupId) {
+        if (snapshots == null || groupId == null) {
+            return null;
+        }
+        Optional<CatalogGroupSnapshot> found = snapshots.serving(groupId);
+        return found == null || found.isEmpty() ? null : found.get();
+    }
+
+    static String requiredCode(String categoryCode) {
         if (categoryCode == null || categoryCode.isBlank()) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "A family needs a part type.");
         }

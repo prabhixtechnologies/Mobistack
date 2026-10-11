@@ -123,7 +123,7 @@ public class SyncController {
                         "name", brand.getName()))
                 .toList());
         List<CatalogDevice> popular = commonsCatalog.popularDevices(groupId, 200);
-        var names = commonsCatalog.brandNames(popular.stream()
+        var names = commonsCatalog.brandNames(groupId, popular.stream()
                 .map(CatalogDevice::getBrandId)
                 .distinct()
                 .toList());

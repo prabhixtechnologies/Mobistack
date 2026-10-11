@@ -15,8 +15,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Shared catalog reads. Keys always include the fitment group, and a write evicts that group after
- * commit. Shop stock is not stored here.
+ * Evicts the old Spring cache region after a catalog write. Phone search and compatibility are
+ * served from {@link CatalogSnapshotStore}, which keeps its own versions until the next refresh.
+ * Shop stock is not stored here.
  */
 @Component
 public class CatalogCache {

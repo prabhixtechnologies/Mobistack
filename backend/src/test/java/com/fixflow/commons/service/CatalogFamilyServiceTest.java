@@ -24,7 +24,8 @@ class CatalogFamilyServiceTest {
                 mock(com.fixflow.commons.repository.CatalogComponentRepository.class),
                 mock(com.fixflow.commons.repository.CatalogFitmentRepository.class),
                 mock(com.fixflow.commons.repository.CatalogDeviceRepository.class),
-                mock(CatalogCache.class));
+                mock(CatalogCache.class),
+                mock(CatalogSnapshotStore.class));
         assertThatThrownBy(() -> service.create(UUID.randomUUID(), "TEMPERED_GLASS", "Glass",
                 List.of(UUID.randomUUID()), UUID.randomUUID()))
                 .isInstanceOf(ApiException.class)
@@ -41,7 +42,7 @@ class CatalogFamilyServiceTest {
         CatalogFitmentRepository fitments = mock(CatalogFitmentRepository.class);
         CatalogDeviceRepository devices = mock(CatalogDeviceRepository.class);
         CatalogFamilyService service = new CatalogFamilyService(
-                catalog, components, fitments, devices, mock(CatalogCache.class));
+                catalog, components, fitments, devices, mock(CatalogCache.class), mock(CatalogSnapshotStore.class));
 
         CatalogBrand mappedBrand = brand(mappedBrandId, "Samsung");
         CatalogBrand unmappedBrand = brand(unmappedBrandId, "Apple");

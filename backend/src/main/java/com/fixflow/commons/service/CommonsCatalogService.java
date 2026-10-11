@@ -53,37 +53,49 @@ public class CommonsCatalogService {
     private final CatalogComponentRepository components;
     private final CatalogFitmentRepository fitments;
     private final CatalogCache cache;
+    private final CatalogSnapshotStore snapshots;
 
     // --- Reads -------------------------------------------------------------------------------------
 
-    @Transactional(readOnly = true)
     public List<CatalogBrand> listBrands(UUID groupId) {
         requireGroup(groupId);
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.listBrands();
+        }
         return brands.findByGroupIdOrderByNameAsc(groupId);
     }
 
-    @Transactional(readOnly = true)
     public Page<CatalogDevice> searchDevices(UUID groupId, String term, int page, int size) {
         requireGroup(groupId);
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.searchDevices(safeTerm(term), page, size);
+        }
         return devices.search(groupId, safeTerm(term), pageable(page, size));
     }
 
     /** Browse without a query: most-looked-up models first. */
-    @Transactional(readOnly = true)
     public Page<CatalogDevice> listDevices(UUID groupId, int page, int size) {
         requireGroup(groupId);
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.listDevices(page, size);
+        }
         return devices.findByGroupId(groupId, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
                 Sort.by(Sort.Direction.DESC, "lookupCount").and(Sort.by("name"))));
     }
 
-    @Transactional(readOnly = true)
     public Page<CatalogComponent> listComponents(UUID groupId, int page, int size) {
         requireGroup(groupId);
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.listComponents(page, size);
+        }
         return components.findByGroupId(groupId, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
                 Sort.by("name")));
     }
 
-    @Transactional(readOnly = true)
     public Page<CatalogDevice> devicesForBrand(UUID groupId, UUID brandId, int page, int size) {
         return devicesForBrand(groupId, brandId, null, page, size);
     }
@@ -93,19 +105,45 @@ public class CommonsCatalogService {
      * Those phones still have a model-specific spare; the device screen labels that compatibility
      * as unconfirmed instead of inventing a component and fitment row.
      */
-    @Transactional(readOnly = true)
     public Page<CatalogDevice> devicesForBrand(UUID groupId, UUID brandId, String categoryCode, int page, int size) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.devicesForBrand(brandId, page, size);
+        }
         CatalogBrand brand = requireBrand(groupId, brandId);
         return devices.findByGroupIdAndBrandIdOrderByNameAsc(brand.getGroupId(), brand.getId(),
                 PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name")));
     }
 
     /** One brand is a few hundred rows at most, so a single character is a fair query here. */
-    @Transactional(readOnly = true)
     public Page<CatalogDevice> searchInBrand(UUID groupId, UUID brandId, String term, int page, int size) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.searchInBrand(brandId, term, page, size);
+        }
         CatalogBrand brand = requireBrand(groupId, brandId);
         return devices.searchInBrand(brand.getGroupId(), brand.getId(), term.trim(),
                 PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE)));
+    }
+
+    /**
+     * The phone page. Writes keep {@link #requireDevice(UUID, UUID)} on the database so a phone saved
+     * a moment ago can still be linked before the next snapshot.
+     */
+    public CatalogDevice viewDevice(UUID groupId, UUID deviceId) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.device(deviceId);
+        }
+        return requireDevice(groupId, deviceId);
+    }
+
+    public CatalogComponent viewComponent(UUID groupId, UUID componentId) {
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.component(componentId);
+        }
+        return requireComponent(groupId, componentId);
     }
 
     @Transactional(readOnly = true)
@@ -122,26 +160,47 @@ public class CommonsCatalogService {
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "No such component"));
     }
 
-    @Transactional(readOnly = true)
     public List<CatalogDevice> popularDevices(UUID groupId, int limit) {
         requireGroup(groupId);
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.popular(limit);
+        }
         return devices.findByGroupId(groupId, PageRequest.of(0, Math.min(Math.max(limit, 1), MAX_PAGE_SIZE),
                 Sort.by("lookupCount").descending().and(Sort.by("name")))).getContent();
     }
 
-    @Transactional(readOnly = true)
     public long brandCount(UUID groupId) {
-        return groupId == null ? 0 : brands.countByGroupId(groupId);
+        if (groupId == null) {
+            return 0;
+        }
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.brandCount();
+        }
+        return brands.countByGroupId(groupId);
     }
 
-    @Transactional(readOnly = true)
     public long deviceCount(UUID groupId) {
-        return groupId == null ? 0 : devices.countByGroupId(groupId);
+        if (groupId == null) {
+            return 0;
+        }
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.deviceCount();
+        }
+        return devices.countByGroupId(groupId);
     }
 
-    @Transactional(readOnly = true)
     public long componentCount(UUID groupId) {
-        return groupId == null ? 0 : components.countByGroupId(groupId);
+        if (groupId == null) {
+            return 0;
+        }
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.componentCount();
+        }
+        return components.countByGroupId(groupId);
     }
 
     @Transactional(readOnly = true)
@@ -149,15 +208,28 @@ public class CommonsCatalogService {
         return fitments.count();
     }
 
-    @Transactional(readOnly = true)
     public long fitmentCount(UUID groupId) {
         if (groupId == null) {
             return 0;
         }
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.fitmentCount();
+        }
         return fitments.countByGroupId(groupId);
     }
 
-    @Transactional(readOnly = true)
+    public Map<UUID, String> brandNames(UUID groupId, Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.brandNames(List.copyOf(ids));
+        }
+        return brandNames(ids);
+    }
+
     public Map<UUID, String> brandNames(Collection<UUID> ids) {
         if (ids == null || ids.isEmpty()) {
             return Map.of();
@@ -166,9 +238,12 @@ public class CommonsCatalogService {
                 .collect(Collectors.toMap(CatalogBrand::getId, CatalogBrand::getName));
     }
 
-    @Transactional(readOnly = true)
     public Page<CatalogComponent> searchComponents(UUID groupId, String term, int page, int size) {
         requireGroup(groupId);
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.searchComponents(safeTerm(term), page, size);
+        }
         return components.search(groupId, safeTerm(term), pageable(page, size));
     }
 
@@ -179,10 +254,13 @@ public class CommonsCatalogService {
      * small and bounded by how many parts a phone has, while a fetch join here would have to be
      * repeated for the component-side lookup below with the sides swapped.
      */
-    @Transactional(readOnly = true)
     public List<FitmentView> fitmentsForDevice(UUID deviceId, UUID groupId) {
         if (groupId == null) {
             return List.of();
+        }
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.fitmentsForDevice(deviceId);
         }
         CatalogDevice device = requireDevice(groupId, deviceId);
 
@@ -197,10 +275,13 @@ public class CommonsCatalogService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
     public List<CatalogDevice> devicesForComponent(UUID componentId, UUID groupId) {
         if (groupId == null) {
             return List.of();
+        }
+        CatalogGroupSnapshot live = live(groupId);
+        if (live != null) {
+            return live.devicesForComponent(componentId);
         }
         requireComponent(groupId, componentId);
         List<UUID> deviceIds = fitments.findForComponent(groupId, componentId).stream()
@@ -421,6 +502,14 @@ public class CommonsCatalogService {
         if (groupId == null) {
             throw new ApiException(ErrorCode.VALIDATION_FAILED, "Choose a fitment group.");
         }
+    }
+
+    private CatalogGroupSnapshot live(UUID groupId) {
+        if (snapshots == null || groupId == null) {
+            return null;
+        }
+        Optional<CatalogGroupSnapshot> found = snapshots.serving(groupId);
+        return found == null || found.isEmpty() ? null : found.get();
     }
 
     private static String required(String value, String message) {

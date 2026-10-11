@@ -64,6 +64,8 @@ public class PlatformCacheConfig {
                 .withCacheConfiguration("flags", base.entryTtl(Duration.ofMinutes(2)))
                 .withCacheConfiguration("app-release", base.entryTtl(Duration.ofSeconds(30)))
                 .withCacheConfiguration("platform", base.entryTtl(Duration.ofMinutes(5)))
+                // Fitment search and compatibility are the snapshot in CatalogSnapshotStore,
+                // refreshed every 10 minutes and kept for 24 hours. This region is not that copy.
                 .withCacheConfiguration("catalog", base.entryTtl(Duration.ofMinutes(10)))
                 .build();
     }
