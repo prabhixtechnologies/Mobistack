@@ -125,8 +125,10 @@ public class CommonsController {
                                             @RequestParam(defaultValue = "20") int size) {
         UUID groupId = groups.requireSelected();
         boolean blank = q == null || q.isBlank();
-        var result = brandId != null && blank
-                ? catalog.devicesForBrand(groupId, brandId, categoryCode, page, size)
+        var result = brandId != null
+                ? blank
+                        ? catalog.devicesForBrand(groupId, brandId, categoryCode, page, size)
+                        : catalog.searchInBrand(groupId, brandId, q, page, size)
                 : blank ? catalog.listDevices(groupId, page, size) : catalog.searchDevices(groupId, q, page, size);
         var names = catalog.brandNames(result.getContent().stream()
                 .map(CatalogDevice::getBrandId)

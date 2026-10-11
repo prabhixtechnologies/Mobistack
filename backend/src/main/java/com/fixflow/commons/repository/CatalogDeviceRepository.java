@@ -53,6 +53,27 @@ public interface CatalogDeviceRepository extends JpaRepository<CatalogDevice, UU
     Page<CatalogDevice> findByGroupIdAndBrandIdOrderByNameAsc(UUID groupId, UUID brandId, Pageable pageable);
 
     /**
+     * Search inside one brand's list. The factory code is matched too, because the back of the
+     * phone says SM-A105F long before anyone remembers it is a Galaxy A10.
+     */
+    @Query("""
+            select distinct d from CatalogDevice d
+            where d.groupId = :groupId
+              and d.brandId = :brandId
+              and (lower(d.name) like lower(concat('%', :term, '%'))
+               or lower(coalesce(d.variant, '')) like lower(concat('%', :term, '%'))
+               or lower(coalesce(d.modelCode, '')) like lower(concat('%', :term, '%'))
+               or exists (select 1 from CatalogDeviceAlias a
+                          where a.deviceId = d.id
+                            and lower(a.alias) like lower(concat('%', :term, '%'))))
+            order by d.name asc
+            """)
+    Page<CatalogDevice> searchInBrand(@Param("groupId") UUID groupId,
+                                      @Param("brandId") UUID brandId,
+                                      @Param("term") String term,
+                                      Pageable pageable);
+
+    /**
      * Phones of one brand that actually take the spare the shop already chose.
      * A brand list that ignores the part type sends the next screen every component.
      */

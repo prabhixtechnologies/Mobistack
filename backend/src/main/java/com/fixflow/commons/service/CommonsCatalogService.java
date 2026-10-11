@@ -44,7 +44,8 @@ import java.util.stream.Collectors;
 public class CommonsCatalogService {
 
     /** Enough to stop a client asking for the whole graph in one request. */
-    private static final int MAX_PAGE_SIZE = 100;
+    /** The brand phone list asks for 200 so a shop can scan a brand without paging every screen. */
+    private static final int MAX_PAGE_SIZE = 200;
 
     private final CatalogBrandRepository brands;
     private final CatalogDeviceRepository devices;
@@ -97,6 +98,14 @@ public class CommonsCatalogService {
         CatalogBrand brand = requireBrand(groupId, brandId);
         return devices.findByGroupIdAndBrandIdOrderByNameAsc(brand.getGroupId(), brand.getId(),
                 PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name")));
+    }
+
+    /** One brand is a few hundred rows at most, so a single character is a fair query here. */
+    @Transactional(readOnly = true)
+    public Page<CatalogDevice> searchInBrand(UUID groupId, UUID brandId, String term, int page, int size) {
+        CatalogBrand brand = requireBrand(groupId, brandId);
+        return devices.searchInBrand(brand.getGroupId(), brand.getId(), term.trim(),
+                PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE)));
     }
 
     @Transactional(readOnly = true)
