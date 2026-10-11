@@ -37,6 +37,8 @@ class CommonsControllerBillingIsolationTest {
     @Mock
     private SharingGroupService groups;
     @Mock
+    private com.fixflow.commons.service.CatalogSnapshotStore snapshots;
+    @Mock
     private BillingService billingService;
 
     @Test
@@ -46,7 +48,8 @@ class CommonsControllerBillingIsolationTest {
         when(familyCatalog.brands(groupId)).thenReturn(List.of(
                 new CatalogFamilyService.BrandIndex(UUID.randomUUID(), "Apple", null, 1, 1)));
 
-        CommonsController controller = new CommonsController(catalog, contributions, familyCatalog, shops, groups);
+        CommonsController controller = new CommonsController(
+                catalog, contributions, familyCatalog, snapshots, shops, groups);
         assertThat(controller.brands()).hasSize(1);
 
         verify(familyCatalog).brands(groupId);

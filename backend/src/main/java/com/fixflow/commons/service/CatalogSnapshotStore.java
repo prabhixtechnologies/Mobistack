@@ -86,6 +86,32 @@ public class CatalogSnapshotStore {
         }
     }
 
+    /**
+     * The same immutable version request threads are serving, for a phone to keep offline.
+     *
+     * <p>The client sends the version it already has. An unchanged response carries no document,
+     * which makes an ordinary online launch a tiny request. A changed version is read from Redis;
+     * PostgreSQL is never involved and a half-published version cannot be observed.
+     */
+    public CatalogDownload download(UUID groupId, String knownVersion) {
+        if (groupId == null) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE, "No fitment group is selected.");
+        }
+        StringRedisTemplate template = requiredTemplate();
+        String version = template.opsForValue().get(CURRENT);
+        if (version == null || version.isBlank()) {
+            throw new ApiException(ErrorCode.PROVIDER_UNAVAILABLE, "The catalog is still loading.");
+        }
+        if (version.equals(knownVersion)) {
+            return new CatalogDownload(version, true, null);
+        }
+        String payload = template.opsForValue().get(groupKey(version, groupId));
+        CatalogSnapshotDocument document = payload == null
+                ? new CatalogSnapshotDocument(List.of(), List.of(), List.of(), List.of())
+                : decode(payload);
+        return new CatalogDownload(version, false, document);
+    }
+
     public boolean tryLock(String token) {
         StringRedisTemplate template = requiredTemplate();
         return Boolean.TRUE.equals(template.opsForValue().setIfAbsent(LOCK, token, LOCK_TTL));
@@ -255,5 +281,10 @@ public class CatalogSnapshotStore {
     }
 
     private record Published(String version, Map<UUID, CatalogGroupSnapshot> groups) {
+    }
+
+    public record CatalogDownload(String version,
+                                  boolean unchanged,
+                                  CatalogSnapshotDocument catalog) {
     }
 }

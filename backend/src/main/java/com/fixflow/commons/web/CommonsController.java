@@ -7,6 +7,7 @@ import com.fixflow.commons.domain.CatalogContributor;
 import com.fixflow.commons.domain.CatalogEntities.CatalogBrand;
 import com.fixflow.commons.domain.CatalogEntities.CatalogDevice;
 import com.fixflow.commons.service.CatalogFamilyService;
+import com.fixflow.commons.service.CatalogSnapshotStore;
 import com.fixflow.commons.service.CommonsCatalogService;
 import com.fixflow.commons.service.ContributionService;
 import com.fixflow.group.service.SharingGroupService;
@@ -54,6 +55,7 @@ public class CommonsController {
     private final CommonsCatalogService catalog;
     private final ContributionService contributions;
     private final CatalogFamilyService familyCatalog;
+    private final CatalogSnapshotStore snapshots;
     private final ShopRepository shops;
     private final SharingGroupService groups;
 
@@ -95,6 +97,20 @@ public class CommonsController {
     /** Keeps direct callers and older tests source-compatible with the unfiltered endpoint. */
     public List<BrandView> brands() {
         return brands(null);
+    }
+
+    /**
+     * One complete, versioned fitment graph for native clients to install atomically.
+     *
+     * <p>This is copied from the currently published Redis snapshot. It neither fans out into
+     * hundreds of HTTP calls nor reads PostgreSQL. Sending the installed version makes the common
+     * no-change case metadata-only.
+     */
+    @GetMapping("/snapshot")
+    @PreAuthorize("isAuthenticated()")
+    public CatalogSnapshotStore.CatalogDownload snapshot(
+            @RequestParam(required = false) String version) {
+        return snapshots.download(groups.requireSelected(), version);
     }
 
     @GetMapping("/categories")
