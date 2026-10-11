@@ -88,18 +88,14 @@ public class CommonsCatalogService {
     }
 
     /**
-     * @param categoryCode when set, only phones that take that part. The catalog walk is
-     *                     part type, then brand, then phone — dropping the part type here
-     *                     is what makes the phone screen list every spare.
+     * The category is navigation context, not a reason to hide phones without a recorded family.
+     * Those phones still have a model-specific spare; the device screen labels that compatibility
+     * as unconfirmed instead of inventing a component and fitment row.
      */
     @Transactional(readOnly = true)
     public Page<CatalogDevice> devicesForBrand(UUID groupId, UUID brandId, String categoryCode, int page, int size) {
         CatalogBrand brand = requireBrand(groupId, brandId);
-        if (categoryCode == null || categoryCode.isBlank()) {
-            return devices.findByGroupIdAndBrandIdOrderByNameAsc(brand.getGroupId(), brand.getId(),
-                    PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name")));
-        }
-        return devices.findByBrandAndCategory(brand.getGroupId(), brand.getId(), categoryCode.trim().toUpperCase(),
+        return devices.findByGroupIdAndBrandIdOrderByNameAsc(brand.getGroupId(), brand.getId(),
                 PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("name")));
     }
 

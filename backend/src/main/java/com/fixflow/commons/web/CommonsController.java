@@ -87,7 +87,8 @@ public class CommonsController {
                 ? familyCatalog.brands(groupId)
                 : familyCatalog.brandsInCategory(groupId, categoryCode);
         return rows.stream()
-                .map(row -> new BrandView(row.id(), row.name(), row.logoUrl(), row.deviceCount()))
+                .map(row -> new BrandView(row.id(), row.name(), row.logoUrl(),
+                        row.deviceCount(), row.mappedDeviceCount()))
                 .toList();
     }
 
@@ -100,7 +101,8 @@ public class CommonsController {
     @PreAuthorize("isAuthenticated()")
     public List<CategoryView> categories() {
         return familyCatalog.categories(groups.requireSelected()).stream()
-                .map(row -> new CategoryView(row.code(), row.name(), row.familyCount(), row.deviceCount()))
+                .map(row -> new CategoryView(row.code(), row.name(), row.familyCount(),
+                        row.mappedDeviceCount(), row.mappedDeviceCount(), row.totalDeviceCount()))
                 .toList();
     }
 
@@ -164,8 +166,12 @@ public class CommonsController {
     @PreAuthorize("isAuthenticated()")
     public List<FitView> fits(@RequestParam UUID deviceId) {
         UUID groupId = groups.requireSelected();
-        List<FitView> answer = catalog.fitmentsForDevice(deviceId, groupId).stream()
-                .map(FitView::of)
+        var rows = catalog.fitmentsForDevice(deviceId, groupId);
+        var votes = contributions.votesFor(CurrentUser.userId(), rows.stream()
+                .map(row -> row.fitment().getId())
+                .toList());
+        List<FitView> answer = rows.stream()
+                .map(row -> FitView.of(row, votes.confirmed(row.fitment().getId()), votes.disputed(row.fitment().getId())))
                 .toList();
         catalog.recordLookup(groupId, deviceId);
         return answer;
@@ -353,7 +359,12 @@ public class CommonsController {
                                 @NotNull List<UUID> deviceIds) {
     }
 
-    public record CategoryView(String code, String name, long familyCount, long deviceCount) {
+    public record CategoryView(String code,
+                               String name,
+                               long familyCount,
+                               long deviceCount,
+                               long mappedDeviceCount,
+                               long totalDeviceCount) {
     }
 
     public record MemberView(UUID id,
@@ -405,9 +416,13 @@ public class CommonsController {
                             long fitmentCount, UUID groupId, String groupName) {
     }
 
-    public record BrandView(UUID id, String name, String logoUrl, long deviceCount) {
+    public record BrandView(UUID id,
+                            String name,
+                            String logoUrl,
+                            long deviceCount,
+                            long mappedDeviceCount) {
         static BrandView of(CatalogBrand brand) {
-            return new BrandView(brand.getId(), brand.getName(), brand.getLogoUrl(), 0);
+            return new BrandView(brand.getId(), brand.getName(), brand.getLogoUrl(), 0, 0);
         }
     }
 
@@ -452,9 +467,11 @@ public class CommonsController {
                           int confirmations,
                           int disputes,
                           boolean disputed,
-                          boolean verified) {
+                          boolean verified,
+                          boolean confirmedByMe,
+                          boolean disputedByMe) {
 
-        static FitView of(CommonsCatalogService.FitmentView view) {
+        static FitView of(CommonsCatalogService.FitmentView view, boolean confirmedByMe, boolean disputedByMe) {
             return new FitView(
                     view.fitment().getId(),
                     view.fitment().getComponentId(),
@@ -466,7 +483,9 @@ public class CommonsController {
                     view.fitment().getConfirmations(),
                     view.fitment().getDisputes(),
                     view.fitment().isDisputed(),
-                    view.fitment().isVerified());
+                    view.fitment().isVerified(),
+                    confirmedByMe,
+                    disputedByMe);
         }
     }
 

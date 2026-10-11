@@ -140,6 +140,23 @@ class ContributionServiceTest {
     }
 
     @Test
+    void aSecondConfirmationReturnsTheExistingVote() {
+        UUID fitmentId = UUID.randomUUID();
+        CatalogContribution existing = new CatalogContribution();
+        existing.setKind(Kind.CONFIRM_FITMENT);
+        existing.setStatus(Status.APPLIED);
+        existing.setTargetId(fitmentId);
+        when(contributions.findVotes(newcomer, fitmentId, Kind.CONFIRM_FITMENT, List.of(Status.PENDING, Status.APPLIED)))
+                .thenReturn(List.of(existing));
+
+        CatalogContribution result = service.submit(newcomer, Kind.CONFIRM_FITMENT, fitmentId, Map.of(), null);
+
+        assertThat(result).isSameAs(existing);
+        verify(catalog, never()).confirmFitment(any());
+        verify(contributions, never()).save(any());
+    }
+
+    @Test
     void aBannedContributorIsRefusedRatherThanIgnored() {
         UUID banned = UUID.randomUUID();
         CatalogContributor standing = CatalogContributor.forUser(banned);

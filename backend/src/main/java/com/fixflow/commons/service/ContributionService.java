@@ -19,10 +19,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Who may change the commons, and what happens when they try.
@@ -73,6 +76,18 @@ public class ContributionService {
             // contributor's submissions means they keep sending them and nobody learns anything.
             throw new ApiException(ErrorCode.FORBIDDEN,
                     "Your contributions to the shared catalog are suspended.");
+        }
+        if (kind == Kind.CONFIRM_FITMENT || kind == Kind.DISPUTE_FITMENT) {
+            if (targetId == null) {
+                throw new ApiException(ErrorCode.VALIDATION_FAILED,
+                        "Confirming or disputing needs the fitment it refers to.");
+            }
+            var existing = contributions.findVotes(authorId, targetId, kind, List.of(Status.PENDING, Status.APPLIED))
+                    .stream()
+                    .findFirst();
+            if (existing.isPresent()) {
+                return existing.get();
+            }
         }
 
         CatalogContribution contribution = new CatalogContribution();
@@ -176,6 +191,33 @@ public class ContributionService {
         log.warn("Commons contributor {} {} by {}: {}",
                 userId, banned ? "banned" : "unbanned", reviewerId, reason);
         return contributors.save(contributor);
+    }
+
+    /**
+     * Which of these fitments the caller has already confirmed or disputed.
+     *
+     * <p>A rejected vote is absent, so the caller can try again. An open dispute counts even before
+     * review, because filing it twice would queue the same objection.
+     */
+    @Transactional(readOnly = true)
+    public VoteMarks votesFor(UUID userId, Collection<UUID> fitmentIds) {
+        if (userId == null || fitmentIds == null || fitmentIds.isEmpty()) {
+            return VoteMarks.none();
+        }
+        List<CatalogContribution> votes = contributions.findVotesForTargets(
+                userId,
+                fitmentIds,
+                List.of(Kind.CONFIRM_FITMENT, Kind.DISPUTE_FITMENT),
+                List.of(Status.PENDING, Status.APPLIED));
+        return new VoteMarks(
+                votes.stream()
+                        .filter(vote -> vote.getKind() == Kind.CONFIRM_FITMENT)
+                        .map(CatalogContribution::getTargetId)
+                        .collect(Collectors.toSet()),
+                votes.stream()
+                        .filter(vote -> vote.getKind() == Kind.DISPUTE_FITMENT)
+                        .map(CatalogContribution::getTargetId)
+                        .collect(Collectors.toSet()));
     }
 
     /**
@@ -367,5 +409,20 @@ public class ContributionService {
             return new LinkedHashMap<>((Map<String, Object>) map);
         }
         return Map.of();
+    }
+
+    /** Fitments this person has an open or accepted vote on. */
+    public record VoteMarks(Set<UUID> confirmed, Set<UUID> disputed) {
+        public static VoteMarks none() {
+            return new VoteMarks(Set.of(), Set.of());
+        }
+
+        public boolean confirmed(UUID fitmentId) {
+            return confirmed.contains(fitmentId);
+        }
+
+        public boolean disputed(UUID fitmentId) {
+            return disputed.contains(fitmentId);
+        }
     }
 }

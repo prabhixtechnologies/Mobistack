@@ -15,7 +15,7 @@ class RedisCacheSerializerTest {
     void catalogRowsComeBackAsRecords() {
         var serializer = PlatformCacheConfig.redisSerializer(JsonMapper.builder().build());
         List<CategoryIndex> rows = new ArrayList<>();
-        rows.add(new CategoryIndex("BATTERY", "Battery", 70, 12, 4));
+        rows.add(new CategoryIndex("BATTERY", "Battery", 70, 12, 4, 100));
 
         Object restored = serializer.deserialize(serializer.serialize(rows));
 

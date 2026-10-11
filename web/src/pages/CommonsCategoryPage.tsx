@@ -49,7 +49,7 @@ export function CommonsCategoryPage({ code }: { code: string }) {
         icon="globe"
         kicker={<Link to="/commons">Fitment Catalog</Link>}
         title={partName}
-        subtitle="Pick a brand, then a phone. The phone stays on this spare."
+        subtitle="Every phone is listed. Mapped phones show shared models; the rest stay model-specific until confirmed."
         actions={
           canManageGroup(fitment.current) ? (
             <button className="btn" type="button" onClick={() => setAddFamily(true)}>
@@ -74,12 +74,13 @@ export function CommonsCategoryPage({ code }: { code: string }) {
               <p className="faint">
                 {brand.deviceCount ?? 0} {(brand.deviceCount ?? 0) === 1 ? "phone" : "phones"}
               </p>
+              <p className="faint">{brand.mappedDeviceCount ?? 0} compatibility mapped</p>
             </Link>
           ))}
         </div>
       )}
       {!brands.loading && (brands.data ?? []).length === 0 && !brands.error && (
-        <EmptyState compact icon="search" title={`No phones take ${partName} yet`} />
+        <EmptyState compact icon="search" title="No phones in this catalog yet" />
       )}
 
       {families.loading && <p className="muted">Loading families…</p>}

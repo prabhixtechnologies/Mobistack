@@ -44,7 +44,7 @@ class CommonsControllerBillingIsolationTest {
         UUID groupId = UUID.randomUUID();
         when(groups.requireSelected()).thenReturn(groupId);
         when(familyCatalog.brands(groupId)).thenReturn(List.of(
-                new CatalogFamilyService.BrandIndex(UUID.randomUUID(), "Apple", null, 1)));
+                new CatalogFamilyService.BrandIndex(UUID.randomUUID(), "Apple", null, 1, 1)));
 
         CommonsController controller = new CommonsController(catalog, contributions, familyCatalog, shops, groups);
         assertThat(controller.brands()).hasSize(1);

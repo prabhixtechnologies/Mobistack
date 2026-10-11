@@ -133,7 +133,10 @@ function CatalogHome() {
                   <span className="catalog-tile__n">{String(index + 1).padStart(2, "0")}</span>
                   <strong>{category.name}</strong>
                   <p className="faint">
-                    {category.familyCount} {category.familyCount === 1 ? "family" : "families"} · {category.deviceCount} phones
+                    {category.totalDeviceCount} phones · {category.mappedDeviceCount} mapped
+                  </p>
+                  <p className="faint">
+                    {category.familyCount} {category.familyCount === 1 ? "shared family" : "shared families"}
                   </p>
                 </Link>
               ))}

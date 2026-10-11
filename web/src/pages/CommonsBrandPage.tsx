@@ -61,7 +61,7 @@ export function CommonsBrandPage({ brandId, category }: { brandId: string; categ
         title={brand?.name ?? "Brand"}
         subtitle={
           category
-            ? `${partName} · ${brand?.deviceCount ?? devices.total} phones that take this spare.`
+            ? `${partName} · ${brand?.deviceCount ?? devices.total} phones. ${brand?.mappedDeviceCount ?? 0} have shared compatibility mapped; the rest are treated as model-specific.`
             : `${brand?.deviceCount ?? devices.total} phones in this group.`
         }
       />

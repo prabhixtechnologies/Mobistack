@@ -40,6 +40,14 @@ function canonicalFamilies(rows: CommonsFamily[]): CommonsFamily[] {
   return rows.filter((row) => !drop.has(row.id));
 }
 
+function categoryLabel(code: string | null): string | null {
+  if (!code) return null;
+  return code
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export function CommonsDevicePage() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,6 +103,7 @@ export function CommonsDevicePage() {
       (c) => c.code.toUpperCase() === categoryFilter.toUpperCase(),
     );
   }, [availableCategories, categoryFilter]);
+  const activeCategoryName = activeCategoryObj?.name ?? categoryLabel(categoryFilter);
 
   // Filtered families
   const displayedFamilies = useMemo(() => {
@@ -195,7 +204,7 @@ export function CommonsDevicePage() {
                   <>
                     <span className="catalog-kicker-sep">/</span>
                     <Link to={commonsBrowsePath({ category: categoryFilter })}>
-                      {activeCategoryObj?.name ?? categoryFilter}
+                      {activeCategoryName}
                     </Link>
                   </>
                 )}
@@ -204,7 +213,7 @@ export function CommonsDevicePage() {
             title={title}
             subtitle={
               categoryFilter
-                ? `${activeCategoryObj?.name ?? categoryFilter} options linked to this phone and the models that share them.`
+                ? `${activeCategoryName} compatibility for this phone. Shared models appear when they are confirmed.`
                 : "Explore verified spare families and every phone model that shares them."
             }
             meta={
@@ -253,7 +262,7 @@ export function CommonsDevicePage() {
         <div className="catalog-results-heading">
           <div>
             <span className="catalog-results-heading__eyebrow">Compatibility results</span>
-            <h2>{categoryFilter ? activeCategoryObj?.name ?? categoryFilter : "Available spares"}</h2>
+            <h2>{categoryFilter ? activeCategoryName : "Available spares"}</h2>
           </div>
           <p>
             {displayedFamilies.length === 1
@@ -323,18 +332,18 @@ export function CommonsDevicePage() {
                     <button
                       className="btn ghost compact"
                       type="button"
-                      disabled={busy}
+                      disabled={busy || fit?.confirmedByMe === true}
                       onClick={() => void contribute("CONFIRM_FITMENT", fitmentId)}
                     >
-                      Confirm
+                      {fit?.confirmedByMe ? "Confirmed" : "Confirm"}
                     </button>
                     <button
                       className="btn ghost compact"
                       type="button"
-                      disabled={busy || !disputeFit}
+                      disabled={busy || !disputeFit || fit?.disputedByMe === true}
                       onClick={() => disputeFit && setDisputeFor(disputeFit)}
                     >
-                      Dispute
+                      {fit?.disputedByMe ? "Disputed" : "Dispute"}
                     </button>
                   </div>
                 </div>
@@ -422,17 +431,17 @@ export function CommonsDevicePage() {
           icon="link"
           title={
             categoryFilter
-              ? `No ${activeCategoryObj?.name ?? categoryFilter} on this phone`
+              ? `${activeCategoryName} is model-specific for now`
               : availableCategories.length > 0
                 ? "Pick a spare"
-                : "Nothing linked yet"
+                : "No compatibility data yet"
           }
           hint={
             categoryFilter
-              ? "This model has no family for the spare you already chose."
+              ? "This phone is still included in the catalog. No shared models are confirmed for this spare yet."
               : availableCategories.length > 0
                 ? "The part type comes first. The list below is that spare, not every component on the phone."
-                : "Confirm a part from the bench, or add a family."
+                : "The phone is listed, but no shared spare families have been confirmed yet."
           }
         />
       )}

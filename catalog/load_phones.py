@@ -29,6 +29,7 @@ def main() -> None:
     rows = payload.get("phones") or []
     inserted = 0
     skipped = 0
+    updated = 0
     with psycopg.connect(url) as conn:
         with conn.cursor() as cur:
             brands: dict[str, str] = {}
@@ -82,8 +83,25 @@ def main() -> None:
                     inserted += 1
                 else:
                     already += 1
+                    if code:
+                        cur.execute(
+                            """
+                            UPDATE catalog_devices
+                            SET model_code = %s
+                            WHERE group_id = %s
+                              AND brand_id = %s
+                              AND lower(name) = lower(%s)
+                              AND (model_code IS NULL OR btrim(model_code) = '')
+                            """,
+                            (code, DEFAULT_GROUP, brand_id, phone),
+                        )
+                        if cur.rowcount:
+                            updated += 1
         conn.commit()
-    print(f"phones in file {len(rows)}; inserted {inserted}; already present {already}; skipped {skipped}")
+    print(
+        f"phones in file {len(rows)}; inserted {inserted}; "
+        f"already present {already}; model codes filled {updated}; skipped {skipped}"
+    )
 
 
 if __name__ == "__main__":

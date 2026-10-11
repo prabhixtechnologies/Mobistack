@@ -377,13 +377,17 @@ export interface CommonsBrand {
   name: string;
   logoUrl?: string | null;
   deviceCount?: number;
+  mappedDeviceCount?: number;
 }
 
 export interface CommonsCategory {
   code: string;
   name: string;
   familyCount: number;
-  deviceCount: number;
+  /** Older API alias for mappedDeviceCount. */
+  deviceCount?: number;
+  mappedDeviceCount: number;
+  totalDeviceCount: number;
 }
 
 export interface CommonsFamilyMember {
@@ -437,6 +441,8 @@ export interface CommonsFit {
   disputes: number;
   disputed: boolean;
   verified: boolean;
+  confirmedByMe?: boolean;
+  disputedByMe?: boolean;
 }
 
 export interface CommonsStanding {

@@ -43,9 +43,8 @@ public class CatalogContribution extends AuditableEntity {
         /**
          * This part did fit, in practice.
          *
-         * <p>Applies immediately for anyone not banned. It only increments a counter — the cheapest
-         * possible signal to collect, and the one most likely to be offered by someone who will not
-         * fill in a form.
+         * <p>Applies immediately for anyone not banned, once per person. A second click returns the
+         * existing vote and does not move the counter.
          */
         CONFIRM_FITMENT
     }

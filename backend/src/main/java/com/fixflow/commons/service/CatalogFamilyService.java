@@ -63,9 +63,10 @@ public class CatalogFamilyService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v2:' + #groupId + ':categories'")
+    @Cacheable(cacheNames = CatalogCache.NAME, key = "'v3:' + #groupId + ':categories'")
     public List<CategoryIndex> categories(UUID groupId) {
         catalog.requireGroup(groupId);
+        long totalPhones = catalog.deviceCount(groupId);
         Map<String, Long> families = components.countByCategory(groupId).stream()
                 .collect(Collectors.toMap(CatalogComponentRepository.CategoryCount::getCategoryCode,
                         CatalogComponentRepository.CategoryCount::getFamilyCount));
@@ -82,13 +83,14 @@ public class CatalogFamilyService {
                     template.name(),
                     template.sortOrder(),
                     families.getOrDefault(template.code(), 0L),
-                    phones.getOrDefault(template.code(), 0L)));
+                    phones.getOrDefault(template.code(), 0L),
+                    totalPhones));
         }
         for (Map.Entry<String, Long> extra : families.entrySet()) {
             boolean known = rows.stream().anyMatch(row -> row.code().equals(extra.getKey()));
             if (!known) {
                 rows.add(new CategoryIndex(extra.getKey(), labelOf(extra.getKey()), 500,
-                        extra.getValue(), phones.getOrDefault(extra.getKey(), 0L)));
+                        extra.getValue(), phones.getOrDefault(extra.getKey(), 0L), totalPhones));
             }
         }
         rows.sort(Comparator.comparingInt(CategoryIndex::sortOrder));
@@ -187,24 +189,32 @@ public class CatalogFamilyService {
                         CatalogDeviceRepository.BrandCount::getDeviceCount));
         return new ArrayList<>(catalog.listBrands(groupId).stream()
                 .map(brand -> new BrandIndex(brand.getId(), brand.getName(), brand.getLogoUrl(),
+                        counts.getOrDefault(brand.getId(), 0L),
                         counts.getOrDefault(brand.getId(), 0L)))
                 .toList());
     }
 
-    /** Brands that have at least one phone taking this part. Counts are those phones, not the whole brand. */
+    /**
+     * Every catalog brand remains available after choosing a spare. The mapped count says how many
+     * phones have a known family; the remaining phones are shown as model-specific until somebody
+     * records shared compatibility.
+     */
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CatalogCache.NAME,
-            key = "'v2:' + #groupId + ':brands:' + #categoryCode")
+            key = "'v3:' + #groupId + ':brands:' + #categoryCode")
     public List<BrandIndex> brandsInCategory(UUID groupId, String categoryCode) {
         catalog.requireGroup(groupId);
         String code = requiredCode(categoryCode);
-        Map<UUID, Long> counts = devices.countByBrandAndCategory(groupId, code).stream()
+        Map<UUID, Long> mappedCounts = devices.countByBrandAndCategory(groupId, code).stream()
+                .collect(Collectors.toMap(CatalogDeviceRepository.BrandCount::getBrandId,
+                        CatalogDeviceRepository.BrandCount::getDeviceCount));
+        Map<UUID, Long> totalCounts = devices.countByBrand(groupId).stream()
                 .collect(Collectors.toMap(CatalogDeviceRepository.BrandCount::getBrandId,
                         CatalogDeviceRepository.BrandCount::getDeviceCount));
         return catalog.listBrands(groupId).stream()
-                .filter(brand -> counts.containsKey(brand.getId()))
                 .map(brand -> new BrandIndex(brand.getId(), brand.getName(), brand.getLogoUrl(),
-                        counts.get(brand.getId())))
+                        totalCounts.getOrDefault(brand.getId(), 0L),
+                        mappedCounts.getOrDefault(brand.getId(), 0L)))
                 .toList();
     }
 
@@ -297,10 +307,19 @@ public class CatalogFamilyService {
                 .orElse(code.replace('_', ' '));
     }
 
-    public record CategoryIndex(String code, String name, int sortOrder, long familyCount, long deviceCount) {
+    public record CategoryIndex(String code,
+                                String name,
+                                int sortOrder,
+                                long familyCount,
+                                long mappedDeviceCount,
+                                long totalDeviceCount) {
     }
 
-    public record BrandIndex(UUID id, String name, String logoUrl, long deviceCount) {
+    public record BrandIndex(UUID id,
+                             String name,
+                             String logoUrl,
+                             long deviceCount,
+                             long mappedDeviceCount) {
     }
 
     public record MemberView(UUID id,
