@@ -165,7 +165,12 @@ function CatalogHome() {
                         <span className="fx-tile__icon">
                           <PartIcon code={category.code} />
                         </span>
-                        <span className="fx-tile__name">{category.name}</span>
+                        <span className="fx-tile__title">
+                          <span className="fx-tile__name">{category.name}</span>
+                          <span className="fx-tile__sub">
+                            {formatCount(category.familyCount)} {category.familyCount === 1 ? "family" : "families"}
+                          </span>
+                        </span>
                       </span>
                       <span className="fx-tile__bar" aria-hidden>
                         <span style={{ width: `${share}%` }} />
@@ -175,8 +180,7 @@ function CatalogHome() {
                           <span>Not mapped yet</span>
                         ) : (
                           <span>
-                            <strong>{formatCount(category.mappedDeviceCount)}</strong> phones ·{" "}
-                            {formatCount(category.familyCount)} {category.familyCount === 1 ? "family" : "families"}
+                            <strong>{formatCount(category.mappedDeviceCount)}</strong> phones mapped
                           </span>
                         )}
                         <span className="fx-tile__pct">{share}%</span>
