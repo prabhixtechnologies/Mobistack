@@ -24,12 +24,16 @@ import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializ
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
 @Configuration
 @EnableCaching
 public class PlatformCacheConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(PlatformCacheConfig.class);
 
     @Bean
     @Primary
@@ -89,6 +93,25 @@ public class PlatformCacheConfig {
         ObjectMapper typed = objectMapper.rebuild()
                 .activateDefaultTyping(types, DefaultTyping.NON_FINAL_AND_RECORDS, JsonTypeInfo.As.PROPERTY)
                 .build();
-        return new GenericJacksonJsonRedisSerializer(typed);
+        RedisSerializer<Object> delegate = new GenericJacksonJsonRedisSerializer(typed);
+        // An entry written before a serializer change is unreadable. Throwing here is what blanked
+        // the brand list: the cache read failed and the request never reached the database. A null
+        // is a cache miss, so the caller recomputes and overwrites the stale bytes.
+        return new RedisSerializer<>() {
+            @Override
+            public byte[] serialize(Object value) {
+                return delegate.serialize(value);
+            }
+
+            @Override
+            public Object deserialize(byte[] bytes) {
+                try {
+                    return delegate.deserialize(bytes);
+                } catch (RuntimeException ex) {
+                    log.warn("Dropping a cache entry the current serializer cannot read");
+                    return null;
+                }
+            }
+        };
     }
 }

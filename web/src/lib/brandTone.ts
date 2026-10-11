@@ -22,6 +22,16 @@ export function brandTone(name?: string | null): CSSProperties {
   };
 }
 
+/** Same swatch as brandTone, written as the variables the catalog tiles read. */
+export function brandSwatch(name?: string | null): CSSProperties {
+  const tone = toneFor(name ?? "?");
+  return {
+    "--part-bg": `var(--px-tag-${tone}-bg)`,
+    "--part-ink": `var(--px-tag-${tone}-ink)`,
+    "--part-line": `var(--px-tag-${tone}-border)`,
+  } as CSSProperties;
+}
+
 export function brandMark(name?: string | null): string {
   const parts = (name ?? "?").trim().split(/\s+/).filter(Boolean);
   if (parts.length >= 2) {

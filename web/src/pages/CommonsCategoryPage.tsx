@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { brandMark, brandTone } from "../lib/brandTone";
+import { brandMark, brandSwatch } from "../lib/brandTone";
 import { commonsBrowsePath } from "../lib/commonsQuery";
 import { canManageGroup, useFitmentGroups } from "../lib/groups";
 import { usePagedList } from "../lib/usePagedList";
@@ -9,7 +9,7 @@ import { EmptyState, ErrorState } from "../ui/EmptyState";
 import { AddFamilyModal, phoneCaption } from "../ui/CatalogEditor";
 import { FitmentGroupBar } from "../ui/FitmentGroupBar";
 import { LoadMore } from "../ui/DataTable";
-import { PageHeader } from "../ui/PageHeader";
+import { PartIcon, partTone } from "../ui/PartCategory";
 import type { CommonsBrand, CommonsCategory, CommonsFamily } from "../lib/types";
 
 export function CommonsCategoryPage({ code }: { code: string }) {
@@ -36,68 +36,127 @@ export function CommonsCategoryPage({ code }: { code: string }) {
     );
   }
 
+  const rows = brands.data ?? [];
+  const phones = rows.reduce((sum, brand) => sum + (brand.deviceCount ?? 0), 0);
+  const mapped = rows.reduce((sum, brand) => sum + (brand.mappedDeviceCount ?? 0), 0);
+  const coverage = phones > 0 ? Math.round((mapped / phones) * 100) : null;
+
   return (
-    <div className="page">
-      <FitmentGroupBar
-        groups={fitment.groups}
-        selected={fitment.selected}
-        choose={fitment.choose}
-        create={fitment.create}
-        current={fitment.current}
-      />
-      <PageHeader
-        icon="globe"
-        kicker={<Link to="/commons">Fitment Catalog</Link>}
-        title={partName}
-        subtitle="Every phone is listed. Mapped phones show shared models; the rest stay model-specific until confirmed."
-        actions={
-          canManageGroup(fitment.current) ? (
-            <button className="btn" type="button" onClick={() => setAddFamily(true)}>
-              Add family
-            </button>
-          ) : null
-        }
-      />
-      {brands.error && <ErrorState message={brands.error} onRetry={brands.reload} />}
-      {!brands.error && (
-        <div className="catalog-grid">
-          {(brands.data ?? []).map((brand) => (
-            <Link
-              key={brand.id}
-              className="catalog-tile catalog-tile--brand"
-              to={commonsBrowsePath({ brands: brand.id, category: code })}
-            >
-              <span className="catalog-tile__mark" style={brandTone(brand.name)}>
-                {brandMark(brand.name)}
+    <div className="page fx-home">
+      <section className="fx-hero fx-hero--part" style={partTone(code)}>
+        <div className="fx-hero__top">
+          <span className="fx-hero__icon fx-hero__icon--part" aria-hidden>
+            <PartIcon code={code} />
+          </span>
+          <div className="fx-hero__copy">
+            <p className="fx-hero__kicker">
+              <Link to="/commons">Fitment Catalog</Link>
+            </p>
+            <h1>{partName}</h1>
+            <p className="fx-hero__sub">Pick a brand, then a phone.</p>
+          </div>
+          {rows.length > 0 && (
+            <div className="fx-hero__stats">
+              <span className="fx-stat fx-stat--a">
+                <strong>{formatCount(phones)}</strong> phones
               </span>
-              <strong>{brand.name}</strong>
-              <p className="faint">
-                {brand.deviceCount ?? 0} {(brand.deviceCount ?? 0) === 1 ? "phone" : "phones"}
-              </p>
-              <p className="faint">{brand.mappedDeviceCount ?? 0} compatibility mapped</p>
-            </Link>
+              <span className="fx-stat fx-stat--b">
+                <strong>{formatCount(rows.length)}</strong> {rows.length === 1 ? "brand" : "brands"}
+              </span>
+              {coverage !== null && (
+                <span className="fx-stat fx-stat--c">
+                  <strong>{coverage}%</strong> mapped
+                </span>
+              )}
+            </div>
+          )}
+          {canManageGroup(fitment.current) && (
+            <div className="fx-hero__actions">
+              <button className="btn sm" type="button" onClick={() => setAddFamily(true)}>
+                Add family
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="fx-hero__tools">
+          <FitmentGroupBar
+            compact
+            groups={fitment.groups}
+            selected={fitment.selected}
+            choose={fitment.choose}
+            create={fitment.create}
+            current={fitment.current}
+          />
+        </div>
+      </section>
+      {brands.error && <ErrorState message={brands.error} onRetry={brands.reload} />}
+      {!brands.error && rows.length > 0 && (
+        <>
+          <div className="fx-section">
+            <h2>Brands</h2>
+            <span>{rows.length} brands · tap one to pick a phone</span>
+          </div>
+          <div className="fx-grid">
+            {rows.map((brand) => {
+              const count = brand.deviceCount ?? 0;
+              const done = brand.mappedDeviceCount ?? 0;
+              const share = count > 0 ? Math.round((done / count) * 100) : 0;
+              const empty = done === 0;
+              const shown = !empty && share === 0 ? "<1%" : `${share}%`;
+              return (
+                <Link
+                  key={brand.id}
+                  className={`fx-tile${empty ? " fx-tile--empty" : ""}`}
+                  style={brandSwatch(brand.name)}
+                  to={commonsBrowsePath({ brands: brand.id, category: code })}
+                >
+                  <span className="fx-tile__head">
+                    <span className="fx-tile__icon fx-tile__mark">{brandMark(brand.name)}</span>
+                    <span className="fx-tile__title">
+                      <span className="fx-tile__name">{brand.name}</span>
+                      <span className="fx-tile__sub">
+                        {formatCount(count)} {count === 1 ? "phone" : "phones"}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="fx-tile__bar" aria-hidden>
+                    <span style={{ width: `${empty ? 0 : Math.max(share, 2)}%` }} />
+                  </span>
+                  <span className="fx-tile__meta">
+                    {empty ? <span>Not mapped yet</span> : <span><strong>{formatCount(done)}</strong> mapped</span>}
+                    <span className="fx-tile__pct">{shown}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {brands.loading && rows.length === 0 && !brands.error && (
+        <div className="fx-grid">
+          {Array.from({ length: 10 }, (_, index) => (
+            <span key={index} className="fx-tile fx-tile--ghost" />
           ))}
         </div>
       )}
-      {!brands.loading && (brands.data ?? []).length === 0 && !brands.error && (
+      {!brands.loading && rows.length === 0 && !brands.error && (
         <EmptyState compact icon="search" title="No phones in this catalog yet" />
       )}
 
-      {families.loading && <p className="muted">Loading families…</p>}
-      {families.rows.length > 0 && <h2 className="catalog-section-label">Spares in this part type</h2>}
-      <div className="catalog-family-list">
+      {families.rows.length > 0 && (
+        <div className="fx-section">
+          <h2>Shared families</h2>
+          <span>{families.total} {families.total === 1 ? "family" : "families"} · phones that take the same spare</span>
+        </div>
+      )}
+      <div className="fx-families">
         {families.rows.map((family) => (
-          <article className="catalog-family" key={family.id}>
-            <div className="spread">
-              <div>
-                <strong>{family.name}</strong>
-                <p className="faint">
-                  {family.members.length} {family.members.length === 1 ? "phone" : "phones"}
-                </p>
-              </div>
-              <Link className="btn ghost" to={`/commons/components/${family.id}`}>
-                Open
-              </Link>
+          <article className="fx-family" key={family.id}>
+            <div className="fx-family__name">
+              <strong>{family.name}</strong>
+              <span>
+                {family.members.length} {family.members.length === 1 ? "phone" : "phones"}
+              </span>
             </div>
             <div className="chips">
               {family.members.slice(0, 8).map((member) => (
@@ -111,6 +170,9 @@ export function CommonsCategoryPage({ code }: { code: string }) {
               ))}
               {family.members.length > 8 && <span className="chip">+{family.members.length - 8}</span>}
             </div>
+            <Link className="btn ghost sm" to={`/commons/components/${family.id}`}>
+              Open
+            </Link>
           </article>
         ))}
       </div>
@@ -140,4 +202,8 @@ export function CommonsCategoryPage({ code }: { code: string }) {
       />
     </div>
   );
+}
+
+function formatCount(value: number): string {
+  return value.toLocaleString("en-IN");
 }

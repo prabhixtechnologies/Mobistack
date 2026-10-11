@@ -4,6 +4,7 @@ import com.fixflow.commons.service.CatalogFamilyService.CategoryIndex;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,5 +24,13 @@ class RedisCacheSerializerTest {
         assertThat((List<?>) restored).singleElement().isInstanceOf(CategoryIndex.class);
         assertThat(((CategoryIndex) ((List<?>) restored).getFirst()).code()).isEqualTo("BATTERY");
         assertThat(((CategoryIndex) ((List<?>) restored).getFirst()).familyCount()).isEqualTo(12);
+    }
+
+    @Test
+    void entryFromAnOlderSerializerIsAMiss() {
+        var serializer = PlatformCacheConfig.redisSerializer(JsonMapper.builder().build());
+        byte[] plain = "{\"name\":\"Apple\"}".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(serializer.deserialize(plain)).isNull();
     }
 }
