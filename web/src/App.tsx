@@ -131,12 +131,25 @@ function UnscopedWorkspaces() {
 
 export function App() {
   const { user, ready } = useAuth();
+  const location = useLocation();
+
+  // The callback can arrive while a cached user is still present. It must be handled before the
+  // signed-in route table is selected, otherwise that table treats /auth/callback as an unknown
+  // product page and strands the authorization code on the Not Found screen.
+  if (location.pathname === "/auth/callback") {
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/auth/callback" element={<OidcCallbackPage />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   if (!ready) {
     return (
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/auth/callback" element={<OidcCallbackPage />} />
           {LegalRoutes()}
           <Route path="*" element={<RouteFallback />} />
         </Routes>
