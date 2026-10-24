@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { loginPathFor, returnPathFrom, safeAppPath } from "./safePath";
 
 describe("where a sign-in comes back to", () => {

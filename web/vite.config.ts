@@ -9,7 +9,7 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
-    dedupe: ["react", "react-dom"],
+    dedupe: ["react", "react-dom", "vitest"],
   },
   // `optimizeDeps.include` for @prabhixtechnologies/oidc-client used to sit here, and so did a
   // `server.fs.allow` entry pointing at the real path of a sibling web-kit checkout. Both existed
@@ -31,5 +31,6 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    globals: true,
   },
 });

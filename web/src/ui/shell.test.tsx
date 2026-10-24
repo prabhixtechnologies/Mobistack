@@ -1,6 +1,5 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GlobalSearch } from "./GlobalSearch";
 
 vi.mock("../lib/auth", () => ({

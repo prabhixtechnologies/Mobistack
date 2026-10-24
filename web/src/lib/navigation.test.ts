@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { NAV_DESTINATIONS, activeTab, allowedWhileUnpaid, destinationFor, routeContext } from "./navigation";
 
 describe("navigation", () => {

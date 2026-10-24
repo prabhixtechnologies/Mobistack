@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { featureLabel } from "./BillingPage";
 
 describe("customer plan presentation", () => {

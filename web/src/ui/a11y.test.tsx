@@ -1,6 +1,5 @@
 import { render } from "@testing-library/react";
 import axe from "axe-core";
-import { describe, expect, it } from "vitest";
 import { EmptyState, ErrorState } from "./EmptyState";
 import { LogoMark } from "./LogoMark";
 import { Modal } from "./Modal";
