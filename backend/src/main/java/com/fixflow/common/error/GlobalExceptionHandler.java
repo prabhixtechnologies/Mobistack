@@ -47,7 +47,7 @@ public class GlobalExceptionHandler {
         List<ApiError.FieldViolation> violations = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> new ApiError.FieldViolation(fe.getField(), fe.getDefaultMessage(), fe.getRejectedValue()))
                 .toList();
-        ApiError body = ApiError.of(ErrorCode.VALIDATION_FAILED, "Request validation failed",
+        ApiError body = ApiError.of(ErrorCode.VALIDATION_FAILED, validationMessage(violations),
                 request.getRequestURI(), violations, Map.of());
         return ResponseEntity.badRequest().body(body);
     }
@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
                 .map(v -> new ApiError.FieldViolation(v.getPropertyPath().toString(), v.getMessage(),
                         v.getInvalidValue()))
                 .toList();
-        ApiError body = ApiError.of(ErrorCode.VALIDATION_FAILED, "Request validation failed",
+        ApiError body = ApiError.of(ErrorCode.VALIDATION_FAILED, validationMessage(violations),
                 request.getRequestURI(), violations, Map.of());
         return ResponseEntity.badRequest().body(body);
     }
@@ -138,6 +138,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiError.of(ErrorCode.NOT_FOUND, "No endpoint " + ex.getRequestURL(),
                         request.getRequestURI()));
+    }
+
+    /**
+     * One wrong field should say what is wrong. A pile of them stays a single summary,
+     * with the field list still attached for the client.
+     */
+    static String validationMessage(List<ApiError.FieldViolation> violations) {
+        if (violations.size() == 1) {
+            String message = violations.get(0).message();
+            if (message != null && !message.isBlank()) {
+                return message;
+            }
+        }
+        return "Request validation failed";
     }
 
     @ExceptionHandler(Exception.class)

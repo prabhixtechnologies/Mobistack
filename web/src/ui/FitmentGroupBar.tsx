@@ -304,6 +304,10 @@ function MemberRow({
         <strong>{member.label}</strong>
         <div className="faint">
           {member.kind === "SHOP" ? "Shop" : "Person"} · {member.role.toLowerCase()}
+          {member.email ? ` · ${member.email}` : ""}
+          {member.paidUntil
+            ? ` · paid until ${new Date(member.paidUntil).toLocaleDateString()}`
+            : ""}
         </div>
       </div>
       {member.role === "ADMIN" && owner && (

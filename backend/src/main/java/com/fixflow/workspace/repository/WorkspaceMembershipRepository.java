@@ -53,6 +53,16 @@ public interface WorkspaceMembershipRepository extends JpaRepository<WorkspaceMe
             @Param("ids") Collection<UUID> ids,
             @Param("status") MembershipStatus status);
 
+    @Query("""
+            select m from WorkspaceMembership m
+            join fetch m.role r
+            where m.workspaceId = :workspaceId
+              and m.status = com.fixflow.workspace.domain.MembershipStatus.ACTIVE
+              and r.code = :owner
+            """)
+    List<WorkspaceMembership> findActiveOwners(@Param("workspaceId") UUID workspaceId,
+                                                @Param("owner") String owner);
+
     boolean existsByWorkspaceIdAndUserId(UUID workspaceId, UUID userId);
 
     boolean existsByUserId(UUID userId);

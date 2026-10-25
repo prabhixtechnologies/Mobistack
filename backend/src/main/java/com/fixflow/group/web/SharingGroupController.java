@@ -82,7 +82,7 @@ public class SharingGroupController {
     public record AddShop(@NotBlank String joinCode) {
     }
 
-    public record AddPerson(@NotBlank String email, GroupRole role) {
+    public record AddPerson(@NotBlank(message = "Enter an email address.") String email, GroupRole role) {
     }
 
     public record SetRole(GroupRole role) {

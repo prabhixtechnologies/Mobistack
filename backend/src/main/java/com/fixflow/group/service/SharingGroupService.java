@@ -1,5 +1,9 @@
 package com.fixflow.group.service;
 
+import com.fixflow.billing.domain.BillingPlan;
+import com.fixflow.billing.domain.WorkspaceSubscription;
+import com.fixflow.billing.repository.BillingPlanRepository;
+import com.fixflow.billing.repository.WorkspaceSubscriptionRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
 import com.fixflow.group.domain.GroupRole;
@@ -8,9 +12,12 @@ import com.fixflow.group.domain.SharingGroupMember;
 import com.fixflow.group.repository.SharingGroupMemberRepository;
 import com.fixflow.group.repository.SharingGroupRepository;
 import com.fixflow.security.CurrentUser;
+import com.fixflow.security.SystemRole;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.workspace.domain.WorkspaceMembership;
+import com.fixflow.workspace.repository.WorkspaceMembershipRepository;
 import com.fixflow.workspace.service.JoinCodeGenerator;
 import com.fixflow.user.domain.User;
 import com.fixflow.user.repository.UserRepository;
@@ -20,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -40,7 +48,24 @@ public class SharingGroupService {
     public record GroupCard(UUID id, String name, GroupRole callerRole, String joinCode) {
     }
 
-    public record MemberCard(String kind, UUID subjectId, String label, GroupRole role) {
+    /**
+     * Contact and payment are filled only for an owner or admin. Other members see the name and role.
+     */
+    public record MemberCard(
+            String kind,
+            UUID subjectId,
+            String label,
+            GroupRole role,
+            String email,
+            String phone,
+            String place,
+            String planName,
+            String planStatus,
+            Instant paidUntil) {
+
+        public MemberCard(String kind, UUID subjectId, String label, GroupRole role) {
+            this(kind, subjectId, label, role, null, null, null, null, null, null);
+        }
     }
 
     public record GroupDetail(UUID id, String name, GroupRole callerRole, List<MemberCard> members, String joinCode) {
@@ -50,6 +75,9 @@ public class SharingGroupService {
     private final SharingGroupMemberRepository members;
     private final ShopRepository shops;
     private final UserRepository users;
+    private final WorkspaceSubscriptionRepository subscriptions;
+    private final BillingPlanRepository plans;
+    private final WorkspaceMembershipRepository memberships;
 
     @Transactional(readOnly = true)
     public List<GroupCard> listVisible() {
@@ -68,7 +96,8 @@ public class SharingGroupService {
         if (role == GroupRole.OWNER || role == GroupRole.ADMIN) {
             code = ensureJoinCode(group);
         }
-        return new GroupDetail(group.getId(), group.getName(), role, memberCards(group), code);
+        boolean contact = role == GroupRole.OWNER || role == GroupRole.ADMIN;
+        return new GroupDetail(group.getId(), group.getName(), role, memberCards(group, contact), code);
     }
 
     @Transactional
@@ -314,24 +343,90 @@ public class SharingGroupService {
         return GroupRole.MEMBER;
     }
 
-    private List<MemberCard> memberCards(SharingGroup group) {
+    private List<MemberCard> memberCards(SharingGroup group, boolean contact) {
         List<MemberCard> cards = new ArrayList<>();
         users.findById(group.getOwnerUserId()).ifPresent(owner ->
-                cards.add(new MemberCard("PERSON", owner.getId(), label(owner), GroupRole.OWNER)));
+                cards.add(personCard(owner, GroupRole.OWNER, contact)));
         for (SharingGroupMember row : members.findByGroupIdOrderByCreatedAtAsc(group.getId())) {
             if (row.getUserId() != null && row.getUserId().equals(group.getOwnerUserId())) {
                 continue;
             }
             if (row.getWorkspaceId() != null) {
-                String label = shops.findById(row.getWorkspaceId()).map(Shop::getName).orElse("Shop");
-                cards.add(new MemberCard("SHOP", row.getWorkspaceId(), label, GroupRole.MEMBER));
+                cards.add(shopCard(row.getWorkspaceId(), contact));
             } else if (row.getUserId() != null) {
                 User person = users.findById(row.getUserId()).orElse(null);
-                String label = person == null ? "Person" : label(person);
-                cards.add(new MemberCard("PERSON", row.getUserId(), label, row.getRole()));
+                if (person == null) {
+                    cards.add(new MemberCard("PERSON", row.getUserId(), "Person", row.getRole()));
+                } else {
+                    cards.add(personCard(person, row.getRole(), contact));
+                }
             }
         }
         return cards;
+    }
+
+    private MemberCard personCard(User person, GroupRole role, boolean contact) {
+        if (!contact) {
+            return new MemberCard("PERSON", person.getId(), label(person), role);
+        }
+        return new MemberCard(
+                "PERSON", person.getId(), label(person), role,
+                text(person.getEmail()), text(person.getPhone()),
+                null, null, null, null);
+    }
+
+    private MemberCard shopCard(UUID workspaceId, boolean contact) {
+        Shop shop = shops.findById(workspaceId).orElse(null);
+        String name = shop == null ? "Shop" : shop.getName();
+        if (!contact || shop == null) {
+            return new MemberCard("SHOP", workspaceId, name, GroupRole.MEMBER);
+        }
+        WorkspaceSubscription subscription = subscriptions.findById(workspaceId).orElse(null);
+        String planName = null;
+        String planStatus = null;
+        Instant paidUntil = null;
+        if (subscription != null) {
+            planStatus = text(subscription.getStatus());
+            paidUntil = subscription.getPeriodEnd();
+            if (subscription.getPlanId() != null) {
+                planName = plans.findById(subscription.getPlanId()).map(BillingPlan::getName).orElse(null);
+            }
+        }
+        String email = text(shop.getEmail());
+        if (email == null) {
+            email = ownerEmail(workspaceId);
+        }
+        return new MemberCard(
+                "SHOP", workspaceId, name, GroupRole.MEMBER,
+                email, text(shop.getPhone()), place(shop),
+                planName, planStatus, paidUntil);
+    }
+
+    private String ownerEmail(UUID workspaceId) {
+        List<WorkspaceMembership> owners = memberships.findActiveOwners(workspaceId, SystemRole.OWNER.name());
+        if (owners.isEmpty()) {
+            return null;
+        }
+        return users.findById(owners.get(0).getUserId()).map(user -> text(user.getEmail())).orElse(null);
+    }
+
+    private static String place(Shop shop) {
+        String city = text(shop.getCity());
+        String state = text(shop.getState());
+        if (city == null) {
+            return state;
+        }
+        if (state == null) {
+            return city;
+        }
+        return city + ", " + state;
+    }
+
+    private static String text(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private Shop resolveShopByJoinCode(String joinCode) {

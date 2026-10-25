@@ -1,5 +1,7 @@
 package com.fixflow.group.service;
 
+import com.fixflow.billing.repository.BillingPlanRepository;
+import com.fixflow.billing.repository.WorkspaceSubscriptionRepository;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.group.domain.GroupRole;
 import com.fixflow.group.domain.SharingGroup;
@@ -10,6 +12,7 @@ import com.fixflow.security.Permission;
 import com.fixflow.security.UserPrincipal;
 import com.fixflow.shop.domain.Shop;
 import com.fixflow.shop.repository.ShopRepository;
+import com.fixflow.workspace.repository.WorkspaceMembershipRepository;
 import com.fixflow.user.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +35,10 @@ class GroupJoinAdmissionTest {
     private final SharingGroupRepository groups = mock(SharingGroupRepository.class);
     private final SharingGroupMemberRepository members = mock(SharingGroupMemberRepository.class);
     private final ShopRepository shops = mock(ShopRepository.class);
-    private final SharingGroupService service = new SharingGroupService(groups, members, shops, mock(UserRepository.class));
+    private final SharingGroupService service = new SharingGroupService(
+            groups, members, shops, mock(UserRepository.class),
+            mock(WorkspaceSubscriptionRepository.class), mock(BillingPlanRepository.class),
+            mock(WorkspaceMembershipRepository.class));
 
     @AfterEach
     void clear() {

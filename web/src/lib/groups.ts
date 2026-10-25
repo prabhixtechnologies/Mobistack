@@ -13,6 +13,12 @@ export interface FitmentMember {
   subjectId: string;
   label: string;
   role: "OWNER" | "ADMIN" | "MEMBER";
+  email?: string | null;
+  phone?: string | null;
+  place?: string | null;
+  planName?: string | null;
+  planStatus?: string | null;
+  paidUntil?: string | null;
 }
 
 export interface FitmentGroupDetail extends FitmentGroup {
