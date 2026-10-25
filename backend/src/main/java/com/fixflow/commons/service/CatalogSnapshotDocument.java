@@ -22,7 +22,11 @@ public record CatalogSnapshotDocument(List<BrandRow> brands,
         fitments = fitments == null ? List.of() : List.copyOf(fitments);
     }
 
-    public record BrandRow(UUID id, String name, String logoUrl) {
+    /**
+     * {@code logo} is the mark itself, a small SVG, so a phone can draw it from the snapshot it
+     * already stored. {@code logoUrl} stays the server-side pointer and is not fetched per brand.
+     */
+    public record BrandRow(UUID id, String name, String logoUrl, String logo) {
     }
 
     public record DeviceRow(UUID id,

@@ -26,7 +26,7 @@ class CatalogGroupSnapshotTest {
         UUID popular = UUID.randomUUID();
         UUID named = UUID.randomUUID();
         CatalogGroupSnapshot snapshot = CatalogGroupSnapshot.from(group, new CatalogSnapshotDocument(
-                List.of(new BrandRow(brand, "Samsung", null)),
+                List.of(new BrandRow(brand, "Samsung", null, null)),
                 List.of(
                         new DeviceRow(named, brand, "Galaxy A10", null, "SM-A105F", 2019, 2, List.of("a10s")),
                         new DeviceRow(popular, brand, "Galaxy A20", null, "SM-A205F", 2019, 40, List.of())),
@@ -59,7 +59,7 @@ class CatalogGroupSnapshotTest {
         UUID phone = UUID.randomUUID();
         UUID component = UUID.randomUUID();
         CatalogGroupSnapshot snapshot = CatalogGroupSnapshot.from(group, new CatalogSnapshotDocument(
-                List.of(new BrandRow(samsung, "Samsung", null), new BrandRow(apple, "Apple", null)),
+                List.of(new BrandRow(samsung, "Samsung", null, null), new BrandRow(apple, "Apple", null, null)),
                 List.of(
                         new DeviceRow(phone, samsung, "A12", null, null, null, 0, List.of()),
                         new DeviceRow(UUID.randomUUID(), apple, "iPhone 11", null, null, null, 0, List.of())),
@@ -83,7 +83,7 @@ class CatalogGroupSnapshotTest {
         UUID placeholder = UUID.randomUUID();
         UUID imported = UUID.randomUUID();
         CatalogGroupSnapshot snapshot = CatalogGroupSnapshot.from(group, new CatalogSnapshotDocument(
-                List.of(new BrandRow(brand, "Samsung", null)),
+                List.of(new BrandRow(brand, "Samsung", null, null)),
                 List.of(
                         new DeviceRow(phone, brand, "A12", null, null, null, 0, List.of()),
                         new DeviceRow(other, brand, "A13", null, null, null, 0, List.of())),

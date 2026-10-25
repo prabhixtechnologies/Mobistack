@@ -43,6 +43,7 @@ public class CatalogSnapshotLoader {
     private final CatalogDeviceAliasRepository aliases;
     private final CatalogComponentRepository components;
     private final CatalogFitmentRepository fitments;
+    private final BrandLogos logos;
 
     @Transactional(readOnly = true)
     public Map<UUID, CatalogSnapshotDocument> load() {
@@ -60,7 +61,11 @@ public class CatalogSnapshotLoader {
                 continue;
             }
             brandsByGroup.computeIfAbsent(brand.getGroupId(), id -> new ArrayList<>())
-                    .add(new BrandRow(brand.getId(), brand.getName(), brand.getLogoUrl()));
+                    .add(new BrandRow(
+                            brand.getId(),
+                            brand.getName(),
+                            brand.getLogoUrl(),
+                            logos.mark(brand.getName(), brand.getLogoUrl())));
         }
 
         Map<UUID, List<DeviceRow>> devicesByGroup = new HashMap<>();
