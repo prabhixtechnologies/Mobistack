@@ -5,6 +5,7 @@ import com.fixflow.commerce.domain.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -12,6 +13,9 @@ import java.util.UUID;
 public interface BillingOrderRepository extends JpaRepository<BillingOrder, UUID> {
 
     List<BillingOrder> findByWorkspaceIdOrderByCreatedAtDesc(UUID workspaceId);
+
+    List<BillingOrder> findByWorkspaceIdAndPriceCodeAndStatusIn(
+            UUID workspaceId, String priceCode, Collection<PaymentStatus> statuses);
 
     List<BillingOrder> findTop3ByWorkspaceIdAndStatusOrderByCreatedAtDesc(UUID workspaceId, PaymentStatus status);
 

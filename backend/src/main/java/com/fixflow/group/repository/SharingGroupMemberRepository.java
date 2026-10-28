@@ -16,4 +16,6 @@ public interface SharingGroupMemberRepository extends JpaRepository<SharingGroup
     Optional<SharingGroupMember> findByGroupIdAndUserId(UUID groupId, UUID userId);
 
     long countByGroupIdAndWorkspaceIdIsNotNull(UUID groupId);
+
+    long countByWorkspaceId(UUID workspaceId);
 }

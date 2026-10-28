@@ -34,7 +34,7 @@ import java.util.UUID;
 public class PlatformAdminService {
 
     public record WorkspaceAdminCard(UUID id, String name, String city, boolean active, long members,
-                                    int extraScreens, int screenSeats) {
+                                    int extraScreens, int screenSeats, String joinCode) {
     }
 
     private final ShopRepository shopRepository;
@@ -77,7 +77,7 @@ public class PlatformAdminService {
         return shops.stream()
                 .map(shop -> new WorkspaceAdminCard(shop.getId(), shop.getName(), shop.getCity(), shop.isActive(),
                         memberCounts.getOrDefault(shop.getId(), 0L),
-                        shop.getExtraScreens(), shop.screenSeats()))
+                        shop.getExtraScreens(), shop.screenSeats(), shop.getJoinCode()))
                 .toList();
     }
 

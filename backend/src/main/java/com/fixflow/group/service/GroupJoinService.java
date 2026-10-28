@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A shop owner types a fitment group's code, pays ₹50, and waits for that group's admin to admit
- * the shop. Until then the shop cannot read the group's compatibility.
+ * A shop owner types a fitment group's code and pays. A captured payment puts the shop in that
+ * catalog. A request stays waiting only when it was filed with no payment to spend.
  */
 @Service
 @RequiredArgsConstructor
@@ -92,11 +92,12 @@ public class GroupJoinService {
         SharingGroup group = requireGroup(request == null ? null : request.joinCode());
         UUID shopId = ownedShop(userId);
         if (members.findByGroupIdAndWorkspaceId(group.getId(), shopId).isPresent()) {
+            closePending(group.getId(), shopId);
             return new JoinState(GroupJoinRequest.ADMITTED, null, group.getId(), group.getName());
         }
         var pending = requests.findFirstByGroupIdAndWorkspaceIdAndStatus(
                 group.getId(), shopId, GroupJoinRequest.PENDING);
-        if (pending.isPresent()) {
+        if (pending.isPresent() && !billing.hasUnspentGroupJoin(userId, shopId, group.getId())) {
             GroupJoinRequest row = pending.get();
             return new JoinState(GroupJoinRequest.PENDING, row.getId(), group.getId(), group.getName());
         }
@@ -115,8 +116,14 @@ public class GroupJoinService {
             throw new ApiException(ErrorCode.ENTITLEMENT_DENIED,
                     "Choose a plan and complete payment to join this fitment group.");
         }
-        GroupJoinRequest row = savePending(userId, shopId, group.getId());
-        return new JoinState(GroupJoinRequest.PENDING, row.getId(), group.getId(), group.getName());
+        if (members.findByGroupIdAndWorkspaceId(group.getId(), shopId).isEmpty()) {
+            groupService.admitPaidShop(group.getId(), shopId);
+        }
+        billing.grantCatalog(shopId);
+        GroupJoinRequest row = pending.orElseGet(() -> savePending(userId, shopId, group.getId()));
+        row.setStatus(GroupJoinRequest.ADMITTED);
+        requests.save(row);
+        return new JoinState(GroupJoinRequest.ADMITTED, row.getId(), group.getId(), group.getName());
     }
 
     @Transactional
@@ -167,6 +174,14 @@ public class GroupJoinService {
             throw ApiException.notFound("Join request", requestId);
         }
         return row;
+    }
+
+    private void closePending(UUID groupId, UUID shopId) {
+        requests.findFirstByGroupIdAndWorkspaceIdAndStatus(groupId, shopId, GroupJoinRequest.PENDING)
+                .ifPresent(row -> {
+                    row.setStatus(GroupJoinRequest.ADMITTED);
+                    requests.save(row);
+                });
     }
 
     private GroupJoinRequest savePending(UUID userId, UUID shopId, UUID groupId) {

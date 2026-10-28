@@ -31,7 +31,7 @@ export function useShopGate(): GateKind {
   const { user, workspaces } = useAuth();
   const [groups, setGroups] = useState<FitmentGroup[] | null>(null);
   const [groupsError, setGroupsError] = useState(false);
-  const [, setPendingGroup] = useState<string | null | undefined>(undefined);
+  const [pendingGroup, setPendingGroup] = useState<string | null | undefined>(undefined);
   const active = workspaces.filter((row) => row.status === "ACTIVE");
   const shopId = selectedWorkspaceId(user);
   const open = active.find((row) => row.id === shopId) ?? active.find((row) => row.selected) ?? active[0];
@@ -94,6 +94,11 @@ export function useShopGate(): GateKind {
   }
   if (!groups && !groupsError && open) {
     return "loading";
+  }
+  if (open?.role === "OWNER" && groups && groups.length === 0) {
+    if (pendingGroup === undefined) return "loading";
+    if (pendingGroup) return "waitingUnion";
+    return "joinUnion";
   }
   return "ready";
 }
@@ -213,7 +218,19 @@ function CreateShop({ onBack }: { onBack: () => void }) {
   );
 }
 
-function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | null }) {
+export function JoinAnotherCatalogPage() {
+  return <CodeJoin group another onBack={null} />;
+}
+
+function CodeJoin({
+  group,
+  another = false,
+  onBack,
+}: {
+  group: boolean;
+  another?: boolean;
+  onBack: (() => void) | null;
+}) {
   const { user, refreshUser, refreshWorkspaces } = useAuth();
   const [code, setCode] = useState("");
   const [planCode, setPlanCode] = useState<"COMPATIBILITY" | "FULL_SHOP">("COMPATIBILITY");
@@ -247,6 +264,9 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
       });
       await refreshUser();
       await refreshWorkspaces();
+      if (group) {
+        window.location.assign("/commons");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not join";
       setError(message);
@@ -260,11 +280,13 @@ function CodeJoin({ group, onBack }: { group: boolean; onBack: (() => void) | nu
 
   return (
     <Journey
-      title={group ? "Join the union" : "Join a shop"}
+      title={another ? "Join another catalog" : group ? "Join the union" : "Join a shop"}
       body={
-        group
-          ? "Enter the union code, then choose the MobiStack plan that fits your shop."
-          : "Enter the code from that shop. A real code opens payment of ₹50."
+        another
+          ? "This shop is already in one catalog. Enter the other catalog's code and pay to open that one as well. Payment puts the shop in. It does not wait for an admin."
+          : group
+            ? "Enter the union code, then choose the MobiStack plan. Payment puts this shop in that catalog."
+            : "Enter the code from that shop. A real code opens payment of ₹50."
       }
     >
       <form className="journey-form" onSubmit={(event) => void onSubmit(event)}>

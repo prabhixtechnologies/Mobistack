@@ -13,7 +13,7 @@ import { RequirePermission, RequirePlatformAdmin } from "./ui/PermissionGate";
 import { LoginPage } from "./pages/LoginPage";
 import { loginPathFor } from "./lib/safePath";
 import { OidcCallbackPage } from "./pages/OidcCallbackPage";
-import { ShopJourneyPage, useShopGate } from "./pages/ShopJourneyPage";
+import { JoinAnotherCatalogPage, ShopJourneyPage, useShopGate } from "./pages/ShopJourneyPage";
 import { WorkspacesPage } from "./pages/WorkspacesPage";
 import { ForcePasswordChangePage } from "./pages/ForcePasswordChangePage";
 import { SecuritySignInPage } from "./pages/SecuritySignInPage";
@@ -219,6 +219,7 @@ function SignedIn({ user }: { user: NonNullable<ReturnType<typeof useAuth>["user
             <Route path="/" element={home === "/" ? <DashboardPage /> : <Navigate to={home} replace />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/commons" element={<CommonsBrowsePage />} />
+            <Route path="/join-catalog" element={<JoinAnotherCatalogPage />} />
             <Route path="/commons/devices/:id" element={<CommonsDevicePage />} />
             <Route path="/commons/components/:id" element={<CommonsComponentPage />} />
             <Route path="/commons/categories/:code" element={<LegacyCommonsRedirect />} />

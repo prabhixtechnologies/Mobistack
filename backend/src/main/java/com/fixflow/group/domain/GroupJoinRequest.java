@@ -12,8 +12,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A shop asking to share one fitment group's compatibility. Payment is captured before this row
- * is pending. An owner or admin of the group admits it; until then the shop cannot read the group.
+ * A shop asking to share one fitment group's compatibility. A captured payment admits the shop.
+ * A row stays pending only when it was filed with no payment to spend.
  */
 @Getter
 @Setter

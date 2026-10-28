@@ -18,6 +18,7 @@ import com.fixflow.billing.repository.WorkspaceEntitlementRepository;
 import com.fixflow.commerce.domain.PaymentStatus;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.notify.NotificationService;
 import com.fixflow.security.CurrentUser;
 import com.fixflow.security.Permission;
@@ -95,6 +96,7 @@ public class BillingService {
     private final com.fixflow.notify.WorkspaceNotifier notifier;
     private final PlanService planService;
     private final ScreenSeatService screenSeatService;
+    private final SharingGroupService sharingGroups;
 
     public static final String CATALOG = "CATALOG";
     public static final String SALES = "SALES";
@@ -173,6 +175,7 @@ public class BillingService {
         order.setCurrency(price.getCurrency());
         order.setStatus(PaymentStatus.CREATED);
         order.setEntitlementCode(price.getEntitlement());
+        closeOpenCheckouts(workspaceId, storedCode, null);
 
         if (razorpayGateway.configured()) {
             Map<String, String> notes = new LinkedHashMap<>();
@@ -374,6 +377,7 @@ public class BillingService {
         order.setCurrency(price.getCurrency());
         order.setStatus(PaymentStatus.CREATED);
         order.setEntitlementCode(price.getEntitlement());
+        closeOpenCheckouts(workspaceId, price.getCode(), null);
 
         if (razorpayGateway.configured()) {
             Map<String, String> notes = new LinkedHashMap<>();
@@ -429,6 +433,7 @@ public class BillingService {
         order.setCurrency(price.getCurrency());
         order.setStatus(PaymentStatus.CREATED);
         order.setEntitlementCode(price.getEntitlement());
+        closeOpenCheckouts(workspaceId, price.getCode(), null);
 
         if (razorpayGateway.configured()) {
             Map<String, String> notes = new LinkedHashMap<>();
@@ -790,6 +795,7 @@ public class BillingService {
         order.setGatewayPaymentId(paymentId);
         order.setUpdatedAt(Instant.now());
         orderRepository.save(order);
+        closeOpenCheckouts(order.getWorkspaceId(), order.getPriceCode(), order.getId());
         UUID workspaceId = order.getWorkspaceId();
         if (ScreenSeatService.EXTRA_SCREEN_RENEW.equals(order.getPriceCode())
                 || ScreenSeatService.EXTRA_SCREEN_RENEW.equals(order.getPurpose())) {
@@ -817,6 +823,7 @@ public class BillingService {
         if (JOIN_PRICE.equals(order.getPriceCode()) || "MEMBER_ADD".equals(order.getPriceCode())) {
             grantOne(workspaceId, order.getEntitlementCode(), periodEnd, order.getId());
         }
+        admitPaidCatalog(order);
         auditService.record(AuditAction.PAYMENT_CAPTURED, "BillingOrder", order.getId(),
                 "Captured billing order " + order.getPriceCode());
         notifyOwner(workspaceId, "PAYMENT_RECEIVED",
@@ -824,6 +831,52 @@ public class BillingService {
                 "MobiStack recorded payment for " + readableCode(order.getPriceCode())
                         + ". It stays on until " + readableDate(periodEnd) + ".");
         return order;
+    }
+
+    /**
+     * A later checkout or a captured payment retires the unpaid attempts for that same price.
+     * Those rows are abandoned Razorpay orders, not a second bill.
+     */
+    private void closeOpenCheckouts(UUID workspaceId, String priceCode, UUID keepId) {
+        if (workspaceId == null || priceCode == null || priceCode.isBlank()) {
+            return;
+        }
+        List<BillingOrder> open = orderRepository.findByWorkspaceIdAndPriceCodeAndStatusIn(
+                workspaceId, priceCode, List.of(PaymentStatus.CREATED, PaymentStatus.PENDING, PaymentStatus.AUTHORIZED));
+        for (BillingOrder other : open) {
+            if (keepId != null && keepId.equals(other.getId())) {
+                continue;
+            }
+            other.setStatus(PaymentStatus.EXPIRED);
+            other.setUpdatedAt(Instant.now());
+            orderRepository.save(other);
+        }
+    }
+
+    /**
+     * The payment named a catalog, so the shop joins that one. A plain catalog plan with no
+     * catalog yet joins the original fitment catalog. A second catalog stays a separate join.
+     */
+    private void admitPaidCatalog(BillingOrder order) {
+        if (order.getWorkspaceId() == null) {
+            return;
+        }
+        String purpose = order.getPurpose();
+        if (purpose != null && purpose.startsWith(GROUP_JOIN_PREFIX)) {
+            String raw = purpose.substring(GROUP_JOIN_PREFIX.length());
+            try {
+                sharingGroups.admitPaidShop(UUID.fromString(raw), order.getWorkspaceId());
+            } catch (IllegalArgumentException ex) {
+                log.warn("Paid group join {} did not name a catalog", purpose);
+            }
+            return;
+        }
+        String code = order.getPriceCode();
+        if ("CATALOG".equals(order.getEntitlementCode())
+                || "WORKSPACE_ACTIVATION".equals(code)
+                || "WORKSPACE_MONTHLY".equals(code)) {
+            sharingGroups.admitDefaultCatalogIfNone(order.getWorkspaceId());
+        }
     }
 
     private void grantOne(UUID workspaceId, String code, Instant expiresAt, UUID orderId) {

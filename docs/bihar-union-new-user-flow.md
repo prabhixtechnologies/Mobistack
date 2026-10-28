@@ -14,7 +14,7 @@ Bihar mobile union is one fitment group. A fitment row (this part fits this phon
 6. **Join the union** — the union code, shown after their own shop exists. A recognized code opens payment.
 7. **Choose a plan** — Compatibility ₹50/month, or Full Inventory Management ₹499/month.
 8. **Payment** — Razorpay opens only after the code and plan are selected. This is the plan payment, not a separate joining fee.
-9. **Waiting** — payment is captured, and the owner or a union admin has not approved yet.
+9. **Catalog** — payment is captured, and the shop is in that one catalog. Another catalog is a separate page.
 10. **Compatibility** — the union's phones and parts.
 
 | After Identity returns | Next screen |
@@ -24,7 +24,7 @@ Bihar mobile union is one fitment group. A fitment row (this part fits this phon
 | They created a shop, and it is not in the union yet | **Join the union**. |
 | Code was accepted, payment not captured | Stay on the join screen they came from. Payment opens when they submit again. |
 | Paid to enter an existing shop, owner has not approved | **Waiting** for that shop. |
-| Paid to put their own shop in the union, admin has not admitted it | **Waiting** for the union. |
+| Paid to put their own shop in the union | **Compatibility**. The payment admits the shop. |
 | The open shop is a member of Bihar mobile union | **Compatibility**. |
 | The open shop is in several groups and none is selected | **Group picker**, then Compatibility. |
 | Signed out | **Welcome**. |
@@ -123,7 +123,7 @@ Shown only once their own shop exists and is not in Bihar mobile union yet. The 
 | Razorpay reports a failure | Back here. Say the payment did not go through and nothing was charged. |
 | Signature does not match | Stay. "Payment signature did not match." |
 | Razorpay is not configured | Stay. Payment is unavailable; do not create an unpaid request. |
-| Captured | **Waiting** for a union admin. It checks again every 30 seconds, on Check again, and when the app comes back to the front. |
+| Captured | The shop is a member of that catalog. **Compatibility** opens. A second catalog is Join another catalog, and that payment admits the shop too. |
 | They cancel while waiting | Withdraw the request. Put the ₹50 back. Return here. |
 | Union admin admits the shop | The shop is a `MEMBER`. Next refresh opens **Compatibility**. |
 | Union admin refuses | Return here. A later try can pay again. |

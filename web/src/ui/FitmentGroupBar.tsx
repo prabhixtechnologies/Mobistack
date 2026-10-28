@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import {
   canManageGroup,
@@ -93,6 +94,9 @@ export function FitmentGroupBar({
           New group
         </button>
       )}
+      <Link className={`btn ghost${compact ? " sm" : ""}`} to="/join-catalog">
+        Join another catalog
+      </Link>
       {issuedCode && (
         <p className="faint">
           Join ID <strong>{issuedCode}</strong>. Forward it to anyone who should see this group's phones and parts.

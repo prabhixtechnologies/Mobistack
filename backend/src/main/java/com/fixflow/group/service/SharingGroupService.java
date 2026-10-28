@@ -156,6 +156,37 @@ public class SharingGroupService {
         return admitShop(group, shop);
     }
 
+    /**
+     * A captured plan payment. The shop is in this catalog; a group admin does not have to admit it.
+     */
+    @Transactional
+    public void admitPaidShop(UUID groupId, UUID workspaceId) {
+        if (groupId == null || workspaceId == null) {
+            return;
+        }
+        if (members.findByGroupIdAndWorkspaceId(groupId, workspaceId).isPresent()) {
+            return;
+        }
+        SharingGroup group = groups.findById(groupId).orElse(null);
+        Shop shop = shops.findById(workspaceId).orElse(null);
+        if (group == null || shop == null) {
+            return;
+        }
+        admitShop(group, shop);
+    }
+
+    /**
+     * The first paid plan opens the original catalog. A shop already in a catalog stays there;
+     * another catalog is a separate join.
+     */
+    @Transactional
+    public void admitDefaultCatalogIfNone(UUID workspaceId) {
+        if (workspaceId == null || members.countByWorkspaceId(workspaceId) > 0) {
+            return;
+        }
+        admitPaidShop(SharingGroup.DEFAULT_ID, workspaceId);
+    }
+
     private MemberCard admitShop(SharingGroup group, Shop shop) {
         if (members.findByGroupIdAndWorkspaceId(group.getId(), shop.getId()).isPresent()) {
             throw ApiException.alreadyExists(shop.getName() + " is already in this group.");

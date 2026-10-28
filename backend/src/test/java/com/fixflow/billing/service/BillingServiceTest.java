@@ -12,6 +12,7 @@ import com.fixflow.billing.repository.WorkspaceEntitlementRepository;
 import com.fixflow.commerce.domain.PaymentStatus;
 import com.fixflow.common.error.ApiException;
 import com.fixflow.common.error.ErrorCode;
+import com.fixflow.group.service.SharingGroupService;
 import com.fixflow.notify.MailGateway;
 import com.fixflow.notify.NotificationService;
 import com.fixflow.shop.repository.ShopRepository;
@@ -68,6 +69,8 @@ class BillingServiceTest {
     private PlanService planService;
     @Mock
     private ScreenSeatService screenSeatService;
+    @Mock
+    private SharingGroupService sharingGroups;
 
     private BillingService billingService;
 
@@ -75,7 +78,8 @@ class BillingServiceTest {
     void setUp() {
         billingService = new BillingService(priceRepository, orderRepository, entitlementRepository,
                 webhookEventRepository, auditService, environment, razorpayGateway, notificationService,
-                shopRepository, userRepository, mailGateway, notifier, planService, screenSeatService);
+                shopRepository, userRepository, mailGateway, notifier, planService, screenSeatService,
+                sharingGroups);
     }
 
     @Test
@@ -115,6 +119,35 @@ class BillingServiceTest {
         verify(orderRepository).save(saved.capture());
         assertThat(saved.getValue().getPriceCode()).isEqualTo("WORKSPACE_ACTIVATION");
         assertThat(saved.getValue().getPurpose()).isEqualTo(BillingService.groupJoinPurpose(groupId));
+    }
+
+    @Test
+    void aNewCheckoutExpiresThePreviousOpenOrder() {
+        UUID workspaceId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID groupId = UUID.randomUUID();
+        BillingPrice price = new BillingPrice();
+        price.setCode("WORKSPACE_ACTIVATION");
+        price.setAmount(new BigDecimal("50.00"));
+        price.setCurrency("INR");
+        price.setEntitlement("CATALOG");
+        BillingOrder open = new BillingOrder();
+        open.setWorkspaceId(workspaceId);
+        open.setPriceCode("WORKSPACE_ACTIVATION");
+        open.setStatus(PaymentStatus.PENDING);
+        when(planService.listSellable()).thenReturn(List.of(
+                new PlanService.PlanCard(UUID.randomUUID(), "COMPATIBILITY", "Compatibility", "",
+                        new BigDecimal("50.00"), "INR", "MONTHLY", 10, true,
+                        List.of("COMPATIBILITY"), price.getCode())));
+        when(priceRepository.findByCodeAndActiveTrue("COMPATIBILITY")).thenReturn(Optional.empty());
+        when(priceRepository.findByCodeAndActiveTrue(price.getCode())).thenReturn(Optional.of(price));
+        when(environment.acceptsProfiles(any(Profiles.class))).thenReturn(false);
+        when(orderRepository.findByWorkspaceIdAndPriceCodeAndStatusIn(any(), any(), any()))
+                .thenReturn(List.of(open));
+
+        billingService.createGroupJoinOrder(userId, workspaceId, groupId, "COMPATIBILITY");
+
+        assertThat(open.getStatus()).isEqualTo(PaymentStatus.EXPIRED);
     }
 
     @Test
