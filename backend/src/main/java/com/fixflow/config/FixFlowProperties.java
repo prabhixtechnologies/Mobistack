@@ -178,10 +178,10 @@ public class FixFlowProperties {
     public static class Updates {
         private String expoUpdatesUrl = "";
         private String androidDownloadUrl = "https://store.prabhixtechnologies.com/mobistack/android.apk";
-        private String iosDownloadUrl = "https://mobistack.prabhixtechnologies.com/download/ios";
-        /** Legacy local path; Android is no longer served from this host. */
+        private String iosDownloadUrl = "https://store.prabhixtechnologies.com/mobistack/ios.ipa";
+        /** Legacy local path. Packages are served from the company store, not this host. */
         private String androidApkPath = "/var/mobistack/downloads/MobiStack.apk";
-        /** File served at /download/ios. Directory is also accepted. */
+        /** Legacy local path. The IPA is served from the company store. */
         private String iosIpaPath = "/var/mobistack/downloads/MobiStack.ipa";
     }
 }

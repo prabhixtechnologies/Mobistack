@@ -95,8 +95,9 @@ function Hub({ catalog, error }: { catalog: Catalog | null; error: string | null
     <>
       <h1>Get the {BRAND.product} app</h1>
       <p className="muted">
-        Direct downloads from {BRAND.organization}. Android installs come from the company store.
-        iOS needs a signed package from your shop.
+        Direct downloads from {BRAND.organization}. Android installs from the company store.
+        The iOS file is an unsigned test build: install it with Sideloadly and a free Apple ID.
+        It opens for 7 days.
       </p>
       {error && <div className="banner banner-warn">Download availability could not be checked. The direct links still work.</div>}
       <div className="app-dl__grid">
@@ -126,7 +127,7 @@ function PlatformCard({
       <h1>{ios ? "iOS" : "Android"} app</h1>
       <p className="muted">
         {ios
-          ? "This link serves the signed iOS package when one is published. iPhones cannot install a raw IPA the way Android installs an APK — use your shop provisioning or TestFlight if the file is not trusted on the device."
+          ? "This is an unsigned test build on the company store. An iPhone will not install it from Safari. On a computer, use Sideloadly with a free Apple ID. The app opens for 7 days, then install the same file again."
           : "Android packages are published on the Prabhix company store. Open the download on the phone and allow installs from the browser if Android asks."}
       </p>
       {error && <div className="banner banner-warn">Download availability could not be checked. The direct link still works.</div>}
@@ -170,7 +171,7 @@ function PackageCard({ kind, pkg }: { kind: "android" | "ios"; pkg?: PackageInfo
   return (
     <article className="card app-dl__card">
       <h2>{ios ? "iOS" : "Android"}</h2>
-      <p className="muted">{ios ? "Signed IPA when published" : "Company store APK"}</p>
+      <p className="muted">{ios ? "Unsigned test IPA on the company store" : "Company store APK"}</p>
       <p className="app-dl__url">
         <code title={displayUrl(href)}>{displayUrl(href)}</code>
         <CopyUrlButton value={displayUrl(href)} />
